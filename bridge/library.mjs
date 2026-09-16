@@ -105,6 +105,26 @@ export function library(config, safeFile) {
       await unlink(stored); await unlink(recordPath);
       return { restored: true };
     }),
+    async modelInfo(kind, name) {
+      const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"] }[kind];
+      if (!folders || !config.modelsRoot || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Modèle inconnu", 404);
+      if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
+      const clean = value => typeof value === "string" ? value.replace(/<[^>]*>/g, " ").slice(0, 6000).trim() : "";
+      for (const folder of folders) {
+        const base = path.join(config.modelsRoot, folder);
+        for (const stem of [name.replace(/\.[^.]+$/, ""), name]) for (const suffix of [".cm-info.json", ".civitai.info", ".json"]) {
+          let file;
+          try { const resolvedBase = await realpath(base); file = inside(resolvedBase, await realpath(path.join(resolvedBase, stem + suffix))); if (!(await stat(file)).isFile()) throw fail("Métadonnées invalides", 403); }
+          catch (e) { if (e.code === "ENOENT") continue; throw e; }
+          if ((await stat(file)).size > 2 * 1024 ** 2) throw fail("Métadonnées trop volumineuses", 413);
+          let data; try { data = JSON.parse(await readFile(file, "utf8")); } catch { throw fail("Métadonnées illisibles", 422); }
+          if (!data || typeof data !== "object") throw fail("Métadonnées invalides", 422);
+          const words = data.TrainedWords ?? data.trainedWords ?? [];
+          return { title: clean(data.UserTitle || data.ModelName || data.model?.name), version: clean(data.VersionName || data.name), baseModel: clean(data.BaseModel || data.baseModel), description: clean(data.VersionDescription || data.ModelDescription || data.description), triggers: Array.isArray(words) ? words.filter(w => typeof w === "string" && w.length <= 200).slice(0, 100) : [], tags: Array.isArray(data.Tags) ? data.Tags.filter(w => typeof w === "string").slice(0, 30).map(clean) : [] };
+        }
+      }
+      return { title: "", version: "", baseModel: "", description: "", triggers: [], tags: [] };
+    },
     async preview(kind, name) {
       const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"], vae: ["VAE"], upscalers: ["ESRGAN", "RealESRGAN", "SwinIR"] }[kind];
       if (!folders || !config.modelsRoot || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Illustration indisponible", 404);

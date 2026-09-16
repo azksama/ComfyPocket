@@ -3,12 +3,15 @@ package fr.azk.pocket
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
+import android.os.SystemClock
 import android.os.Build
 import android.view.WindowManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import android.content.ContentValues
 import android.os.Environment
 import android.provider.MediaStore
@@ -26,21 +29,36 @@ class SaveArgs { lateinit var path: String; lateinit var filename: String; latei
 @InvokeArg
 class LockArgs { var enabled: Boolean = false }
 
+@InvokeArg
+class LockOptionsArgs { var delaySeconds: Long = 0; var hideRecents: Boolean = true }
+
 @TauriPlugin
 class PocketPlugin(private val activity: Activity): Plugin(activity) {
  private val worker = Executors.newSingleThreadExecutor()
  private val preferences = activity.getSharedPreferences("pocket-lock", Context.MODE_PRIVATE)
  @Volatile private var unlocked = false
  private var authenticating = false
+ @Volatile private var backgroundAt: Long = -1
+ private val delaySeconds get() = preferences.getLong("delaySeconds", 0)
+ private fun expire() { if (enabled && backgroundAt >= 0 && SystemClock.elapsedRealtime() - backgroundAt >= delaySeconds * 1000) unlocked = false }
  private val enabled get() = preferences.getBoolean("enabled", false)
  private val authenticators get() = (if (Build.VERSION.SDK_INT >= 30) BiometricManager.Authenticators.BIOMETRIC_STRONG else BiometricManager.Authenticators.BIOMETRIC_WEAK) or BiometricManager.Authenticators.DEVICE_CREDENTIAL
  private fun available() = (activity.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure && BiometricManager.from(activity).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
- private fun status() = JSObject().put("supported", true).put("available", available()).put("enabled", enabled).put("unlocked", !enabled || unlocked)
- private fun protectRecents() { if (enabled) activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
- override fun onResume() { protectRecents() }
- override fun onPause() { if (enabled) unlocked = false }
+ private fun status(): JSObject { expire(); return JSObject().put("supported", true).put("available", available()).put("enabled", enabled).put("unlocked", !enabled || unlocked).put("delaySeconds", delaySeconds).put("hideRecents", preferences.getBoolean("hideRecents", true)) }
+ private fun protectRecents() {
+  activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+  if (Build.VERSION.SDK_INT >= 33) activity.setRecentsScreenshotEnabled(!enabled || !preferences.getBoolean("hideRecents", true))
+ }
+ init {
+  (activity as? LifecycleOwner)?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
+   override fun onPause(owner: LifecycleOwner) { this@PocketPlugin.onPause() }
+   override fun onResume(owner: LifecycleOwner) { this@PocketPlugin.onResume() }
+  })
+ }
+ override fun onResume() { expire(); backgroundAt = -1; protectRecents() }
+ override fun onPause() { if (enabled && backgroundAt < 0) { backgroundAt = SystemClock.elapsedRealtime(); expire() } }
  @Command fun lockStatus(invoke: Invoke) { activity.runOnUiThread { protectRecents(); invoke.resolve(status()) } }
- @Command fun assertUnlocked(invoke: Invoke) { if (enabled && !unlocked) invoke.reject("Application verrouillée") else invoke.resolve(JSObject()) }
+ @Command fun assertUnlocked(invoke: Invoke) { expire(); if (enabled && !unlocked) invoke.reject("Application verrouillée") else invoke.resolve(JSObject()) }
  @Command fun lockSession(invoke: Invoke) { if (enabled) unlocked = false; invoke.resolve(status()) }
  private fun authenticate(invoke: Invoke, change: Boolean?) {
   activity.runOnUiThread {
@@ -52,7 +70,7 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
      authenticating = false
      if (change != null && !preferences.edit().putBoolean("enabled", change).commit()) { unlocked = false; invoke.reject("Le réglage ne peut pas être enregistré"); return }
-     unlocked = true; protectRecents(); invoke.resolve(status())
+     unlocked = true; backgroundAt = -1; protectRecents(); invoke.resolve(status())
     }
     override fun onAuthenticationError(code: Int, message: CharSequence) { authenticating = false; invoke.reject(message.toString()) }
    })
@@ -61,6 +79,14 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
    } catch (e: Exception) { authenticating = false; invoke.reject(e.message ?: "Authentification indisponible") }
   }
  }
+ @Command fun setLockOptions(invoke: Invoke) { activity.runOnUiThread {
+  expire()
+  if (enabled && !unlocked) { invoke.reject("Application verrouillée"); return@runOnUiThread }
+  val args = invoke.parseArgs(LockOptionsArgs::class.java)
+  if (args.delaySeconds !in listOf(0L, 30L, 60L, 300L, 900L)) { invoke.reject("Délai invalide"); return@runOnUiThread }
+  if (!preferences.edit().putLong("delaySeconds", args.delaySeconds).putBoolean("hideRecents", args.hideRecents).commit()) { invoke.reject("Enregistrement impossible"); return@runOnUiThread }
+  protectRecents(); invoke.resolve(status())
+ } }
  @Command fun unlock(invoke: Invoke) { if (!enabled) invoke.resolve(status()) else authenticate(invoke, null) }
  @Command fun setBiometricLock(invoke: Invoke) { authenticate(invoke, invoke.parseArgs(LockArgs::class.java).enabled) }
  @Command

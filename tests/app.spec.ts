@@ -14,6 +14,58 @@ const info = {
   CLIPSetLastLayer: {}, CLIPTextEncode: {}, EmptyLatentImage: {}, VAEDecode: {}, SaveImage: {},
 };
 const png = "data:image/png;base64," + readFileSync("tests/fixtures/parameters.png").toString("base64");
+
+test("v5 prompt history blocks and conflict checker work together", async ({ page }) => {
+  await connect(page); await prompt(page, "sun, lake");
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await page.getByRole("tab", { name: /Négatif/ }).click();
+  await page.getByRole("textbox", { name: "Prompt négatif", exact: true }).fill("sun");
+  await page.getByRole("button", { name: /Vérifier/ }).click();
+  await expect(page.getByText("« sun » apparaît dans le positif et le négatif.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Écrire votre image" })).toBeVisible();
+  await page.getByRole("button", { name: "Blocs", exact: true }).click();
+  await page.getByRole("button", { name: "Nouveau bloc" }).click();
+  const edit = page.getByRole("dialog", { name: "Éditer le bloc" });
+  await edit.getByLabel("Titre", { exact: true }).fill("Lumière");
+  await edit.getByRole("textbox", { name: "Positif", exact: true }).fill("soft_light");
+  await edit.getByRole("textbox", { name: "Négatif", exact: true }).fill("");
+  await edit.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await page.getByRole("button", { name: "Insérer", exact: true }).click();
+  await page.getByRole("tab", { name: /Positif/ }).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake, soft_light, ");
+  await page.getByRole("button", { name: "Historique", exact: true }).click();
+  await page.getByRole("button", { name: "Restaurer", exact: true }).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
+  await page.screenshot({ path: "../verification/v0.5/prompt-tools.png" });
+  await page.getByRole("button", { name: "Terminé", exact: true }).click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("prompt-blocks-v1")!)[0].title)).toBe("Lumière");
+});
+
+test("v5 preset image and local LoRA metadata", async ({ page }) => {
+  await connect(page);
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles("tests/fixtures/parameters.png");
+  await expect(page.getByText(/Paramètres chargés depuis l’image ·/)).toBeVisible();
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await page.getByRole("button", { name: "Nouveau preset", exact: true }).click();
+  await page.getByLabel("Titre du preset").fill("Image source");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.locator(".preset-thumbnail")).toBeVisible();
+  expect(await page.locator(".preset-thumbnail").getAttribute("src")).toMatch(/^data:image\/jpeg;base64,/);
+  await page.getByRole("dialog", { name: "Mes presets" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await openCards(page);
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.getByRole("button", { name: "Fiche film", exact: true }).click();
+  await expect(page.getByText("SD 1.5 · v1", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "film_grain", exact: true }).click();
+  await page.getByLabel("Mes notes").fill("Poids 0.7");
+  await page.getByRole("button", { name: "Enregistrer les notes" }).click();
+  await expect(page.getByText("Notes enregistrées sur cet appareil.")).toBeVisible();
+  await page.screenshot({ path: "../verification/v0.5/lora-details.png" });
+  await page.getByRole("button", { name: "Ajouter ce LoRA" }).click();
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
+});
 test.beforeEach(async ({ page }) => {
   let profiles: any[] = [], active = "", submissions: any[] = [];
   let items = ["lake.png", "forest.png", "mountain.png"].map((name, i) => ({ root: 0, relative: name, name, folder: "ComfyUI", modified: Date.now() - i, size: 123, favorite: false }));
@@ -40,6 +92,7 @@ test.beforeEach(async ({ page }) => {
       else if (p === "/api/object_info") value = info;
       else if (p === "/bridge/info") value = { version: 2, roots: [{ id: 0, name: "ComfyUI" }] };
       else if (p === "/bridge/model-favorites") { if (args.body) { const { kind, name, favorite } = args.body; modelFavorites[kind] = favorite ? [...modelFavorites[kind], name] : modelFavorites[kind].filter(n => n !== name); } value = modelFavorites; }
+      else if (u.pathname === "/bridge/model-info") value = { title: "Film", version: "v1", baseModel: "SD 1.5", triggers: ["film_grain"], tags: ["style"], description: "Film texture" };
       else if (p === "/api/queue") value = { queue_running: [], queue_pending: [] };
       else if (p.startsWith("/bridge/events")) value = { events: [], seq: 0, connected: true };
       else if (p === "/api/prompt") { submissions.push(args.body); value = { prompt_id: "test-job-" + submissions.length }; }
@@ -118,10 +171,10 @@ test("gallery swipe navigation, favorite, trash and restore", async ({ page }) =
     const box = (await stage.boundingBox())!, x = box.x + box.width / 2, y = box.y + box.height / 2;
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y + dy, { steps: 10 }); await page.mouse.up();
   }
-  await swipe(-120, 0); await expect(page.locator(".viewer-caption")).toContainText("forest.png");
-  await swipe(0, 140); await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await swipe(0, -120); await expect(page.locator(".viewer-caption")).toContainText("forest.png");
+  await swipe(140, 0); await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true })).toBeEnabled();
-  await swipe(0, -150); await expect(page.locator(".viewer-caption")).toContainText("mountain.png");
+  await swipe(-150, 0); await expect(page.locator(".viewer-caption")).toContainText("mountain.png");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Corbeille", exact: true }).click();
   await expect(page.locator(".trash-row")).toContainText("forest.png");
@@ -434,13 +487,13 @@ test("v4 vertical gesture feedback and decoded neighbour survive image handoff",
   const stage = page.locator(".viewer-stage");
   await expect(page.locator(".adjacent-image")).toHaveCount(1);
   await page.locator(".adjacent-image").evaluate(el => (el as HTMLElement).dataset.decodedIdentity = "next");
-  await page.mouse.move(190, 400); await page.mouse.down(); await page.mouse.move(190, 460, { steps: 6 });
+  await page.mouse.move(190, 400); await page.mouse.down(); await page.mouse.move(250, 400, { steps: 6 });
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "favorite"); await expect(page.locator(".gesture-action")).toBeVisible();
-  await page.mouse.move(190, 340, { steps: 6 });
+  await page.mouse.move(130, 400, { steps: 6 });
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "trash");
   await page.screenshot({ path: "../verification/v0.4/geste-corbeille.png" });
   await page.mouse.up(); await page.waitForTimeout(250);
-  await page.mouse.move(280, 400); await page.mouse.down(); await page.mouse.move(100, 400, { steps: 10 }); await page.mouse.up();
+  await page.mouse.move(190, 500); await page.mouse.down(); await page.mouse.move(190, 320, { steps: 10 }); await page.mouse.up();
   await expect(page.locator(".viewer-caption")).toContainText("forest.png");
   await expect(page.locator(".full-image")).toHaveAttribute("data-decoded-identity", "next");
   expect(await stage.locator(".viewer-rail").evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m41)).toBe(0);

@@ -2,12 +2,16 @@ import { cp, mkdir, mkdtemp } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 const root = process.cwd(),
-  stage = path.join(await mkdtemp(path.resolve("../../work/source-package-v4-")), "ComfyPocket");
+  stage = path.join(await mkdtemp(path.resolve("../../work/source-package-v5-")), "ComfyPocket");
 const excluded = new Set([
   "node_modules",
   "target",
   "dist",
   ".gradle",
+  ".cxx",
+  ".kotlin",
+  ".tauri",
+  ".idea",
   "build",
   "jniLibs",
   ".bridge",
@@ -28,7 +32,9 @@ await cp(root, stage, {
           excluded.has(s) ||
           s.endsWith(".tsbuildinfo") ||
           s.endsWith(".apk") ||
-          s.endsWith(".jks"),
+          /\.(?:jks|keystore|pem|key|pfx|p12)$/.test(s) ||
+          /^(?:pairing|Appairage).*\.json$/i.test(s) ||
+          s === ".env" || s.startsWith(".env."),
       ),
 });
 execFileSync(

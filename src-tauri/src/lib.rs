@@ -1,5 +1,5 @@
 mod biometrics;
-use biometrics::{lock_status, unlock, lock_session, set_biometric_lock};
+use biometrics::{lock_status, unlock, lock_session, set_biometric_lock, set_lock_options};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
 use std::{sync::Mutex, time::Duration};
@@ -344,7 +344,7 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_pocket::init())
         .invoke_handler(tauri::generate_handler![
-            lock_status, unlock, lock_session, set_biometric_lock,
+            lock_status, unlock, lock_session, set_biometric_lock, set_lock_options,
             connect, restore, disconnect, api, image, save_image,
             list_profiles, get_profile, save_profile, activate_profile, delete_profile
         ])

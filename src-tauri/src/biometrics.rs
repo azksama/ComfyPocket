@@ -40,3 +40,12 @@ pub async fn set_biometric_lock(app: tauri::AppHandle, enabled: bool) -> Result<
     #[cfg(not(target_os = "android"))]
     { let _ = (app, enabled); Err("Disponible sur Android uniquement".into()) }
 }
+
+#[tauri::command]
+pub async fn set_lock_options(app: tauri::AppHandle, delay_seconds: u64, hide_recents: bool) -> Result<serde_json::Value, String> {
+    guard(&app).await?;
+    #[cfg(target_os = "android")]
+    return call(&app, "setLockOptions", serde_json::json!({"delaySeconds":delay_seconds,"hideRecents":hide_recents})).await;
+    #[cfg(not(target_os = "android"))]
+    { let _ = (app, delay_seconds, hide_recents); Err("Disponible sur Android uniquement".into()) }
+}

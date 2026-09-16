@@ -1,12 +1,13 @@
 import { normalizeSettings, parseWorkflow, type Settings } from "./workflow";
 import type { Workflow } from "./api";
-export interface InferencePreset { id: string; name: string; createdAt: number; settings: Settings; mode: "simple" | "workflow"; workflow: Workflow | null }
+export interface InferencePreset { thumbnail?: string; id: string; name: string; createdAt: number; settings: Settings; mode: "simple" | "workflow"; workflow: Workflow | null }
 const key = "inference-presets-v1";
 export function parsePreset(input: unknown): InferencePreset {
   if (!input || typeof input !== "object") throw Error("Preset invalide.");
   const p = input as Record<string, unknown>;
   if (typeof p.name !== "string" || !p.name.trim() || p.name.length > 80 || !p.settings || typeof p.settings !== "object" || !["simple", "workflow"].includes(String(p.mode))) throw Error("Le preset doit contenir un titre et des paramètres d’inférence.");
-  return { id: typeof p.id === "string" && p.id.length < 100 ? p.id : crypto.randomUUID(), name: p.name.trim(), createdAt: typeof p.createdAt === "number" ? p.createdAt : Date.now(), settings: normalizeSettings(p.settings), mode: p.mode as "simple" | "workflow", workflow: p.mode === "workflow" ? parseWorkflow(JSON.stringify(p.workflow)) : null };
+  const thumbnail = typeof p.thumbnail === "string" && p.thumbnail.length <= 80000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p.thumbnail) ? p.thumbnail : undefined;
+  return { thumbnail, id: typeof p.id === "string" && p.id.length < 100 ? p.id : crypto.randomUUID(), name: p.name.trim(), createdAt: typeof p.createdAt === "number" ? p.createdAt : Date.now(), settings: normalizeSettings(p.settings), mode: p.mode as "simple" | "workflow", workflow: p.mode === "workflow" ? parseWorkflow(JSON.stringify(p.workflow)) : null };
 }
 export function readPresets(): InferencePreset[] {
   const value = JSON.parse(localStorage.getItem(key) ?? "[]");

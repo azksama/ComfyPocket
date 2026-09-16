@@ -214,6 +214,7 @@ export function createBridge(config) {
             version: 3,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
+        if (req.method === "GET" && url.pathname === "/bridge/model-info") return json(res, 200, await lib.modelInfo(url.searchParams.get("kind"), url.searchParams.get("name")));
         if (req.method === "GET" && url.pathname === "/bridge/model-favorites") return json(res, 200, await lib.modelFavorites());
         if (req.method === "POST" && url.pathname === "/bridge/model-favorites") return json(res, 200, await lib.modelFavorite(JSON.parse((await body(req)).toString())));
         if (req.method === "GET" && url.pathname === "/bridge/gallery") {

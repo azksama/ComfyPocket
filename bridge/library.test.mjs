@@ -22,6 +22,14 @@ test("library persists favorites, moves and restores only scoped images, and nev
   await lib.favorite({ ...item, favorite: true });
   assert.equal((await library(config, safeFile).decorate([item]))[0].favorite, true);
   assert.equal(await readFile(await lib.preview("checkpoints", "lake.safetensors"), "utf8"), "PREVIEW");
+  await mkdir(path.join(modelsRoot, "Lora"), { recursive: true });
+  await writeFile(path.join(modelsRoot, "Lora", "film.cm-info.json"), JSON.stringify({ ModelName: "Film", BaseModel: "SD 1.5", TrainedWords: ["film_grain"], ModelDescription: "<b>Texture</b>", PrivateField: "excluded" }));
+  const metadata = await lib.modelInfo("loras", "film.safetensors");
+  assert.equal(metadata.baseModel, "SD 1.5"); assert.deepEqual(metadata.triggers, ["film_grain"]); assert.equal(metadata.description, "Texture"); assert.equal(metadata.PrivateField, undefined);
+  await assert.rejects(lib.modelInfo("loras", "../secret.safetensors"), { status: 403 });
+  await writeFile(path.join(modelsRoot, "Lora", "bad.cm-info.json"), "{");
+  await assert.rejects(lib.modelInfo("loras", "bad.safetensors"), { status: 422 });
+  assert.deepEqual((await lib.modelInfo("loras", "missing.safetensors")).triggers, []);
   await assert.rejects(lib.preview("checkpoints", "../outside.safetensors"), { status: 403 });
   await assert.rejects(lib.trash({ root: 0, relative: "../outside.png" }), { status: 403 });
   const deleted = await lib.trash(item);

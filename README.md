@@ -1,4 +1,4 @@
-# Comfy Pocket 0.4.0
+# Comfy Pocket 0.5.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface claire bleu/lilas, adaptée aux téléphones et aux grands écrans.
 
@@ -9,7 +9,7 @@ Depuis un clone Git, les lanceurs `Demarrer-ComfyPocket.cmd` et `Demarrer-ComfyP
 1. Installer **ComfyPocket-arm64.apk** sur Android 10 ou ultérieur. Il est signé avec la même clé que la version 0.1 : installer par-dessus conserve les données.
 2. Garder le dossier **ComfyPocket**, **Demarrer-ComfyPocket.ps1** et **Demarrer-ComfyPocket.cmd** ensemble. Après démarrage du PC, double-cliquer sur **Demarrer-ComfyPocket.cmd** et attendre **PRET** (ComfyUI peut prendre jusqu'à trois minutes à s'initialiser). Le lanceur vérifie le certificat, l'authentification HTTPS et la disponibilité du moteur avant de confirmer la connexion. **La fenêtre peut ensuite être fermée : les deux services continuent en arrière-plan.** Un second lancement réutilise les services ; les démarrages simultanés sont protégés contre les doublons. Les journaux se trouvent dans `%LOCALAPPDATA%\ComfyPocketPC`.
 3. Dans l'onglet **Paramètres** (roue dentée tout à droite), importer **Appairage-PC-local-v0.3.json** pour le Wi-Fi local ou **Appairage-PC-public.json** pour l'adresse publique, nommer le profil et toucher **Connecter mon PC**.
-4. Les profils fonctionnels de la version 0.3 restent valides en 0.4, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
+4. Les profils fonctionnels de la version 0.3 restent valides en 0.5, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
 
 Le compagnon écoute sur **0.0.0.0:8189** : localhost et interfaces du PC. Adresse locale : **https://192.168.1.8:8189** ; adresse publique : **https://82.67.151.59:8189**, via la redirection de port de la box. ComfyUI reste sur **127.0.0.1:8188**. WireGuard peut aussi transporter l'accès à l'adresse locale du PC.
 
@@ -21,7 +21,17 @@ Le profil PC vérifié le 13 septembre 2026 ajoute explicitement `--use-pytorch-
 
 L'accès public a été vérifié depuis ce PC (bouclage NAT), et la connexion native depuis un émulateur Android. Le test sur un téléphone physique hors du domicile reste à effectuer.
 
-## Nouveautés de l'interface
+## Nouveautés 0.5
+
+- Presets avec une vignette JPEG de l’image source affichée ou importée, conservée sur l’appareil. Les anciens presets restent lisibles.
+- Recherche Danbooru par sous-chaîne : correspondance exacte en premier, puis tags contenant le terme classés par popularité, même si un autre mot le précède.
+- Éditeur : historique local de 100 versions, dédoublonné, et blocs nommés réutilisables avec positif et négatif, modifiables et supprimables.
+- Vérificateur local : tags identiques dans les deux prompts, synonymes connus et oppositions courantes. Les avertissements ne bloquent pas la génération et ne constituent pas une analyse sémantique exhaustive.
+- Fiches LoRA depuis les fichiers locaux `.cm-info.json`, `.civitai.info` ou `.json` : aperçu, version, modèle de base, description, mots déclencheurs à insérer et notes personnelles sur l’appareil. Redémarrer le compagnon pour charger le nouvel endpoint.
+- Galerie : glisser vers le haut pour l’image suivante, vers le bas pour la précédente ; à gauche pour la corbeille récupérable, à droite pour les favoris. Les gestes sont désactivés pendant le zoom.
+- Délai de verrouillage natif configurable et captures d’écran autorisées.
+
+## Interface
 
 - Titres simples **Atelier, Galerie, Glossaire, Paramètres**. Les messages deviennent des notifications temporaires superposées, sans déplacer le contenu. Le chargement de la galerie conserve sa grille en place.
 - Vues conservées pendant les glissements et animations sur un rail commun ; formulaires et cartes ouvertes gardent leur état. Espacement identique autour des cercles aux extrémités du menu. Les cartes restent blanches à l'appui.
@@ -50,7 +60,7 @@ Sur cette installation, **4x-UltraSharp.pth est un fichier HTML de 2 063 octets*
 
 ## Verrouillage Android
 
-Dans **Paramètres → Accès à l'application**, activer le verrouillage biométrique. Android demande l'empreinte, un visage compatible ou le code système. Activer et désactiver la protection exige cette authentification. Retour d'arrière-plan et démarrage reverrouillent l'accès. Annuler la demande laisse l'app verrouillée. Les commandes natives de connexion, fichiers et API refusent l'accès verrouillé, et les captures/aperçus récents sont masqués lorsque la protection est active.
+Dans **Paramètres → Accès à l'application**, activer le verrouillage biométrique. Android demande l'empreinte, un visage compatible ou le code système. Activer et désactiver la protection exige cette authentification. Au nouveau démarrage, l’accès est toujours verrouillé. En arrière-plan, choisir un délai immédiat, de 30 secondes, 1 minute, 5 minutes ou 15 minutes. Annuler la demande laisse l'app verrouillée. Les commandes natives de connexion, fichiers et API refusent l'accès verrouillé. Les captures d’écran sont autorisées. Le masquage des aperçus récents est configurable à partir d’Android 13, ainsi que la demande automatique de biométrie au démarrage.
 
 Configurer d'abord une méthode de verrouillage dans Android. Les données biométriques restent gérées par le système. Les icônes Android carrées et rondes fournies sont copiées sans retouche aux cinq densités ; l'image Play Store originale est conservée dans assets/android-icons.
 
@@ -100,10 +110,10 @@ Cette réutilisation charge les paramètres de génération, pas une transformat
 Images des dossiers ComfyUI et Stability Matrix, dédoublonnées, recherchables et paginées. Le compagnon calcule des vignettes de 480 pixels ; le lecteur récupère l’original.
 
 - Toucher une image : plein écran, image entière.
-- Glisser gauche/droite : image précédente/suivante.
-- Glisser vers le haut : déplacer dans la corbeille.
-- Glisser vers le bas : mettre en favori.
-- Pendant un glissement vertical, une icône indique l'action avant de relâcher. Les images voisines sont décodées à l'avance et conservées pendant la transition pour éviter le flash de l'image précédente.
+- Glisser haut/bas : image suivante/précédente.
+- Glisser vers la gauche : déplacer dans la corbeille.
+- Glisser vers la droite : mettre en favori.
+- Pendant un glissement horizontal, une icône indique l'action avant de relâcher. Les images voisines sont décodées à l'avance et conservées pendant la transition pour éviter le flash de l'image précédente.
 - Appui long sur une vignette : sélectionner plusieurs images pour les mettre en favori, les télécharger ou les déplacer dans la corbeille. Le bouton **Sélectionner** offre aussi cette action au clavier. Les téléchargements sont traités un par un ; en cas d'échec partiel, seules les images en échec restent sélectionnées pour réessayer.
 - Quatre boutons circulaires à droite : favori, téléchargement, paramètres, corbeille. Fermeture en haut, sans boutons précédent/suivant ni indications de gestes. Flèches du clavier et Échap disponibles.
 - Écarter deux doigts pour zoomer, puis déplacer l’image. Double toucher pour revenir à la vue entière quand elle est zoomée. Les gestes de suppression sont désactivés pendant le zoom. Transitions horizontales/verticales et préchargement des voisines.
@@ -129,4 +139,4 @@ Node.js 22.12+ ou 24, Rust, JDK 17+, SDK Android et NDK r27+. Installer les dép
 
 Le compagnon écoute en HTTPS, exige une clé d’accès et rejette les origines navigateur. ComfyUI reste lié à 127.0.0.1. Le client natif vérifie le certificat du PC et l’adresse du serveur. Aucun abonnement ou service de génération cloud n’est nécessaire.
 
-Les preuves de livraison et les captures sont dans verification/v0.4 à côté du projet. Les tests d'interface utilisent un transport simulé ; le scénario live utilise réellement le compagnon HTTPS et le GPU. La validation sur émulateur est distincte d'un essai sur téléphone physique.
+Les preuves de livraison et les captures sont dans verification/v0.5 à côté du projet. Les tests d'interface utilisent un transport simulé ; le scénario live utilise réellement le compagnon HTTPS et le GPU. La validation sur émulateur est distincte d'un essai sur téléphone physique.

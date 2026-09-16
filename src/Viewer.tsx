@@ -80,15 +80,15 @@ export default function Viewer({ items, index, onIndex, onClose, onFavorite, onT
     if (!destination || !alive.current) return;
     await fetchItem(destination, true);
     if (!alive.current) return;
-    const animation = await animateTo({ x: -delta * (stage.current?.clientWidth ?? innerWidth), y: 0 });
+    const animation = await animateTo({ x: 0, y: -delta * (stage.current?.clientHeight ?? innerHeight) });
     // The rail already contains decoded neighbouring images, avoiding a blank frame.
     handoff.current = animation ?? null; onIndex(next);
   });
-  const vertical = (remove: boolean) => void run(async () => {
+  const horizontal = (remove: boolean) => void run(async () => {
     if (!item.gallery) return;
     if (remove) {
       const following = items[index + 1] ?? items[index - 1]; if (following) await fetchItem(following, true);
-      const animation = await animateTo({ x: 0, y: -(stage.current?.clientHeight ?? innerHeight) });
+      const animation = await animateTo({ x: -(stage.current?.clientWidth ?? innerWidth), y: 0 });
       try { handoff.current = animation ?? null; entering.current = { x: 0, y: stage.current?.clientHeight ?? innerHeight }; await onTrash(item); }
       catch (e) { entering.current = null; animation?.cancel(); handoff.current = null; throw e; }
     } else {
@@ -98,7 +98,7 @@ export default function Viewer({ items, index, onIndex, onClose, onFavorite, onT
   });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); move(e.key === "ArrowRight" ? 1 : -1); }
+      if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(e.key)) { e.preventDefault(); move(e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1); }
       if (e.key.toLowerCase() === "f" && item?.gallery) { e.preventDefault(); void run(() => onFavorite(item, !item.gallery?.favorite)); }
       if (e.key === "0") setView(origin);
       if (e.key === "+" || e.key === "=") setView(clamp({ ...poseRef.current, scale: Math.min(5, poseRef.current.scale + 0.5) }));
@@ -126,7 +126,7 @@ export default function Viewer({ items, index, onIndex, onClose, onFavorite, onT
       if (g.pose.scale > 1) { setView(clamp({ ...g.pose, x: g.pose.x + x, y: g.pose.y + y })); return; }
       if (g.multiple) return;
       if (!g.axis && Math.hypot(x, y) > 12) g.axis = Math.abs(x) > Math.abs(y) * 1.2 ? "x" : "y";
-      setDrag(g.axis === "x" ? { x: (index === 0 && x > 0 || index === items.length - 1 && !onMore && x < 0) ? x * .2 : x, y: 0 } : { x: 0, y: item.gallery ? y : y * .2 });
+      setDrag(g.axis === "y" ? { x: 0, y: (index === 0 && y > 0 || index === items.length - 1 && !onMore && y < 0) ? y * .2 : y } : { x: item.gallery ? x : x * .2, y: 0 });
     }}
     onPointerCancel={e => { points.current.delete(e.pointerId); gesture.current = null; setDrag({ x: 0, y: 0 }); }}
     onPointerUp={e => {
@@ -136,17 +136,17 @@ export default function Viewer({ items, index, onIndex, onClose, onFavorite, onT
       const x = e.clientX - g.start.x, y = e.clientY - g.start.y;
       if (!g.multiple && Math.hypot(x, y) < 8) { const now = performance.now(); if (now - previousTap.current < 300) setView(origin); previousTap.current = now; }
       if (g.multiple || g.pose.scale > 1) { setDrag({ x: 0, y: 0 }); return; }
-      if (g.axis === "x" && Math.abs(x) > 70) move(x < 0 ? 1 : -1);
-      else if (g.axis === "y" && Math.abs(y) > 100 && item.gallery) vertical(y < 0);
+      if (g.axis === "y" && Math.abs(y) > 70) move(y < 0 ? 1 : -1);
+      else if (g.axis === "x" && Math.abs(x) > 100 && item.gallery) horizontal(x < 0);
       else { void animateTo({ x: 0, y: 0 }).then(a => { a?.cancel(); if (alive.current) setDrag({ x: 0, y: 0 }); }); }
     }}>
     <div className="viewer-rail" ref={rail} style={{ transform: `translate(${drag.x}px, ${drag.y}px)` }}>{[-1, 0, 1].map(offset => {
       const neighbour = items[index + offset], src = neighbour && (neighbour.url || urls[neighbour.path]);
-      return <div key={neighbour?.path ?? `empty-${offset}`} className="viewer-slide" aria-hidden={offset !== 0} style={{ left: `${offset * 100}%`, visibility: pose.scale > 1 && offset !== 0 ? "hidden" : undefined }}>{src ? <img ref={offset === 0 ? image : undefined} className={offset === 0 ? "full-image" : "adjacent-image"} src={src} alt={offset === 0 ? item.name : ""} draggable={false} style={offset === 0 ? { transform: `translate(${pose.x}px,${pose.y}px) scale(${pose.scale})` } : undefined} /> : offset === 0 ? <span>Chargement de l’image…</span> : null}</div>;
+      return <div key={neighbour?.path ?? `empty-${offset}`} className="viewer-slide" aria-hidden={offset !== 0} style={{ top: `${offset * 100}%`, visibility: pose.scale > 1 && offset !== 0 ? "hidden" : undefined }}>{src ? <img ref={offset === 0 ? image : undefined} className={offset === 0 ? "full-image" : "adjacent-image"} src={src} alt={offset === 0 ? item.name : ""} draggable={false} style={offset === 0 ? { transform: `translate(${pose.x}px,${pose.y}px) scale(${pose.scale})` } : undefined} /> : offset === 0 ? <span>Chargement de l’image…</span> : null}</div>;
     })}</div></div>
-    <div className="gesture-action" hidden={!item.gallery || Math.abs(drag.y) < 12 || pose.scale > 1} data-action={drag.y < 0 ? "trash" : "favorite"} role="img" aria-label={drag.y < 0 ? "Déplacer dans la corbeille" : "Mettre en favori"} style={{ opacity: Math.min(1, Math.abs(drag.y) / 100), transform: `scale(${.65 + Math.min(1, Math.abs(drag.y) / 100) * .35})` }}>{drag.y < 0 ? <Trash2 size={34} /> : <Heart size={34} fill="currentColor" />}</div>
+    <div className="gesture-action" hidden={!item.gallery || Math.abs(drag.x) < 12 || pose.scale > 1} data-action={drag.x < 0 ? "trash" : "favorite"} role="img" aria-label={drag.x < 0 ? "Déplacer dans la corbeille" : "Mettre en favori"} style={{ opacity: Math.min(1, Math.abs(drag.x) / 100), transform: `scale(${.65 + Math.min(1, Math.abs(drag.x) / 100) * .35})` }}>{drag.x < 0 ? <Trash2 size={34} /> : <Heart size={34} fill="currentColor" />}</div>
     <div className="viewer-caption"><span>{index + 1} / {items.length}{onMore ? "+" : ""}</span><span title={item.name}>{item.name}</span></div>
-    <div className="viewer-actions"><button aria-label={item.gallery?.favorite ? "Retirer des favoris" : "Mettre en favori"} aria-pressed={!!item.gallery?.favorite} disabled={busy || !item.gallery} onClick={() => void run(() => onFavorite(item, !item.gallery?.favorite))}><Heart fill={item.gallery?.favorite ? "currentColor" : "none"} /></button><button aria-label="Enregistrer sur cet appareil" disabled={busy || !url} onClick={() => void run(async () => { setMessage(await native<string>("save_image", { dataUrl: url, filename: item.name })); })}><Download /></button><button aria-label="Réutiliser les paramètres" disabled={busy || !url} onClick={() => void run(() => onReuse(item, url))}><SlidersHorizontal /></button><button aria-label="Déplacer dans la corbeille" disabled={busy || !item.gallery} onClick={() => vertical(true)}><Trash2 /></button></div>
+    <div className="viewer-actions"><button aria-label={item.gallery?.favorite ? "Retirer des favoris" : "Mettre en favori"} aria-pressed={!!item.gallery?.favorite} disabled={busy || !item.gallery} onClick={() => void run(() => onFavorite(item, !item.gallery?.favorite))}><Heart fill={item.gallery?.favorite ? "currentColor" : "none"} /></button><button aria-label="Enregistrer sur cet appareil" disabled={busy || !url} onClick={() => void run(async () => { setMessage(await native<string>("save_image", { dataUrl: url, filename: item.name })); })}><Download /></button><button aria-label="Réutiliser les paramètres" disabled={busy || !url} onClick={() => void run(() => onReuse(item, url))}><SlidersHorizontal /></button><button aria-label="Déplacer dans la corbeille" disabled={busy || !item.gallery} onClick={() => horizontal(true)}><Trash2 /></button></div>
     <p role="status" className="viewer-message">{busy ? "Traitement…" : message}</p>
   </Modal>;
 }

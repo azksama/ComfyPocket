@@ -27,13 +27,16 @@ export function insertTag(text: string, caret: number, name: string) {
   return { text: prefix + ", " + rest, caret: prefix.length + 2 };
 }
 export function searchTags(rows: Tag[], query: string, limit = 8): Tag[] {
-  if (!query || query.length > 80) return [];
-  let lo = 0, hi = rows.length;
-  while (lo < hi) { const mid = (lo + hi) >>> 1; if (rows[mid].name < query) lo = mid + 1; else hi = mid; }
+  query = query.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!query || query.length > 80 || limit < 1) return [];
+  const rank = (tag: Tag) => tag.name === query ? 0 : tag.name.startsWith(query) ? 1 : tag.name.includes("_" + query) ? 2 : 3;
+  const compare = (a: Tag, b: Tag) => Number(b.name === query) - Number(a.name === query) || b.count - a.count || rank(a) - rank(b) || a.name.localeCompare(b.name);
   const top: Tag[] = [];
-  for (let i = lo; i < rows.length && rows[i].name.startsWith(query); i++) {
-    top.push(rows[i]);
-    top.sort((a, b) => Number(b.name === query) - Number(a.name === query) || b.count - a.count);
+  for (const row of rows) {
+    if (!row.name.includes(query)) continue;
+    if (top.length === limit && compare(row, top[top.length - 1]) >= 0) continue;
+    const index = top.findIndex(other => compare(row, other) < 0);
+    top.splice(index < 0 ? top.length : index, 0, row);
     if (top.length > limit) top.pop();
   }
   return top;

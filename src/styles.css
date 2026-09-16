@@ -301,3 +301,21 @@ dialog::backdrop { background: #25263b77; backdrop-filter: blur(8px); }
   .output-panel h2 { font-size: 16px; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+.prompt-tools { display:flex; gap:8px; padding:0 20px 8px; flex-wrap:wrap; flex-shrink:0; }
+.prompt-tools button { border:0; background:white; box-shadow:0 3px 12px #29204b0a; padding:8px 12px; min-height:40px; font-size:.75rem; }
+.prompt-library { width:min(640px,calc(100% - 24px)); max-height:90dvh; overflow:auto; }
+.prompt-library>label,.prompt-library form>label { display:grid; gap:8px; margin-block:16px; }
+.prompt-library textarea { min-height:100px; }
+.prompt-record { padding:16px; margin-block:16px; background:white; border-radius:20px; box-shadow:0 4px 16px #29204b0a; }
+.prompt-record>strong,.prompt-record>small { display:block; overflow-wrap:anywhere; }
+.prompt-record p { white-space:pre-wrap; overflow-wrap:anywhere; max-height:100px; overflow:auto; }
+.prompt-library li { margin-block:12px; }
+.preset-thumbnail { width:56px; height:64px; object-fit:cover; border-radius:12px; flex-shrink:0; }
+.lora-details>.picture { max-height:240px; }
+.lora-details>.picture img { max-height:240px; object-fit:contain; }
+.lora-description { white-space:pre-wrap; overflow-wrap:anywhere; }
+.lora-detail-button { font-size:.7rem; padding:8px; }
+.biometric-settings>label { margin-block:16px; }
+.viewer-slide { left:0; }
+@media(max-width:360px) { .prompt-tools { padding-inline:12px; gap:4px; } .prompt-tools button { padding-inline:8px; } }
