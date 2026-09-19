@@ -1,4 +1,4 @@
-# Comfy Pocket 0.6.0
+# Comfy Pocket 0.6.1
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface claire bleu/lilas, adaptée aux téléphones et aux grands écrans.
 
@@ -20,6 +20,16 @@ Le lanceur emploie l'option ComfyUI `--disable-dynamic-vram`, si elle existe, po
 Le profil PC vérifié le 13 septembre 2026 ajoute explicitement `--use-pytorch-cross-attention --reserve-vram 0.9`, conformément aux réglages enregistrés dans Stability Matrix, et garde `--preview-method auto`. Sur la RTX 4070 SUPER 12 Go, cinq générations SDXL 1024 × 1024 à 30 étapes ont pris 8,50 à 8,55 s après chargement du modèle. Avec le même amorçage, les comparaisons à seed identique retrouvent les mêmes pixels que la référence ; la première génération à froid peut différer légèrement. Ces chiffres mesurent le moteur, hors transfert réseau et affichage Android. Les autres variantes testées (highvram, channels last, sans aperçu, mémoire dynamique et transferts synchrones) n'ont pas établi de gain supplémentaire fiable sur ce PC. Aucun changement de précision, de modèle, de résolution ou d'étapes. Les nouveaux arguments s'appliquent au prochain lancement de ComfyUI par ce script ; un moteur déjà ouvert conserve ses arguments.
 
 L'accès public a été vérifié depuis ce PC (bouclage NAT), et la connexion native depuis un émulateur Android. Le test sur un téléphone physique hors du domicile reste à effectuer.
+
+## Correctif 0.6.1 : appairage durable
+
+Le certificat, sa clé et le jeton restent dans `%LOCALAPPDATA%\ComfyPocketPC`, indépendamment du dossier contenant le programme. Un lancement normal et une mise à jour ne les régénèrent pas. Le CLI utilise désormais ce même dossier par défaut, au lieu d’un dossier `.bridge` dépendant du répertoire courant ; `--config-dir` permet toujours un emplacement explicite.
+
+Le lanceur vérifie la cohérence du certificat, de la clé et des appairages avant toute intervention. Si le port est occupé par une ancienne instance qui ne répond pas avec cette identité, il redémarre uniquement le processus Node correspondant exactement à ce CLI et à ce dossier de configuration. ComfyUI et ses générations continuent. Un autre programme ou une autre installation ne sont pas arrêtés automatiquement. Une instance saine est réutilisée.
+
+Une initialisation partielle ne peut plus écraser les clés déjà présentes. Si des fichiers d’identité ont disparu ou sont incohérents, le lanceur indique une erreur et les conserve ; il faut restaurer les fichiers manquants. Ne supprimez pas ce dossier lors d’une mise à jour. Le renouvellement du certificat demeure une opération volontaire (expiration ou changement d’adresse non couvert), qui peut nécessiter de réimporter l’appairage sur le téléphone.
+
+Après redémarrage du PC : lancer le même `Demarrer-ComfyPocket.cmd`, attendre **PRET**, puis utiliser le profil déjà enregistré dans l’app. Le correctif principal est côté PC ; l’APK 0.6.0 reste compatible.
 
 ## Nouveautés 0.6
 

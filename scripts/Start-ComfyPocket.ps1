@@ -6,6 +6,7 @@
 )
 $ErrorActionPreference='Stop'
 $repo=Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'CompanionProcess.ps1')
 $node=(Get-Command node -ErrorAction Stop).Source
 $comfy=Join-Path $StabilityRoot 'Data\Packages\ComfyUI'
 $health=Join-Path $repo 'bridge\health.mjs'
@@ -24,6 +25,8 @@ try {
   & $node (Join-Path $repo 'bridge\cli.mjs') init --config-dir $ConfigDirectory --host $ListenAddress --port $Port --output (Join-Path $comfy 'output') --extra-output (Join-Path $StabilityRoot 'Data\Images') --models (Join-Path $StabilityRoot 'Data\Models')
   if($LASTEXITCODE -ne 0){throw 'Initialisation du compagnon echouee.'}
  }
+ & $node $health $ConfigDirectory --identity-only --quiet
+ if($LASTEXITCODE -ne 0){& $node $health $ConfigDirectory --identity-only;throw 'Identite du compagnon invalide. Aucun certificat ni appairage ne sera regenere.'}
  $config=Get-Content (Join-Path $ConfigDirectory 'config.json') -Raw | ConvertFrom-Json
  $ready=$false
  try {Invoke-RestMethod "$($config.comfyUrl)/system_stats" -TimeoutSec 3 | Out-Null;$ready=$true}catch{}
@@ -48,6 +51,13 @@ try {
   if(-not $ready){throw "ComfyUI ne repond pas apres 3 minutes. Journaux : $ConfigDirectory"}
  }
  $bridgeProcess=$null
+ if(Get-NetTCPConnection -LocalPort $config.port -State Listen -ErrorAction SilentlyContinue){
+  & $node $health $ConfigDirectory --quiet
+  if($LASTEXITCODE -ne 0){
+   # Only our exact CLI and configuration may be restarted. ComfyUI is kept alive.
+   Restart-StaleComfyPocket -ScriptPath (Join-Path $repo 'bridge\cli.mjs') -ConfigDirectory $ConfigDirectory -Port $config.port
+  }
+ }
  if(-not(Get-NetTCPConnection -LocalPort $config.port -State Listen -ErrorAction SilentlyContinue)){
   $bridgeArgs=@((Join-Path $repo 'bridge\cli.mjs'),'--config-dir',$ConfigDirectory,'--models',(Join-Path $StabilityRoot 'Data\Models'))
   $quotedArgs=$bridgeArgs | ForEach-Object {'"'+$_+'"'}

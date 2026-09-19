@@ -1,4 +1,5 @@
 import https from 'node:https';
+import { loadIdentity } from './identity.mjs';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -21,6 +22,6 @@ export async function checkHealth(dir, {upstream = false} = {}) {
  if(upstream){const stats=await get('/api/system_stats');if(!stats.system||!Array.isArray(stats.devices))throw Error('ComfyUI ne repond pas correctement.');}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- try{await checkHealth(process.argv[2],{upstream:process.argv.includes('--upstream')});if(!process.argv.includes('--quiet'))console.log('Connexion HTTPS authentifiee et services verifies.');}
+ try{if(process.argv.includes('--identity-only'))await loadIdentity(process.argv[2]);else await checkHealth(process.argv[2],{upstream:process.argv.includes('--upstream')});if(!process.argv.includes('--quiet'))console.log(process.argv.includes('--identity-only')?'Identite persistante du compagnon verifiee.':'Connexion HTTPS authentifiee et services verifies.');}
  catch(error){if(!process.argv.includes('--quiet'))console.error(error.code||error.message);process.exitCode=1;}
 }

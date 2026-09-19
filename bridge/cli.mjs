@@ -1,10 +1,14 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { writeFile, mkdir } from "node:fs/promises";
 import { networkInterfaces } from "node:os";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { certificate } from "./certificate.mjs";
 import { reissue } from "./reissue.mjs";
+import {
+  assertUninitialized,
+  defaultConfigDirectory,
+  loadIdentity,
+} from "./identity.mjs";
 import { createBridge } from "./server.mjs";
 
 const args = process.argv.slice(2);
@@ -12,16 +16,13 @@ const arg = (key, fallback) => {
   const i = args.indexOf(key);
   return i < 0 ? fallback : args[i + 1];
 };
-const dir = path.resolve(arg("--config-dir", ".bridge"));
+const dir = path.resolve(arg("--config-dir", defaultConfigDirectory()));
 await mkdir(dir, { recursive: true, mode: 0o700 });
 if (args.includes("reissue")) {
   console.log(JSON.stringify(await reissue(dir, arg("--public-host"))));
 } else if (args.includes("init")) {
   const cfgFile = path.join(dir, "config.json");
-  if (existsSync(cfgFile))
-    throw new Error(
-      "Configuration existante. Utilisez un autre --config-dir pour éviter de remplacer les clés.",
-    );
+  await assertUninitialized(dir);
   const host = arg("--host", "127.0.0.1"),
     port = Number(arg("--port", "8189"));
   const addresses = [
@@ -50,9 +51,15 @@ if (args.includes("reissue")) {
     roots,
     modelsRoot: arg("--models", path.resolve(output, "../../..", "Models")),
   };
-  await writeFile(path.join(dir, "key.pem"), cert.private, { mode: 0o600 });
-  await writeFile(path.join(dir, "cert.pem"), cert.cert);
-  await writeFile(cfgFile, JSON.stringify(config, null, 2), { mode: 0o600 });
+  await writeFile(path.join(dir, "key.pem"), cert.private, {
+    mode: 0o600,
+    flag: "wx",
+  });
+  await writeFile(path.join(dir, "cert.pem"), cert.cert, { flag: "wx" });
+  await writeFile(cfgFile, JSON.stringify(config, null, 2), {
+    mode: 0o600,
+    flag: "wx",
+  });
   const publicHost = arg(
     "--public-host",
     host === "0.0.0.0"
@@ -70,21 +77,23 @@ if (args.includes("reissue")) {
       null,
       2,
     ),
-    { mode: 0o600 },
+    { mode: 0o600, flag: "wx" },
   );
   console.log(
     `Configuration créée dans ${dir}. Transférez pairing.json au téléphone par un canal privé. Il contient la clé d’accès. Les clés ne sont pas affichées.`,
   );
 } else {
-  const config = JSON.parse(
-    await readFile(path.join(dir, "config.json"), "utf8"),
-  );
+  const { config, key, cert } = await loadIdentity(dir);
   const server = createBridge({
     ...config,
     stateDir: dir,
-    modelsRoot: arg("--models", config.modelsRoot ?? path.resolve(config.roots[0].path, "../../..", "Models")),
-    key: await readFile(path.join(dir, "key.pem")),
-    cert: await readFile(path.join(dir, "cert.pem")),
+    modelsRoot: arg(
+      "--models",
+      config.modelsRoot ??
+        path.resolve(config.roots[0].path, "../../..", "Models"),
+    ),
+    key,
+    cert,
   });
   server.listen(config.port, config.host, () =>
     console.log(
