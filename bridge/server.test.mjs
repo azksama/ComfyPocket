@@ -14,6 +14,7 @@ test("TLS bridge: authentication, gallery, traversal and API allowlist", async (
   const root = path.join(dir, "output");
   await mkdir(root);
   await mkdir(path.join(root, "nested"));
+  await mkdir(path.join(root, "not-an-image.png"));
   await writeFile(
     path.join(root, "nested", "lake.png"),
     Buffer.from([137, 80, 78, 71]),
@@ -89,6 +90,12 @@ test("TLS bridge: authentication, gallery, traversal and API allowlist", async (
   assert.equal(gallery.status, 200);
   assert.equal(JSON.parse(gallery.text).total, 1);
   assert.equal(JSON.parse(gallery.text).items[0].relative, "nested/lake.png");
+  assert.equal(JSON.parse(gallery.text).items[0].favorite, false);
+  assert.equal(
+    gallery.text.includes(root.replaceAll("\\", "\\\\")),
+    false,
+    "gallery responses must not expose absolute paths",
+  );
   assert.equal(
     (await call("/bridge/gallery?q=absent")).text.includes('"total":0'),
     true,
@@ -110,6 +117,13 @@ test("TLS bridge: authentication, gallery, traversal and API allowlist", async (
   assert.equal((await call("/bridge/events?clientId=bad")).status, 400);
   await assert.rejects(safeFile(root, "C:\\Windows\\file.png"));
   await assert.rejects(safeFile(root, "../file.png"));
+  await assert.rejects(safeFile(root, "not-an-image.png"), { status: 403 });
+  await rm(path.join(root, "nested", "lake.png"));
+  assert.equal(
+    (await call("/bridge/gallery")).status,
+    200,
+    "a removed file must not break a cached gallery page",
+  );
   assert.equal(
     (await call("/bridge/gallery", { Authorization: "Bearer bad" })).status,
     401,

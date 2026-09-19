@@ -38,6 +38,7 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
  private val preferences = activity.getSharedPreferences("pocket-lock", Context.MODE_PRIVATE)
  @Volatile private var unlocked = false
  private var authenticating = false
+ private var lockRevision = 0L
  @Volatile private var backgroundAt: Long = -1
  private val delaySeconds get() = preferences.getLong("delaySeconds", 0)
  private fun expire() { if (enabled && backgroundAt >= 0 && SystemClock.elapsedRealtime() - backgroundAt >= delaySeconds * 1000) unlocked = false }
@@ -53,22 +54,25 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
   (activity as? LifecycleOwner)?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
    override fun onPause(owner: LifecycleOwner) { this@PocketPlugin.onPause() }
    override fun onResume(owner: LifecycleOwner) { this@PocketPlugin.onResume() }
+   override fun onDestroy(owner: LifecycleOwner) { worker.shutdown() }
   })
  }
  override fun onResume() { expire(); backgroundAt = -1; protectRecents() }
  override fun onPause() { if (enabled && backgroundAt < 0) { backgroundAt = SystemClock.elapsedRealtime(); expire() } }
  @Command fun lockStatus(invoke: Invoke) { activity.runOnUiThread { protectRecents(); invoke.resolve(status()) } }
- @Command fun assertUnlocked(invoke: Invoke) { expire(); if (enabled && !unlocked) invoke.reject("Application verrouillée") else invoke.resolve(JSObject()) }
- @Command fun lockSession(invoke: Invoke) { if (enabled) unlocked = false; invoke.resolve(status()) }
+ @Command fun assertUnlocked(invoke: Invoke) { activity.runOnUiThread { expire(); if (enabled && !unlocked) invoke.reject("Application verrouillée") else invoke.resolve(JSObject()) } }
+ @Command fun lockSession(invoke: Invoke) { activity.runOnUiThread { lockRevision++; if (enabled) unlocked = false; invoke.resolve(status()) } }
  private fun authenticate(invoke: Invoke, change: Boolean?) {
   activity.runOnUiThread {
    if (authenticating) { invoke.reject("Authentification déjà en cours"); return@runOnUiThread }
    if (!available()) { invoke.reject("Configurez la biométrie ou un code de verrouillage dans les réglages Android."); return@runOnUiThread }
    val host = activity as? FragmentActivity ?: run { invoke.reject("Authentification indisponible"); return@runOnUiThread }
    authenticating = true
+   val revision = lockRevision
    val prompt = BiometricPrompt(host, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
      authenticating = false
+     if (revision != lockRevision) { invoke.reject("Application verrouillée. Relancez l’authentification."); return }
      if (change != null && !preferences.edit().putBoolean("enabled", change).commit()) { unlocked = false; invoke.reject("Le réglage ne peut pas être enregistré"); return }
      unlocked = true; backgroundAt = -1; protectRecents(); invoke.resolve(status())
     }

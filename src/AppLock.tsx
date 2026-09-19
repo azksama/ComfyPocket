@@ -1,57 +1,335 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Fingerprint, LockKeyhole } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { native } from "./api";
-type LockState = { delaySeconds?: number; hideRecents?: boolean; supported: boolean; available: boolean; enabled: boolean; unlocked: boolean };
-const desktop: LockState = { supported: false, available: false, enabled: false, unlocked: true };
-async function status() { const value = await native<LockState | null>("lock_status"); if (!value && isTauri()) throw Error("État du verrouillage indisponible"); return value ?? desktop; }
+
+type LockState = {
+  delaySeconds?: number;
+  hideRecents?: boolean;
+  supported: boolean;
+  available: boolean;
+  enabled: boolean;
+  unlocked: boolean;
+};
+const desktop: LockState = {
+  supported: false,
+  available: false,
+  enabled: false,
+  unlocked: true,
+};
+const unavailable: LockState = {
+  supported: true,
+  available: true,
+  enabled: true,
+  unlocked: false,
+};
+const lockChanged = "pocket-lock-changed";
 let authenticationActive = false;
+async function status() {
+  const value = await native<LockState | null>("lock_status");
+  if (!value && isTauri()) throw Error("État du verrouillage indisponible");
+  return value ?? desktop;
+}
+function autoPromptEnabled() {
+  try {
+    return localStorage.getItem("biometric-auto-prompt") !== "false";
+  } catch {
+    return true;
+  }
+}
+
 export function AppLock({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<LockState | null>(null), [opened, setOpened] = useState(false), [error, setError] = useState(""), [busy, setBusy] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null), stateRef = useRef(state), first = useRef(true);
-  const locked = !state || state.enabled && !state.unlocked;
-  const apply = (s: LockState) => { stateRef.current = s; setState(s); if (!s.enabled || s.unlocked) setOpened(true); };
-  const refresh = () => status().then(apply).catch(e => { setError(String(e)); apply({ supported: true, available: true, enabled: true, unlocked: false }); });
-  const unlock = async () => {
-    if (authenticationActive) return; authenticationActive = true; setBusy(true); setError("");
-    try { apply(await native<LockState>("unlock")); } catch (e) { setError(String(e)); }
-    finally { authenticationActive = false; setBusy(false); }
-  };
+  const [state, setState] = useState<LockState | null>(null);
+  const [opened, setOpened] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const stateRef = useRef(state),
+    first = useRef(true),
+    revision = useRef(0),
+    mounted = useRef(true);
+  const locked = !state || (state.enabled && !state.unlocked);
+
+  const apply = useCallback((value: LockState) => {
+    if (!mounted.current) return;
+    // The native lifecycle owns the expiry timer. Hide the UI while backgrounded
+    // without expiring an otherwise valid native session.
+    const visible =
+      value.enabled && document.hidden ? { ...value, unlocked: false } : value;
+    stateRef.current = visible;
+    setState(visible);
+    if (!visible.enabled || visible.unlocked) setOpened(true);
+  }, []);
+  const refresh = useCallback(async () => {
+    if (authenticationActive || document.hidden) return;
+    const id = ++revision.current;
+    try {
+      const value = await status();
+      if (id === revision.current && mounted.current) {
+        setError("");
+        apply(value);
+      }
+    } catch (e) {
+      if (id === revision.current && mounted.current) {
+        setError(String(e));
+        apply(unavailable);
+      }
+    }
+  }, [apply]);
+  const unlock = useCallback(async () => {
+    if (authenticationActive) return;
+    ++revision.current;
+    authenticationActive = true;
+    setBusy(true);
+    setError("");
+    try {
+      apply(await native<LockState>("unlock"));
+    } catch (e) {
+      if (mounted.current) setError(String(e));
+    } finally {
+      authenticationActive = false;
+      if (mounted.current) setBusy(false);
+    }
+  }, [apply]);
+
   useEffect(() => {
+    mounted.current = true;
     void refresh();
     const visibility = () => {
-      if (document.hidden && stateRef.current?.enabled && !authenticationActive) { apply({ ...stateRef.current, unlocked: false }); }
-      else if (!document.hidden) void refresh();
+      if (document.hidden) {
+        ++revision.current;
+        if (stateRef.current?.enabled)
+          apply({ ...stateRef.current, unlocked: false });
+      } else void refresh();
     };
     const change = () => void refresh();
-    document.addEventListener("visibilitychange", visibility); window.addEventListener("pocket-lock-changed", change);
-    return () => { document.removeEventListener("visibilitychange", visibility); window.removeEventListener("pocket-lock-changed", change); };
-  }, []);
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener(lockChanged, change);
+    return () => {
+      mounted.current = false;
+      ++revision.current;
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener(lockChanged, change);
+    };
+  }, [refresh, apply]);
   useEffect(() => {
-    if (locked) { if (!dialog.current?.open) dialog.current?.showModal(); }
-    else dialog.current?.close();
-    if (first.current && state) { first.current = false; if (state.enabled && !state.unlocked && localStorage.getItem("biometric-auto-prompt") !== "false") void unlock(); }
-  }, [locked, state]);
-  return <><div className="protected-app" inert={locked} aria-hidden={locked} style={{ visibility: locked ? "hidden" : undefined }}>{opened ? children : null}</div>{locked && <dialog ref={dialog} className="lock-screen" aria-label="Application verrouillée" onCancel={e => e.preventDefault()}><span className="lock-emblem"><Fingerprint size={52} /></span><h1>Votre atelier privé.</h1><p>Déverrouillez Comfy Pocket pour retrouver vos créations.</p><button className="primary" disabled={busy || !state} onClick={() => void unlock()}><Fingerprint size={21} />{busy ? "Authentification…" : "Déverrouiller"}</button>{error && <p role="alert">{error}</p>}<small>Biométrie ou code de verrouillage Android</small></dialog>}</>;
+    if (locked) {
+      if (!dialog.current?.open) dialog.current?.showModal();
+    } else dialog.current?.close();
+    if (first.current && state) {
+      first.current = false;
+      if (state.enabled && !state.unlocked && autoPromptEnabled())
+        void unlock();
+    }
+  }, [locked, state, unlock]);
+
+  return (
+    <>
+      <div
+        className="protected-app"
+        inert={locked}
+        aria-hidden={locked}
+        style={{ visibility: locked ? "hidden" : undefined }}
+      >
+        {opened ? children : null}
+      </div>
+      {locked && (
+        <dialog
+          ref={dialog}
+          className="lock-screen"
+          aria-label="Application verrouillée"
+          onCancel={(e) => e.preventDefault()}
+        >
+          <span className="lock-emblem">
+            <Fingerprint size={52} />
+          </span>
+          <h1>Votre atelier privé.</h1>
+          <p>Déverrouillez Comfy Pocket pour retrouver vos créations.</p>
+          <button
+            className="primary"
+            disabled={busy || !state}
+            onClick={() => void unlock()}
+          >
+            <Fingerprint size={21} />
+            {busy ? "Authentification…" : "Déverrouiller"}
+          </button>
+          {error && <p role="alert">{error}</p>}
+          <small>Biométrie ou code de verrouillage Android</small>
+        </dialog>
+      )}
+    </>
+  );
 }
+
 export function LockSettings() {
-  const [state, setState] = useState<LockState | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [state, setState] = useState<LockState | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [autoPrompt, setAutoPrompt] = useState(autoPromptEnabled);
+  const operation = useRef(false),
+    revision = useRef(0),
+    mounted = useRef(true);
+
   useEffect(() => {
-    let live = true;
-    const refresh = () => { if (!document.hidden) void status().then(s => { if (live) setState(s); }).catch(e => { if (live) setError(String(e)); }); };
-    refresh(); document.addEventListener("visibilitychange", refresh); window.addEventListener("pocket-lock-changed", refresh);
-    return () => { live = false; document.removeEventListener("visibilitychange", refresh); window.removeEventListener("pocket-lock-changed", refresh); };
+    mounted.current = true;
+    const refresh = async () => {
+      if (document.hidden || operation.current) return;
+      const id = ++revision.current;
+      try {
+        const value = await status();
+        if (mounted.current && id === revision.current) setState(value);
+      } catch (e) {
+        if (mounted.current && id === revision.current) setError(String(e));
+      }
+    };
+    void refresh();
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener(lockChanged, refresh);
+    return () => {
+      mounted.current = false;
+      ++revision.current;
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener(lockChanged, refresh);
+    };
   }, []);
-  const change = async (enabled: boolean) => {
-    if (authenticationActive) return; authenticationActive = true; setBusy(true); setError("");
-    try { setState(await native<LockState>("set_biometric_lock", { enabled })); window.dispatchEvent(new Event("pocket-lock-changed")); } catch (e) { setError(String(e)); }
-    finally { authenticationActive = false; setBusy(false); }
-  };
-  const [autoPrompt, setAutoPrompt] = useState(() => localStorage.getItem("biometric-auto-prompt") !== "false");
-  const options = async (delaySeconds: number, hideRecents: boolean) => {
-    setBusy(true); setError("");
-    try { setState(await native<LockState>("set_lock_options", { delaySeconds, hideRecents })); window.dispatchEvent(new Event("pocket-lock-changed")); } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  const update = async (
+    command: string,
+    args: Record<string, unknown> = {},
+    authenticate = false,
+  ) => {
+    if (operation.current || authenticationActive) return;
+    operation.current = true;
+    ++revision.current;
+    if (authenticate) authenticationActive = true;
+    setBusy(true);
+    setError("");
+    try {
+      const value = await native<LockState>(command, args);
+      if (mounted.current) setState(value);
+    } catch (e) {
+      if (mounted.current) setError(String(e));
+    } finally {
+      operation.current = false;
+      if (authenticate) authenticationActive = false;
+      if (mounted.current) setBusy(false);
+      window.dispatchEvent(new Event(lockChanged));
+    }
   };
   if (!state?.supported) return error ? <p role="alert">{error}</p> : null;
-  return <section className="panel biometric-settings"><div className="section-heading"><h2>Accès à l’application</h2><Fingerprint size={23} /></div><label className="switch-row"><span><strong>Verrouillage biométrique</strong><small>Empreinte, visage ou code Android</small></span><input role="switch" aria-label="Activer le verrouillage biométrique" type="checkbox" checked={state.enabled} disabled={busy || !state.available} onChange={e => void change(e.target.checked)} /></label><p className="hint">Verrouillage à chaque nouveau démarrage et après le délai choisi en arrière-plan. Les captures d’écran sont autorisées.</p><label>Verrouiller après<select value={state.delaySeconds ?? 0} disabled={busy} onChange={e => void options(Number(e.target.value), state.hideRecents ?? true)}>{[[0,"Immédiatement"],[30,"30 secondes"],[60,"1 minute"],[300,"5 minutes"],[900,"15 minutes"]].map(([n,label]) => <option key={n} value={n}>{label}</option>)}</select></label><label className="switch-row"><span>Masquer l’aperçu des applications récentes<small>Android 13 et versions suivantes</small></span><input role="switch" type="checkbox" checked={state.hideRecents ?? true} disabled={busy} onChange={e => void options(state.delaySeconds ?? 0, e.target.checked)} /></label><label className="switch-row"><span>Demander la biométrie au démarrage</span><input role="switch" type="checkbox" checked={autoPrompt} onChange={e => { localStorage.setItem("biometric-auto-prompt", String(e.target.checked)); setAutoPrompt(e.target.checked); }} /></label>{!state.available && <p className="hint">Configurez une empreinte, un visage ou un code de verrouillage dans les réglages Android.</p>}{state.enabled && <button onClick={() => void native("lock_session").then(() => window.dispatchEvent(new Event("pocket-lock-changed")))}><LockKeyhole size={17} /> Verrouiller maintenant</button>}{error && <p role="alert">{error}</p>}</section>;
+  return (
+    <section className="panel biometric-settings">
+      <div className="section-heading">
+        <h2>Accès à l’application</h2>
+        <Fingerprint size={23} />
+      </div>
+      <label className="switch-row">
+        <span>
+          <strong>Verrouillage biométrique</strong>
+          <small>Empreinte, visage ou code Android</small>
+        </span>
+        <input
+          role="switch"
+          aria-label="Activer le verrouillage biométrique"
+          type="checkbox"
+          checked={state.enabled}
+          disabled={busy || !state.available}
+          onChange={(e) =>
+            void update(
+              "set_biometric_lock",
+              { enabled: e.target.checked },
+              true,
+            )
+          }
+        />
+      </label>
+      <p className="hint">
+        Verrouillage à chaque nouveau démarrage et après le délai choisi en
+        arrière-plan. Les captures d’écran sont autorisées.
+      </p>
+      <label>
+        Verrouiller après
+        <select
+          value={state.delaySeconds ?? 0}
+          disabled={busy || !state.enabled}
+          onChange={(e) =>
+            void update("set_lock_options", {
+              delaySeconds: Number(e.target.value),
+              hideRecents: state.hideRecents ?? true,
+            })
+          }
+        >
+          {[
+            [0, "Immédiatement"],
+            [30, "30 secondes"],
+            [60, "1 minute"],
+            [300, "5 minutes"],
+            [900, "15 minutes"],
+          ].map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="switch-row">
+        <span>
+          Masquer l’aperçu des applications récentes
+          <small>Android 13 et versions suivantes</small>
+        </span>
+        <input
+          role="switch"
+          type="checkbox"
+          checked={state.hideRecents ?? true}
+          disabled={busy || !state.enabled}
+          onChange={(e) =>
+            void update("set_lock_options", {
+              delaySeconds: state.delaySeconds ?? 0,
+              hideRecents: e.target.checked,
+            })
+          }
+        />
+      </label>
+      <label className="switch-row">
+        <span>Demander la biométrie au démarrage</span>
+        <input
+          role="switch"
+          type="checkbox"
+          checked={autoPrompt}
+          disabled={busy || !state.enabled}
+          onChange={(e) => {
+            try {
+              localStorage.setItem(
+                "biometric-auto-prompt",
+                String(e.target.checked),
+              );
+              setAutoPrompt(e.target.checked);
+              setError("");
+            } catch {
+              setError(
+                "Impossible d’enregistrer cette préférence sur l’appareil.",
+              );
+            }
+          }}
+        />
+      </label>
+      {!state.available && (
+        <p className="hint">
+          Configurez une empreinte, un visage ou un code de verrouillage dans
+          les réglages Android.
+        </p>
+      )}
+      {state.enabled && (
+        <button disabled={busy} onClick={() => void update("lock_session")}>
+          <LockKeyhole size={17} /> Verrouiller maintenant
+        </button>
+      )}
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
 }

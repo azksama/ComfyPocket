@@ -80,7 +80,7 @@ export function samplerName(text: string) {
   const map: Record<string, string> = { "euler a": "euler_ancestral", "euler ancestral": "euler_ancestral", "dpm++ 2m": "dpmpp_2m", "dpm++ 2m sde": "dpmpp_2m_sde", "dpm++ 3m sde": "dpmpp_3m_sde", "dpm++ sde": "dpmpp_sde", "dpm++ 2s a": "dpmpp_2s_ancestral", "dpm2 a": "dpm_2_ancestral", "dpm2": "dpm_2", "dpm fast": "dpm_fast", "dpm adaptive": "dpm_adaptive" };
   return { sampler: map[raw] ?? raw.replace(/ /g, "_"), scheduler };
 }
-function a1111(text: string): Partial<Settings> {
+function a1111(text: string, warnings: string[]): Partial<Settings> {
   const match = /(?:^|\n)Steps:\s*\d+/.exec(text);
   if (!match) throw new Error("Aucun paramètre de génération reconnu dans cette image.");
   const before = text.slice(0, match.index).trim(), negative = before.indexOf("Negative prompt:");
@@ -97,7 +97,12 @@ function a1111(text: string): Partial<Settings> {
   if (size) { s.width = Number(size[1]); s.height = Number(size[2]); }
   if (fields["Hires upscale"] || fields["Hires steps"]) {
     const method = fields["Hires upscaler"] ?? "Latent (nearest-exact)";
-    s.hires = { ...defaults.hires, enabled: true, scale: Number(fields["Hires upscale"] ?? 2), steps: Number(fields["Hires steps"] ?? s.steps), denoise: Number(fields["Denoising strength"] ?? 0.7), method: /latent|nearest/i.test(method) ? "nearest-exact" : "model:" + method };
+    let mapped = /latent|nearest/i.test(method) ? "nearest-exact" : "model:" + method;
+    if (/^Latent\s*\(bicubic\)$/i.test(method)) mapped = "bicubic";
+    else if (mapped === "nearest-exact" && !/^(?:Latent\s*\(nearest-exact\)|nearest-exact)$/i.test(method)) {
+      warnings.push(`Hires Fix « ${method} » n’a pas d’équivalent exact reconnu. La méthode nearest-exact est proposée ; vérifiez ce réglage avant de générer.`);
+    }
+    s.hires = { ...defaults.hires, enabled: true, scale: Number(fields["Hires upscale"] ?? 2), steps: Number(fields["Hires steps"] ?? s.steps), denoise: Number(fields["Denoising strength"] ?? 0.7), method: mapped };
   }
   const loras = [...(s.positive ?? "").matchAll(/<(?:lora|lyco):([^:>]+):(-?[\d.]+)>/gi)];
   if (loras.length) { s.loras = loras.map(m => ({ name: m[1], strength: Number(m[2]) })); s.positive = s.positive?.replace(/<(?:lora|lyco):[^>]+>/gi, "").trim(); }
@@ -161,7 +166,8 @@ export function parseTags(tags: Record<string, string>): Imported {
   }
   if (workflow) return { settings: graphSettings(workflow), workflow, source: "ComfyUI", warnings: ["Réglages reconnus chargés. Utilisez le workflow API original pour conserver les nœuds personnalisés."] };
   const raw = tags.parameters || tags.user_comment || "";
-  return { settings: a1111(raw), source: "Paramètres PNG / EXIF", warnings: [] };
+  const warnings: string[] = [];
+  return { settings: a1111(raw, warnings), source: "Paramètres PNG / EXIF", warnings };
 }
 export function resolveImport(result: Imported, catalogs: { models: string[]; loras: string[]; vaes: string[]; samplers: string[]; schedulers: string[] }): Imported {
   const warnings = [...result.warnings];

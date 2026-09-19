@@ -1,4 +1,4 @@
-# Comfy Pocket 0.5.0
+# Comfy Pocket 0.6.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface claire bleu/lilas, adaptée aux téléphones et aux grands écrans.
 
@@ -9,7 +9,7 @@ Depuis un clone Git, les lanceurs `Demarrer-ComfyPocket.cmd` et `Demarrer-ComfyP
 1. Installer **ComfyPocket-arm64.apk** sur Android 10 ou ultérieur. Il est signé avec la même clé que la version 0.1 : installer par-dessus conserve les données.
 2. Garder le dossier **ComfyPocket**, **Demarrer-ComfyPocket.ps1** et **Demarrer-ComfyPocket.cmd** ensemble. Après démarrage du PC, double-cliquer sur **Demarrer-ComfyPocket.cmd** et attendre **PRET** (ComfyUI peut prendre jusqu'à trois minutes à s'initialiser). Le lanceur vérifie le certificat, l'authentification HTTPS et la disponibilité du moteur avant de confirmer la connexion. **La fenêtre peut ensuite être fermée : les deux services continuent en arrière-plan.** Un second lancement réutilise les services ; les démarrages simultanés sont protégés contre les doublons. Les journaux se trouvent dans `%LOCALAPPDATA%\ComfyPocketPC`.
 3. Dans l'onglet **Paramètres** (roue dentée tout à droite), importer **Appairage-PC-local-v0.3.json** pour le Wi-Fi local ou **Appairage-PC-public.json** pour l'adresse publique, nommer le profil et toucher **Connecter mon PC**.
-4. Les profils fonctionnels de la version 0.3 restent valides en 0.5, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
+4. Les profils fonctionnels de la version 0.3 restent valides en 0.6, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
 
 Le compagnon écoute sur **0.0.0.0:8189** : localhost et interfaces du PC. Adresse locale : **https://192.168.1.8:8189** ; adresse publique : **https://82.67.151.59:8189**, via la redirection de port de la box. ComfyUI reste sur **127.0.0.1:8188**. WireGuard peut aussi transporter l'accès à l'adresse locale du PC.
 
@@ -21,7 +21,19 @@ Le profil PC vérifié le 13 septembre 2026 ajoute explicitement `--use-pytorch-
 
 L'accès public a été vérifié depuis ce PC (bouclage NAT), et la connexion native depuis un émulateur Android. Le test sur un téléphone physique hors du domicile reste à effectuer.
 
-## Nouveautés 0.5
+## Nouveautés 0.6
+
+- Bibliothèque de prompts plus lisible : recherche sans accents, aperçus dépliables, suppression annulable et disposition adaptée au clavier mobile.
+- Galerie : cache borné en mémoire, requêtes d’images partagées, état vide adapté à la recherche, effacement des filtres et favoris actualisés immédiatement.
+- Presets : aperçu des réglages à l’enregistrement, recherche par titre ou modèle ; une bibliothèque illisible est conservée et ne peut plus être écrasée.
+- Connexions : validation avant enregistrement, diagnostic de connexion plus précis, protection contre les réponses retardées d’un ancien PC.
+- Import : méthode latente bicubique conservée, variantes sans équivalent signalées, limite des dimensions vérifiée après arrondi Hires.
+- Chargement à la demande du glossaire, de la visionneuse et des fiches LoRA ; surveillance du PC toutes les 5 secondes au repos, 1,5 seconde pendant la génération et 15 secondes en arrière-plan. Retour au premier plan actualisé immédiatement.
+- Refactorisation du transport natif, de la surveillance des générations, des composants communs, du worker d’autocomplétion et de l’index de galerie. Les paramètres d’inférence et la précision GPU restent ceux sélectionnés par l’utilisateur.
+
+Détails et limites de validation : [audit du 19 septembre 2026](docs/AUDIT-2026-09-19.md).
+
+## Fonctionnalités introduites en 0.5
 
 - Presets avec une vignette JPEG de l’image source affichée ou importée, conservée sur l’appareil. Les anciens presets restent lisibles.
 - Recherche Danbooru par sous-chaîne : correspondance exacte en premier, puis tags contenant le terme classés par popularité, même si un autre mot le précède.
@@ -127,6 +139,18 @@ Les illustrations des modèles sont cherchées à côté des fichiers dans E:/St
 
 ## Développement et vérification
 
+### Organisation et performances du compagnon
+
+`bridge/server.mjs` gère HTTPS, l’authentification et les routes autorisées vers ComfyUI. `bridge/gallery.mjs` isole l’index des images ; `bridge/library.mjs` conserve les favoris et la corbeille récupérable ; `bridge/thumbnails.mjs` produit les aperçus ; `bridge/response.mjs` limite les réponses téléchargées depuis le moteur.
+
+L’index de galerie est partagé entre les requêtes et conservé cinq secondes. La pagination réutilise les chemins déjà résolus : charger une page ne vérifie plus chaque fichier de toute la collection. Les favoris sont relus séparément, sans relancer le scan ; une suppression ou restauration invalide l’index. Si une image disparaît entre deux scans, les autres restent consultables. Les opérations sur une image refusent les dossiers, même si leur nom se termine par `.png`.
+
+Le cache des vignettes conserve au maximum 200 entrées et 16 Mio, en privilégiant les images récemment utilisées. Les demandes identiques partagent leur calcul et deux images au maximum sont décodées simultanément. Pour les images provenant de ComfyUI, le contenu identifie l’aperçu : remplacer un fichier par une autre image de même taille ne réutilise plus l’ancienne vignette. Les originaux et les paramètres d’inférence ne sont pas modifiés.
+
+Les réponses du moteur sont limitées à 64 Mio pendant leur réception, avant de charger un éventuel flux démesuré en mémoire. Ces changements ciblent l’affichage, les accès disque et la consommation mémoire du compagnon ; ils ne constituent pas une accélération mesurée de la génération GPU.
+
+### Commandes
+
 Node.js 22.12+ ou 24, Rust, JDK 17+, SDK Android et NDK r27+. Installer les dépendances avec npm ci.
 
 - npm test : workflows, imports de métadonnées, HTTPS, chemins de fichiers, favoris, corbeille, vignettes.
@@ -136,7 +160,10 @@ Node.js 22.12+ ou 24, Rust, JDK 17+, SDK Android et NDK r27+. Installer les dép
 - node scripts/ui-live-check.mjs <appairage> <dossier-preuves> : véritable HTTPS et véritable génération GPU à travers l’interface web. L’adaptateur de commandes natives de ce test n’est pas un service web public.
 - scripts/build-android.ps1 -Target aarch64 -Release : nécessite NDK_HOME, COMFY_KEYSTORE, COMFY_STORE_PASSWORD. Le contournement Windows copie la bibliothèque Rust réellement compilée lorsqu’un lien symbolique est interdit.
 - node scripts/package-source.mjs : archive les sources sans clés, dépendances ou binaires intermédiaires.
+- node --test scripts/package-source.test.mjs : vérifie les exclusions sur des fichiers fictifs, y compris les variantes de casse, les sauvegardes de clés et les liens vers un autre dossier.
+
+Le packaging lit la version dans `package.json` pour nommer son dossier temporaire. Il exclut les fichiers d’appairage, les propriétés de signature, les clés et mots de passe connus, les dossiers d’état du compagnon, les dépendances et les artefacts de compilation. Les liens symboliques et jonctions ne sont pas suivis. Le ZIP final est remplacé seulement après la création complète de la nouvelle archive. Les clés de signature restent hors du dépôt ; les variables `COMFY_KEYSTORE` et `COMFY_STORE_PASSWORD` doivent être fournies au processus de build sans être inscrites dans les sources.
 
 Le compagnon écoute en HTTPS, exige une clé d’accès et rejette les origines navigateur. ComfyUI reste lié à 127.0.0.1. Le client natif vérifie le certificat du PC et l’adresse du serveur. Aucun abonnement ou service de génération cloud n’est nécessaire.
 
-Les preuves de livraison et les captures sont dans verification/v0.5 à côté du projet. Les tests d'interface utilisent un transport simulé ; le scénario live utilise réellement le compagnon HTTPS et le GPU. La validation sur émulateur est distincte d'un essai sur téléphone physique.
+Les preuves de livraison et les captures sont dans verification/v0.6 à côté du projet. Les tests d'interface utilisent un transport simulé ; le scénario live optionnel utilise réellement le compagnon HTTPS et le GPU. Aucun benchmark GPU supplémentaire n’a été effectué pour la 0.6. La validation sur émulateur est distincte d'un essai sur téléphone physique.

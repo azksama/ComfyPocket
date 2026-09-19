@@ -1,13 +1,27 @@
 #[cfg(target_os = "android")]
 use tauri::Manager;
 #[cfg(target_os = "android")]
-async fn call(app: &tauri::AppHandle, command: &'static str, args: serde_json::Value) -> Result<serde_json::Value, String> {
-    let handle = app.state::<tauri_plugin_pocket::Pocket<tauri::Wry>>().0.clone();
-    tauri::async_runtime::spawn_blocking(move || handle.run_mobile_plugin::<serde_json::Value>(command, args)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())
+async fn call(
+    app: &tauri::AppHandle,
+    command: &'static str,
+    args: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let handle = app
+        .state::<tauri_plugin_pocket::Pocket<tauri::Wry>>()
+        .0
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        handle.run_mobile_plugin::<serde_json::Value>(command, args)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
 }
 pub async fn guard(app: &tauri::AppHandle) -> Result<(), String> {
     #[cfg(target_os = "android")]
-    { call(app, "assertUnlocked", serde_json::json!({})).await?; }
+    {
+        call(app, "assertUnlocked", serde_json::json!({})).await?;
+    }
     #[cfg(not(target_os = "android"))]
     let _ = app;
     Ok(())
@@ -17,7 +31,10 @@ pub async fn lock_status(app: tauri::AppHandle) -> Result<serde_json::Value, Str
     #[cfg(target_os = "android")]
     return call(&app, "lockStatus", serde_json::json!({})).await;
     #[cfg(not(target_os = "android"))]
-    { let _ = app; Ok(serde_json::json!({"supported":false,"available":false,"enabled":false,"unlocked":true})) }
+    {
+        let _ = app;
+        Ok(serde_json::json!({"supported":false,"available":false,"enabled":false,"unlocked":true}))
+    }
 }
 #[tauri::command]
 pub async fn unlock(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
@@ -34,18 +51,41 @@ pub async fn lock_session(app: tauri::AppHandle) -> Result<serde_json::Value, St
     lock_status(app).await
 }
 #[tauri::command]
-pub async fn set_biometric_lock(app: tauri::AppHandle, enabled: bool) -> Result<serde_json::Value, String> {
+pub async fn set_biometric_lock(
+    app: tauri::AppHandle,
+    enabled: bool,
+) -> Result<serde_json::Value, String> {
     #[cfg(target_os = "android")]
-    return call(&app, "setBiometricLock", serde_json::json!({"enabled":enabled})).await;
+    return call(
+        &app,
+        "setBiometricLock",
+        serde_json::json!({"enabled":enabled}),
+    )
+    .await;
     #[cfg(not(target_os = "android"))]
-    { let _ = (app, enabled); Err("Disponible sur Android uniquement".into()) }
+    {
+        let _ = (app, enabled);
+        Err("Disponible sur Android uniquement".into())
+    }
 }
 
 #[tauri::command]
-pub async fn set_lock_options(app: tauri::AppHandle, delay_seconds: u64, hide_recents: bool) -> Result<serde_json::Value, String> {
+pub async fn set_lock_options(
+    app: tauri::AppHandle,
+    delay_seconds: u64,
+    hide_recents: bool,
+) -> Result<serde_json::Value, String> {
     guard(&app).await?;
     #[cfg(target_os = "android")]
-    return call(&app, "setLockOptions", serde_json::json!({"delaySeconds":delay_seconds,"hideRecents":hide_recents})).await;
+    return call(
+        &app,
+        "setLockOptions",
+        serde_json::json!({"delaySeconds":delay_seconds,"hideRecents":hide_recents}),
+    )
+    .await;
     #[cfg(not(target_os = "android"))]
-    { let _ = (app, delay_seconds, hide_recents); Err("Disponible sur Android uniquement".into()) }
+    {
+        let _ = (app, delay_seconds, hide_recents);
+        Err("Disponible sur Android uniquement".into())
+    }
 }

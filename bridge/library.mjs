@@ -51,9 +51,12 @@ export function library(config, safeFile) {
       await writeFile(modelStatePath + ".tmp", JSON.stringify(data)); await rename(modelStatePath + ".tmp", modelStatePath);
       return data;
     }),
-    async decorate(items) {
+    async decorate(items, resolvedFiles) {
       const marks = await favorites();
-      return Promise.all(items.map(async item => ({ ...item, favorite: !!marks[(await source(item)).file] })));
+      return Promise.all(items.map(async item => {
+        const file = resolvedFiles?.get(item) ?? (await source(item)).file;
+        return { ...item, favorite: !!marks[file] };
+      }));
     },
     favorite: item => serial(async () => {
       const { file } = await source(item), data = await favorites();

@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+export { parsePairing } from "./pairing";
 export interface Pairing {
   url: string;
   token: string;
@@ -92,7 +93,7 @@ export function imagePath(i: ImageRef) {
 export function galleryPath(i: GalleryItem) {
   return (
     "/bridge/file?" +
-    new URLSearchParams({ root: String(i.root), relative: i.relative })
+    new URLSearchParams({ root: String(i.root), relative: i.relative, revision: `${i.modified}-${i.size}` })
   );
 }
 export function choices(
@@ -104,13 +105,4 @@ export function choices(
   const options = definition?.[1] as { options?: unknown } | undefined;
   const value = definition?.[0] === "COMBO" ? options?.options : definition?.[0];
   return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
-}
-export function parsePairing(text: string): Pairing {
-  const p = JSON.parse(text);
-  if (!p.url || !p.token || !p.certificate)
-    throw new Error("Le fichier doit contenir url, token et certificate.");
-  const u = new URL(p.url);
-  if (u.protocol !== "https:")
-    throw new Error("Une connexion HTTPS est requise.");
-  return { url: p.url, token: p.token, certificate: p.certificate };
 }

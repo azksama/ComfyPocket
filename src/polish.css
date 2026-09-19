@@ -1,0 +1,104 @@
+.search-box > button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  flex: 0 0 auto;
+  padding: 8px;
+  color: var(--muted);
+}
+.gallery-skeleton {
+  display: grid;
+  gap: 16px;
+}
+.gallery-skeleton > span {
+  aspect-ratio: 0.8;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6px 22px rgba(57, 48, 97, 0.04);
+}
+.section-skeleton {
+  min-height: 45vh;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.viewer-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #0d101b;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.gallery-selection-tools {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.gallery-selection-tools small {
+  margin-left: auto;
+  color: var(--muted);
+}
+.favorite-button:disabled {
+  opacity: 0.65;
+}
+.preset-empty {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--muted);
+}
+.new-preset-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 20px;
+  background: #f4f3fc;
+  color: var(--ink);
+}
+.new-preset-preview .picture {
+  width: 64px;
+  height: 64px;
+  min-height: 64px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+.new-preset-preview small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.new-preset-dialog form {
+  display: grid;
+  gap: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+.connection-status button {
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(57, 48, 97, 0.05);
+}
+.resource-stat meter {
+  height: 12px;
+}
+.resource-stat meter::-webkit-meter-bar {
+  background: #dfdeef;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+}
+.resource-stat meter::-webkit-meter-optimum-value,
+.resource-stat meter::-webkit-meter-suboptimum-value,
+.resource-stat meter::-webkit-meter-even-less-good-value {
+  background: #655cb4;
+  border-radius: 999px;
+}
+.resource-stat meter::-moz-meter-bar {
+  background: #655cb4;
+  border-radius: 999px;
+}

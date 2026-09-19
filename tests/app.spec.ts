@@ -37,7 +37,7 @@ test("v5 prompt history blocks and conflict checker work together", async ({ pag
   await page.getByRole("button", { name: "Historique", exact: true }).click();
   await page.getByRole("button", { name: "Restaurer", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
-  await page.screenshot({ path: "../verification/v0.5/prompt-tools.png" });
+  await page.screenshot({ path: "../verification/v0.6/prompt-tools.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("prompt-blocks-v1")!)[0].title)).toBe("Lumière");
 });
@@ -61,7 +61,7 @@ test("v5 preset image and local LoRA metadata", async ({ page }) => {
   await page.getByLabel("Mes notes").fill("Poids 0.7");
   await page.getByRole("button", { name: "Enregistrer les notes" }).click();
   await expect(page.getByText("Notes enregistrées sur cet appareil.")).toBeVisible();
-  await page.screenshot({ path: "../verification/v0.5/lora-details.png" });
+  await page.screenshot({ path: "../verification/v0.6/lora-details.png" });
   await page.getByRole("button", { name: "Ajouter ce LoRA" }).click();
   await page.getByRole("button", { name: "Votre idée", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
@@ -260,7 +260,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await expect(page.locator(".prompt-editor").getByRole("option").first()).toContainText("landscape");
   await expect(page.locator(".suggestion-bubble")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.4/autocompletion.png" });
+  await page.screenshot({ path: "../verification/v0.6/autocompletion.png" });
   expect((await page.locator(".suggestion-bubble").boundingBox())!.y).toBeGreaterThan((await positive.boundingBox())!.y);
   await page.locator(".prompt-editor").getByRole("option").first().click();
   await expect(positive).toHaveValue("landscape, ");
@@ -271,7 +271,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await page.getByRole("tab", { name: /Positif/ }).click();
   await expect(positive).toHaveValue("landscape, ");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.4/editeur.png" });
+  await page.screenshot({ path: "../verification/v0.6/editeur.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("landscape");
 });
@@ -326,7 +326,7 @@ test("reference glossary works offline, searches and inserts tags", async ({ pag
   await page.getByLabel("Rechercher dans le glossaire").fill("sunlight");
   await page.locator(".glossary-tag").filter({ hasText: /^Lumière du soleil/ }).click();
   await page.getByRole("button", { name: "Positif", exact: true }).click();
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("settings")!).positive)).toContain("sunlight");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("settings")!).positive)).toContain("sunlight");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: "Toutes les catégories" }).click();
   await page.getByLabel("Rechercher dans le glossaire").fill("uzumaki_naruto");
@@ -376,7 +376,7 @@ test("icon dock, collapsed studio cards and persistent gallery density", async (
     await button.click(); await expect(card.locator(".card-content")).toBeVisible();
     await button.click(); await expect(card.locator(".card-content")).not.toBeVisible();
   }
-  await page.screenshot({ path: "../verification/v0.4/creer-cartes.png" });
+  await page.screenshot({ path: "../verification/v0.6/creer-cartes.png" });
   await nav.getByRole("button", { name: "Galerie", exact: true }).click();
   for (const n of [2, 3, 4]) {
     await page.getByLabel("Nombre de colonnes").selectOption(String(n));
@@ -415,7 +415,7 @@ test("v4 equal dock insets, white cards, concise headings and live PC resources"
   await expect(dialog.getByText("32 Go", { exact: true })).toBeVisible();
   await expect(dialog.getByText("9 Go", { exact: true })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.4/etat-pc.png" });
+  await page.screenshot({ path: "../verification/v0.6/etat-pc.png" });
 });
 
 test("v4 autocomplete frame persists while typing and can be disabled", async ({ page }) => {
@@ -456,7 +456,7 @@ test("v4 presets occupy a page with a separate create dialog and spaced undo", a
   await page.getByRole("button", { name: "Annuler la suppression" }).click();
   await expect(page.getByRole("button", { name: "Charger Lumière du matin" })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.4/presets.png" });
+  await page.screenshot({ path: "../verification/v0.6/presets.png" });
 });
 
 test("v4 long press selects multiple images for favorite download and recoverable trash", async ({ page }) => {
@@ -473,7 +473,7 @@ test("v4 long press selects multiple images for favorite download and recoverabl
   await page.getByRole("button", { name: "Télécharger la sélection" }).click();
   await expect.poll(() => calls.filter(c => c.command === "save_image").length).toBe(2);
   await expect(page.getByRole("button", { name: "Supprimer la sélection" })).toBeEnabled();
-  await page.screenshot({ path: "../verification/v0.4/selection.png" });
+  await page.screenshot({ path: "../verification/v0.6/selection.png" });
   await page.getByRole("button", { name: "Supprimer la sélection" }).click();
   await expect(page.locator(".gallery-card")).toHaveCount(1);
   await expect(page.locator(".batch-toolbar")).toHaveCount(0);
@@ -491,7 +491,7 @@ test("v4 vertical gesture feedback and decoded neighbour survive image handoff",
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "favorite"); await expect(page.locator(".gesture-action")).toBeVisible();
   await page.mouse.move(130, 400, { steps: 6 });
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "trash");
-  await page.screenshot({ path: "../verification/v0.4/geste-corbeille.png" });
+  await page.screenshot({ path: "../verification/v0.6/geste-corbeille.png" });
   await page.mouse.up(); await page.waitForTimeout(250);
   await page.mouse.move(190, 500); await page.mouse.down(); await page.mouse.move(190, 320, { steps: 10 }); await page.mouse.up();
   await expect(page.locator(".viewer-caption")).toContainText("forest.png");
@@ -600,4 +600,62 @@ test("v4 returning to the gallery discovers images created since the previous vi
   });
   await page.getByRole("button", { name: "Galerie", exact: true }).click();
   await expect(page.getByRole("button", { name: "Agrandir new.png", exact: true })).toBeVisible();
+});
+
+
+test("v6 session storage failure does not interrupt accepted generation", async ({ page }) => {
+  await page.addInitScript(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (/^(settings|tasks:|results:|seed:|clientId)/.test(key)) throw new DOMException("Full", "QuotaExceededError");
+      return write.call(this, key, value);
+    };
+  });
+  await connect(page);
+  await prompt(page, "a peaceful landscape");
+  await page.getByRole("button", { name: "Générer l’image", exact: true }).click();
+  await expect(page.getByText(/Génération terminée/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agrandir test-job-1.png", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+});
+
+test("v6 favorites update immediately and empty searches are recoverable", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Galerie", exact: true }).click();
+  await page.getByRole("button", { name: "Mettre en favori lake.png", exact: true }).click();
+  await page.getByRole("button", { name: "Favoris", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "Retirer des favoris lake.png", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(0);
+  await expect(page.locator(".gallery-density")).toContainText("0 images");
+  await page.getByRole("button", { name: "Toutes", exact: true }).click();
+  await page.getByLabel("Rechercher dans la galerie").fill("nothing-matches");
+  await expect(page.getByText("Aucune image ne correspond.")).toBeVisible();
+  await page.getByRole("button", { name: "Effacer les filtres", exact: true }).click();
+  await expect(page.locator(".gallery-card")).toHaveCount(3);
+});
+
+test("v6 corrupt preset libraries cannot be overwritten and nested dialogs release scroll", async ({ page }) => {
+  await connect(page);
+  const corrupt = '[{"name":"preserve me"}]';
+  await page.evaluate(value => localStorage.setItem("inference-presets-v1", value), corrupt);
+  await page.getByRole("button", { name: "Mes presets", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Nouveau preset", exact: true })).toBeDisabled();
+  await expect(page.getByRole("dialog", { name: "Mes presets" }).locator('input[type=file]')).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem("inference-presets-v1"))).toBe(corrupt);
+  await page.getByRole("dialog", { name: "Mes presets" }).getByRole("button", { name: "Fermer", exact: true }).click();
+  await page.getByRole("button", { name: "LoRA / LyCORIS", exact: true }).click();
+  await page.getByRole("button", { name: "Fiche film", exact: true }).click();
+  await page.getByRole("button", { name: "Ajouter ce LoRA", exact: true }).click();
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+});
+
+test("v6 settings survive an immediate reload before debounce expires", async ({ page }) => {
+  await connect(page);
+  await page.getByLabel("Steps", { exact: true }).fill("43");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
+  await openCards(page);
+  await expect(page.getByLabel("Steps", { exact: true })).toHaveValue("43");
 });

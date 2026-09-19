@@ -1,10 +1,12 @@
 import https from "node:https";
 import { timingSafeEqual } from "node:crypto";
-import { readdir, realpath, stat, readFile } from "node:fs/promises";
+import { realpath, stat, readFile } from "node:fs/promises";
 import path from "node:path";
 import WebSocket from "ws";
-import { library, TRASH } from "./library.mjs";
+import { library } from "./library.mjs";
+import { createGalleryIndex } from "./gallery.mjs";
 import { thumbnail } from "./thumbnails.mjs";
+import { readBoundedResponse } from "./response.mjs";
 
 const mime = {
   ".png": "image/png",
@@ -51,7 +53,8 @@ export async function safeFile(root, relative) {
   if (
     rel.startsWith("..") ||
     path.isAbsolute(rel) ||
-    !mime[path.extname(file).toLowerCase()]
+    !mime[path.extname(file).toLowerCase()] ||
+    !(await stat(file)).isFile()
   )
     throw Object.assign(new Error("Fichier interdit"), { status: 403 });
   return file;
@@ -65,71 +68,7 @@ export function createBridge(config) {
     throw new Error("ComfyUI doit être sur le PC local (127.0.0.1).");
   const sessions = new Map();
   const lib = library(config, safeFile);
-  let galleryCache = null,
-    scanPromise = null;
-  async function gallery() {
-    if (galleryCache && Date.now() - galleryCache.time < 5000)
-      return galleryCache;
-    if (scanPromise) return scanPromise;
-    scanPromise = (async () => {
-      const items = [],
-        warnings = [],
-        seen = new Set();
-      for (const [index, root] of config.roots.entries()) {
-        const scan = async (dir, depth = 0) => {
-          if (depth > 32) return;
-          for (const ent of await readdir(dir, { withFileTypes: true })) {
-            if (ent.name === TRASH) continue;
-            const file = path.join(dir, ent.name);
-            if (ent.isSymbolicLink()) continue;
-            if (ent.isDirectory()) {
-              try {
-                await scan(file, depth + 1);
-              } catch {
-                warnings.push(`Sous-dossier inaccessible : ${ent.name}`);
-              }
-            } else if (
-              ent.isFile() &&
-              mime[path.extname(ent.name).toLowerCase()]
-            ) {
-              try {
-                const canonical = await realpath(file);
-                if (seen.has(canonical)) continue;
-                seen.add(canonical);
-                const info = await stat(file);
-                items.push({
-                  root: index,
-                  relative: path
-                    .relative(root.path, file)
-                    .split(path.sep)
-                    .join("/"),
-                  name: ent.name,
-                  folder: root.name,
-                  size: info.size,
-                  modified: info.mtimeMs,
-                });
-              } catch {}
-            }
-          }
-        };
-        try {
-          await scan(root.path);
-        } catch {
-          warnings.push(`Dossier inaccessible : ${root.name}`);
-        }
-      }
-      items.sort(
-        (a, b) =>
-          b.modified - a.modified || a.relative.localeCompare(b.relative),
-      );
-      return (galleryCache = { time: Date.now(), items, warnings });
-    })();
-    try {
-      return await scanPromise;
-    } finally {
-      scanPromise = null;
-    }
-  }
+  const gallery = createGalleryIndex(config.roots, new Set(Object.keys(mime)));
   function session(id) {
     if (!/^[\w-]{8,100}$/.test(id))
       throw Object.assign(new Error("Client invalide"), { status: 400 });
@@ -214,56 +153,97 @@ export function createBridge(config) {
             version: 3,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
-        if (req.method === "GET" && url.pathname === "/bridge/model-info") return json(res, 200, await lib.modelInfo(url.searchParams.get("kind"), url.searchParams.get("name")));
-        if (req.method === "GET" && url.pathname === "/bridge/model-favorites") return json(res, 200, await lib.modelFavorites());
-        if (req.method === "POST" && url.pathname === "/bridge/model-favorites") return json(res, 200, await lib.modelFavorite(JSON.parse((await body(req)).toString())));
+        if (req.method === "GET" && url.pathname === "/bridge/model-info")
+          return json(
+            res,
+            200,
+            await lib.modelInfo(
+              url.searchParams.get("kind"),
+              url.searchParams.get("name"),
+            ),
+          );
+        if (req.method === "GET" && url.pathname === "/bridge/model-favorites")
+          return json(res, 200, await lib.modelFavorites());
+        if (req.method === "POST" && url.pathname === "/bridge/model-favorites")
+          return json(
+            res,
+            200,
+            await lib.modelFavorite(JSON.parse((await body(req)).toString())),
+          );
         if (req.method === "GET" && url.pathname === "/bridge/gallery") {
-          const data = await gallery();
+          const data = await gallery.list();
           const q = (url.searchParams.get("q") ?? "").toLowerCase();
           const root = url.searchParams.get("root");
-          const marked = await lib.decorate(data.items);
-          const filtered = marked.filter(
+          const candidates = data.items.filter(
             (i) =>
               (!q || i.relative.toLowerCase().includes(q)) &&
-              (root === null || String(i.root) === root) &&
-              (url.searchParams.get("favorite") !== "true" || i.favorite),
+              (root === null || String(i.root) === root),
           );
-          const offset = Math.max(
-            0,
-            Number(url.searchParams.get("offset")) || 0,
-          );
-          const limit = Math.min(
-            100,
-            Math.max(1, Number(url.searchParams.get("limit")) || 40),
-          );
+          const favoritesOnly = url.searchParams.get("favorite") === "true";
+          const filtered = favoritesOnly
+            ? (await lib.decorate(candidates, data.resolvedFiles)).filter(
+                (item) => item.favorite,
+              )
+            : candidates;
+          const number = (name, fallback) => {
+            const value = Number(url.searchParams.get(name));
+            return Number.isFinite(value) && value > 0
+              ? Math.floor(value)
+              : fallback;
+          };
+          const offset = number("offset", 0);
+          const limit = Math.min(100, Math.max(1, number("limit", 40)));
+          const page = filtered.slice(offset, offset + limit);
           return json(res, 200, {
-            items: filtered.slice(offset, offset + limit),
+            items: favoritesOnly
+              ? page
+              : await lib.decorate(page, data.resolvedFiles),
             total: filtered.length,
             warnings: data.warnings,
           });
         }
         if (req.method === "GET" && url.pathname === "/bridge/trash")
           return json(res, 200, { items: await lib.trashList() });
-        if (req.method === "POST" && ["/bridge/favorite", "/bridge/trash", "/bridge/restore"].includes(url.pathname)) {
+        if (
+          req.method === "POST" &&
+          ["/bridge/favorite", "/bridge/trash", "/bridge/restore"].includes(
+            url.pathname,
+          )
+        ) {
           const action = url.pathname.slice(8);
-          const result = await lib[action](JSON.parse((await body(req)).toString()));
-          galleryCache = null;
+          const result = await lib[action](
+            JSON.parse((await body(req)).toString()),
+          );
+          if (action !== "favorite") gallery.invalidate();
           return json(res, 200, result);
         }
-        if (req.method === "GET" && ["/bridge/file", "/bridge/model-preview"].includes(url.pathname)) {
+        if (
+          req.method === "GET" &&
+          ["/bridge/file", "/bridge/model-preview"].includes(url.pathname)
+        ) {
           const root = config.roots[Number(url.searchParams.get("root"))];
-          if (!root && url.pathname === "/bridge/file") return json(res, 404, { error: "Dossier inconnu" });
-          const file = url.pathname === "/bridge/model-preview" ? await lib.preview(url.searchParams.get("kind"), url.searchParams.get("name")) : await safeFile(
-            root.path,
-            url.searchParams.get("relative"),
-          );
+          if (!root && url.pathname === "/bridge/file")
+            return json(res, 404, { error: "Dossier inconnu" });
+          const file =
+            url.pathname === "/bridge/model-preview"
+              ? await lib.preview(
+                  url.searchParams.get("kind"),
+                  url.searchParams.get("name"),
+                )
+              : await safeFile(root.path, url.searchParams.get("relative"));
           const info = await stat(file);
           if (info.size > 64 * 1024 * 1024)
             return json(res, 413, { error: "Image supérieure à 64 Mo" });
-          const small = url.searchParams.get("thumb") === "1" || url.pathname === "/bridge/model-preview";
-          const content = small ? await thumbnail(file, `${file}:${info.mtimeMs}:${info.size}`) : await readFile(file);
+          const small =
+            url.searchParams.get("thumb") === "1" ||
+            url.pathname === "/bridge/model-preview";
+          const content = small
+            ? await thumbnail(file, `${file}:${info.mtimeMs}:${info.size}`)
+            : await readFile(file);
           res.writeHead(200, {
-            "Content-Type": small ? "image/jpeg" : mime[path.extname(file).toLowerCase()],
+            "Content-Type": small
+              ? "image/jpeg"
+              : mime[path.extname(file).toLowerCase()],
             "Cache-Control": "private, max-age=60",
             "X-Content-Type-Options": "nosniff",
           });
@@ -298,12 +278,21 @@ export function createBridge(config) {
             signal: AbortSignal.timeout(35000),
             redirect: "error",
           });
-          const data = Buffer.from(await response.arrayBuffer());
-          if (data.length > 64 * 1024 * 1024)
-            return json(res, 413, { error: "Réponse trop volumineuse" });
-          if (route === "view" && response.ok && url.searchParams.get("thumb") === "1") {
-            const content = await thumbnail(data, `upstream:${target.href}:${data.length}`);
-            res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+          const data = await readBoundedResponse(response, 64 * 1024 * 1024);
+          if (
+            route === "view" &&
+            response.ok &&
+            url.searchParams.get("thumb") === "1"
+          ) {
+            const content = await thumbnail(
+              data,
+              `upstream:${target.href}:${data.length}`,
+            );
+            res.writeHead(200, {
+              "Content-Type": "image/jpeg",
+              "Cache-Control": "no-store",
+              "X-Content-Type-Options": "nosniff",
+            });
             return res.end(content);
           }
           res.writeHead(response.status, {

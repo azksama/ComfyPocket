@@ -59,7 +59,11 @@ export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number |
   if (s.hires.enabled && (!range(s.hires.scale, 1, 4) || !integer(s.hires.steps, 1, 150) || !range(s.hires.denoise, 0, 1))) throw new Error("Réglages Hires Fix invalides.");
   if (s.upscale.enabled && !range(s.upscale.scale, 1, 4)) throw new Error("Facteur d’agrandissement : 1 à 4.");
   const scale = (s.hires.enabled ? s.hires.scale : 1) * (s.upscale.enabled ? s.upscale.scale : 1);
-  if (s.width * scale > 16384 || s.height * scale > 16384) throw new Error("Image finale limitée à 16 384 pixels par côté.");
+  const highWidth = Math.round(s.width * s.hires.scale / 8) * 8, highHeight = Math.round(s.height * s.hires.scale / 8) * 8;
+  const finalScale = s.upscale.enabled ? s.upscale.scale : 1;
+  const finalWidth = Math.round((s.hires.enabled ? highWidth : s.width) * finalScale);
+  const finalHeight = Math.round((s.hires.enabled ? highHeight : s.height) * finalScale);
+  if (s.width * scale > 16384 || s.height * scale > 16384 || finalWidth > 16384 || finalHeight > 16384) throw new Error("Image finale limitée à 16 384 pixels par côté.");
   const seed = seedValue(s.seed);
   const w: Workflow = { "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: s.model } } };
   type Ref = [string, number];
@@ -89,7 +93,6 @@ export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number |
     }
     return add("ImageScaleBy", { image, upscale_method: method, scale_by: by });
   };
-  const highWidth = Math.round(s.width * s.hires.scale / 8) * 8, highHeight = Math.round(s.height * s.hires.scale / 8) * 8;
   if (s.hires.enabled) {
     if (s.hires.method.startsWith("model:")) {
       const decoded = add("VAEDecode", { samples, vae });
@@ -102,14 +105,12 @@ export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number |
   }
   w["6"] = { class_type: "VAEDecode", inputs: { samples, vae } };
   let image: Ref = ["6", 0];
-  if (s.upscale.enabled) image = scaledImage(image, s.upscale.method, s.upscale.scale,
-    Math.round((s.hires.enabled ? highWidth : s.width) * s.upscale.scale),
-    Math.round((s.hires.enabled ? highHeight : s.height) * s.upscale.scale));
+  if (s.upscale.enabled) image = scaledImage(image, s.upscale.method, s.upscale.scale, finalWidth, finalHeight);
   w["7"] = { class_type: "SaveImage", inputs: { images: image, filename_prefix: "ComfyPocket/ComfyPocket" } };
   return { workflow: w, seed };
 }
 export function parseWorkflow(text: string): Workflow {
-  const json = losslessJson(text), graph = json.prompt ?? json;
+  const json = losslessJson(text), graph = json?.prompt ?? json;
   if (!graph || typeof graph !== "object" || Array.isArray(graph) || !Object.keys(graph).length || Object.keys(graph).length > 2000)
     throw new Error("Workflow API vide ou invalide.");
   for (const node of Object.values(graph) as any[])
@@ -120,4 +121,12 @@ export function parseWorkflow(text: string): Workflow {
 export function checkWorkflow(w: Workflow, info: ObjectInfo) {
   const missing = [...new Set(Object.values(w).filter(n => !info[n.class_type]).map(n => n.class_type))];
   if (missing.length) throw new Error(`Nœuds absents du PC : ${missing.join(", ")}`);
+  for (const node of Object.values(w)) {
+    if (node.class_type !== "LatentUpscale" || node.inputs.upscale_method !== "bicubic") continue;
+    const definition = info.LatentUpscale?.input?.required?.upscale_method;
+    const methods = definition?.[0] === "COMBO" ? (definition[1] as { options?: unknown })?.options : definition?.[0];
+    if (Array.isArray(methods) && !methods.includes("bicubic")) {
+      throw new Error("L’agrandissement latent bicubique importé n’est pas disponible sur ce PC. Choisissez explicitement une autre méthode Hires Fix.");
+    }
+  }
 }

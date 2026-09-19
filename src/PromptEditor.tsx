@@ -3,74 +3,451 @@ import { Check, Undo2, Redo2, Sparkles } from "lucide-react";
 import { Modal } from "./components";
 import { insertTag, tagRange, type Tag } from "./tags";
 import PromptTools from "./PromptTools";
-import { rememberPrompt } from "./promptLibrary";
-import { caretPosition } from "./caret";
-type Side = "positive" | "negative";
-type Prompts = Record<Side, string>;
-const categories: Record<number, string> = { 0: "Général", 1: "Artiste", 3: "Univers", 4: "Personnage", 5: "Méta" };
-export default function PromptEditor({ initialTab, values, onChange, onClose }: { initialTab: Side; values: Prompts; onChange: (values: Prompts) => void; onClose: () => void }) {
-  const [side, setSide] = useState(initialTab), [caret, setCaret] = useState(values[initialTab].length), [tags, setTags] = useState<Tag[]>([]), [active, setActive] = useState(0), [count, setCount] = useState(0), [error, setError] = useState(""), [composing, setComposing] = useState(false), [dismissed, setDismissed] = useState(false);
-  const [enabled, setEnabled] = useState(() => localStorage.getItem("autocomplete-enabled") !== "false"), [pending, setPending] = useState(false);
-  const bubbleVisible = enabled && !dismissed && !!tagRange(values[side], caret).query;
-  const input = useRef<HTMLTextAreaElement>(null), worker = useRef<Worker | null>(null), sequence = useRef(0), history = useRef<{ undo: Prompts[]; redo: Prompts[] }>({ undo: [], redo: [] });
-  const value = values[side], query = tagRange(value, caret).query;
-  const bubble = useRef<HTMLDivElement>(null), [bubbleTop, setBubbleTop] = useState(60), [scroll, setScroll] = useState(0);
+import {
+  rememberPrompt,
+  promptStorageError,
+  type Prompts,
+} from "./promptLibrary";
+import { createCaretMeasurer } from "./caret";
+import { usePromptSuggestions } from "./usePromptSuggestions";
+import "./prompt-experience.css";
+
+type Side = keyof Prompts;
+const sides: Side[] = ["positive", "negative"];
+const categories: Record<number, string> = {
+  0: "Général",
+  1: "Artiste",
+  3: "Univers",
+  4: "Personnage",
+  5: "Méta",
+};
+
+function readAutocompletePreference() {
+  try {
+    return localStorage.getItem("autocomplete-enabled") !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function MatchingTag({ name, query }: { name: string; query: string }) {
+  const at = name.indexOf(query);
+  const visible = name.replace(/_/g, " ");
+  return at < 0 ? (
+    visible
+  ) : (
+    <>
+      {visible.slice(0, at)}
+      <mark>{visible.slice(at, at + query.length)}</mark>
+      {visible.slice(at + query.length)}
+    </>
+  );
+}
+
+export default function PromptEditor({
+  initialTab,
+  values,
+  onChange,
+  onClose,
+}: {
+  initialTab: Side;
+  values: Prompts;
+  onChange: (values: Prompts) => void;
+  onClose: () => void;
+}) {
+  const [side, setSide] = useState(initialTab);
+  const [caret, setCaret] = useState(values[initialTab].length);
+  const [active, setActive] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [enabled, setEnabled] = useState(readAutocompletePreference);
+  const [saveError, setSaveError] = useState("");
+  const [preferenceWarning, setPreferenceWarning] = useState("");
+  const [bubbleTop, setBubbleTop] = useState(60);
+  const [scroll, setScroll] = useState(0);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const bubble = useRef<HTMLDivElement>(null);
+  const measurer = useRef<ReturnType<typeof createCaretMeasurer> | null>(null);
+  const history = useRef<{ undo: Prompts[]; redo: Prompts[] }>({
+    undo: [],
+    redo: [],
+  });
+  const value = values[side];
+  const query = tagRange(value, caret).query;
+  const bubbleVisible = enabled && !dismissed && !!query;
+  const { tags, count, pending, error, retry } = usePromptSuggestions(
+    dismissed ? "" : query,
+    enabled,
+    composing,
+  );
+
   const placeBubble = () => {
-    const field = input.current; if (!field || !bubbleVisible) return;
-    let top = caretPosition(field, caret) + 8;
+    const field = input.current,
+      position = measurer.current;
+    if (!field || !position || !bubbleVisible) return;
+    let top = position.measure(caret) + 8;
     const available = field.clientHeight - 112;
-    if (top > available) { field.scrollTop += top - Math.max(38, available); top = caretPosition(field, caret) + 8; }
+    if (top > available) {
+      field.scrollTop += top - Math.max(38, available);
+      top = position.measure(caret) + 8;
+    }
     setBubbleTop(Math.max(0, top));
   };
-  useLayoutEffect(placeBubble, [caret, value, bubbleVisible, scroll]);
-  useEffect(() => { const observer = new ResizeObserver(placeBubble); if (input.current) observer.observe(input.current); return () => observer.disconnect(); }, [caret, bubbleVisible]);
-  useEffect(() => {
-    if (!enabled) return;
-    const w = new Worker(new URL("./tags.worker.ts", import.meta.url), { type: "module" }); worker.current = w;
-    w.onmessage = event => { const data = event.data; if (data.ready) setCount(data.ready); if (data.error) { setError(data.error); setPending(false); setTags([]); } if (data.id === sequence.current) { setTags(data.tags); setActive(0); setPending(false); } };
-    w.onerror = () => { setError("Suggestions indisponibles. La saisie reste disponible."); setPending(false); setTags([]); };
-    return () => { worker.current = null; w.terminate(); };
-  }, [enabled]);
-  useEffect(() => {
-    const viewport = window.visualViewport, el = input.current?.closest("dialog");
-    const resize = () => { el?.style.setProperty("--editor-height", `${viewport?.height ?? innerHeight}px`); el?.style.setProperty("--editor-top", `${viewport?.offsetTop ?? 0}px`); };
-    resize(); viewport?.addEventListener("resize", resize); viewport?.addEventListener("scroll", resize);
-    return () => { viewport?.removeEventListener("resize", resize); viewport?.removeEventListener("scroll", resize); };
+  useLayoutEffect(() => {
+    if (!input.current) return;
+    const position = createCaretMeasurer(input.current);
+    measurer.current = position;
+    return () => {
+      position.dispose();
+      measurer.current = null;
+    };
   }, []);
-  useEffect(() => { input.current?.focus(); input.current?.setSelectionRange(caret, caret); }, [side]);
+  useLayoutEffect(placeBubble, [caret, value, bubbleVisible, scroll]);
   useEffect(() => {
-    const id = ++sequence.current;
-    if (!enabled || !query || dismissed) { setTags([]); setPending(false); return; }
-    if (composing) return;
-    setPending(true);
-    const timer = setTimeout(() => worker.current?.postMessage({ id, query }), 65);
-    return () => clearTimeout(timer);
-  }, [query, composing, side, dismissed, enabled]);
-  const update = (next: Prompts) => { history.current.undo.push({ ...values }); if (history.current.undo.length > 80) history.current.undo.shift(); history.current.redo = []; onChange(next); setDismissed(false); };
-  const select = (tag: Tag) => {
-    if (pending) return;
-    const next = insertTag(value, caret, tag.name); update({ ...values, [side]: next.text }); setCaret(next.caret); setTags([]);
-    requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(next.caret, next.caret); });
-  };
-  const travel = (direction: "undo" | "redo") => {
-    const from = history.current[direction], next = from.pop(); if (!next) return;
-    history.current[direction === "undo" ? "redo" : "undo"].push({ ...values }); onChange(next); setCaret(next[side].length); setDismissed(false);
-    requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(next[side].length, next[side].length); });
-  };
-  const finish = () => { try { rememberPrompt(values); onClose(); } catch (e) { setError(String(e)); } };
-  return <Modal title="Écrire votre image" className="prompt-editor" onClose={finish}>
-    <label className="autocomplete-setting"><span>Autocomplétion</span><input type="checkbox" role="switch" aria-label="Activer l’autocomplétion" checked={enabled} onChange={e => { setEnabled(e.target.checked); localStorage.setItem("autocomplete-enabled", String(e.target.checked)); }} /></label>
-    <PromptTools values={values} onChange={next => { update(next); setCaret(next[side].length); }} />
-    <div className="editor-tabs" role="tablist" aria-label="Type de prompt">{(["positive", "negative"] as Side[]).map((s, i) => <button key={s} id={`tab-${s}`} role="tab" aria-selected={side === s} aria-controls="prompt-panel" tabIndex={side === s ? 0 : -1} onKeyDown={e => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) { e.preventDefault(); const next = e.key === "Home" ? "positive" : e.key === "End" ? "negative" : s === "positive" ? "negative" : "positive"; setSide(next); setCaret(values[next].length); setDismissed(false); } }} onClick={() => { setSide(s); setCaret(values[s].length); setDismissed(false); }}><span>0{i + 1}</span>{s === "positive" ? "Positif" : "Négatif"}<small>{values[s].length}</small></button>)}</div>
-    <div className="editor-paper" role="tabpanel" id="prompt-panel" aria-labelledby={`tab-${side}`}><label className="sr-only" htmlFor="prompt-text">{side === "positive" ? "Prompt positif" : "Prompt négatif"}</label><textarea id="prompt-text" ref={input} value={value} spellCheck={false} autoCapitalize="off" autoCorrect="off" aria-autocomplete="list" aria-controls="tag-suggestions" aria-activedescendant={bubbleVisible && tags.length ? `tag-${active}` : undefined} placeholder={side === "positive" ? "Imaginez la scène. Ajoutez des tags, des détails, une lumière…" : "Décrivez les éléments que vous souhaitez éviter…"} onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)} onChange={e => { update({ ...values, [side]: e.target.value }); setCaret(e.target.selectionStart); }} onScroll={e => setScroll(e.currentTarget.scrollTop)} onSelect={e => setCaret(e.currentTarget.selectionStart)} onKeyDown={e => {
-      if (composing || e.nativeEvent.isComposing) return;
-      if ((e.ctrlKey || e.metaKey) && ["z", "y"].includes(e.key.toLowerCase())) { e.preventDefault(); travel(e.shiftKey || e.key.toLowerCase() === "y" ? "redo" : "undo"); return; }
-      if (!enabled || pending || !tags.length) return;
-      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDismissed(true); setTags([]); }
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setActive(n => (n + (e.key === "ArrowDown" ? 1 : tags.length - 1)) % tags.length); }
-      if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") { e.preventDefault(); select(tags[active]); }
-    }} />
-    <div ref={bubble} tabIndex={0} hidden={!bubbleVisible} className="suggestion-bubble" aria-busy={pending} style={{ top: bubbleTop }}><div className="suggestion-heading"><span><Sparkles size={14} /> Danbooru</span><small>{error ? "Saisie libre" : count ? `${count.toLocaleString("fr-FR")} tags · hors ligne` : "Préparation des tags…"}</small></div><div role="listbox" id="tag-suggestions" aria-label="Suggestions de tags" className="tag-suggestions">{tags.map((tag, i) => <div role="option" id={`tag-${i}`} key={tag.name} aria-selected={active === i} aria-disabled={pending} className={`tag-option ${active === i ? "highlighted" : ""}`} onPointerDown={e => e.preventDefault()} onClick={() => select(tag)}><span className={`tag-dot category-${tag.category}`} /><span><strong>{tag.name.replace(/_/g, " ")}</strong><small>{categories[tag.category]} · {tag.count.toLocaleString("fr-FR")}</small></span><span className="tag-add" aria-hidden="true">+</span></div>)}{!tags.length && <span className="suggestion-empty">{pending ? "Recherche de tags…" : "Aucun tag correspondant"}</span>}</div></div></div><p className="editor-hint" role="status">{!enabled ? "Autocomplétion désactivée" : error || (count ? `${count.toLocaleString("fr-FR")} tags · suggestions hors ligne` : "Préparation des suggestions…")}</p>
-    <footer className="editor-footer"><div><button aria-label="Annuler la dernière modification" disabled={!history.current.undo.length} onClick={() => travel("undo")}><Undo2 size={19} /></button><button aria-label="Rétablir la modification" disabled={!history.current.redo.length} onClick={() => travel("redo")}><Redo2 size={19} /></button></div><button className="primary" onClick={finish}><Check size={18} /> Terminé</button></footer>
-  </Modal>;
+    const observer = new ResizeObserver(() => {
+      measurer.current?.resize();
+      placeBubble();
+    });
+    if (input.current) observer.observe(input.current);
+    return () => observer.disconnect();
+  }, [caret, bubbleVisible]);
+  useEffect(() => {
+    const viewport = window.visualViewport,
+      dialog = input.current?.closest("dialog");
+    const resize = () => {
+      dialog?.style.setProperty(
+        "--editor-height",
+        `${viewport?.height ?? innerHeight}px`,
+      );
+      dialog?.style.setProperty(
+        "--editor-top",
+        `${viewport?.offsetTop ?? 0}px`,
+      );
+    };
+    resize();
+    viewport?.addEventListener("resize", resize);
+    viewport?.addEventListener("scroll", resize);
+    return () => {
+      viewport?.removeEventListener("resize", resize);
+      viewport?.removeEventListener("scroll", resize);
+    };
+  }, []);
+  useEffect(() => {
+    input.current?.focus();
+    input.current?.setSelectionRange(caret, caret);
+  }, [side]);
+  useEffect(() => {
+    setActive(0);
+  }, [tags]);
+  useEffect(() => {
+    if (!bubbleVisible || pending) return;
+    const option = bubble.current?.querySelector<HTMLElement>(`#tag-${active}`);
+    if (!option || !bubble.current) return;
+    // Scroll only the suggestions, never the textarea or the entire modal.
+    if (option.offsetTop < bubble.current.scrollTop)
+      bubble.current.scrollTop = option.offsetTop;
+    else if (
+      option.offsetTop + option.offsetHeight >
+      bubble.current.scrollTop + bubble.current.clientHeight
+    ) {
+      bubble.current.scrollTop =
+        option.offsetTop + option.offsetHeight - bubble.current.clientHeight;
+    }
+  }, [active, bubbleVisible, pending]);
+
+  function focusAt(position: number) {
+    setCaret(position);
+    requestAnimationFrame(() => {
+      input.current?.focus();
+      input.current?.setSelectionRange(position, position);
+    });
+  }
+  function update(next: Prompts) {
+    if (next.positive === values.positive && next.negative === values.negative)
+      return;
+    history.current.undo.push({ ...values });
+    if (history.current.undo.length > 80) history.current.undo.shift();
+    history.current.redo = [];
+    onChange(next);
+    setDismissed(false);
+    setSaveError("");
+  }
+  function select(tag: Tag) {
+    if (pending || composing) return;
+    const next = insertTag(value, caret, tag.name);
+    update({ ...values, [side]: next.text });
+    focusAt(next.caret);
+  }
+  function travel(direction: "undo" | "redo") {
+    const next = history.current[direction].pop();
+    if (!next) return;
+    history.current[direction === "undo" ? "redo" : "undo"].push({ ...values });
+    onChange(next);
+    setDismissed(false);
+    focusAt(next[side].length);
+  }
+  function finish() {
+    try {
+      rememberPrompt(values);
+      onClose();
+    } catch (reason) {
+      setSaveError(promptStorageError(reason));
+    }
+  }
+  function changeSide(next: Side) {
+    setSide(next);
+    setCaret(values[next].length);
+    setDismissed(false);
+  }
+  function toggleAutocomplete(checked: boolean) {
+    setEnabled(checked);
+    setPreferenceWarning("");
+    try {
+      localStorage.setItem("autocomplete-enabled", String(checked));
+    } catch {
+      setPreferenceWarning(
+        "Ce choix s’applique pour cette session ; il n’a pas pu être enregistré.",
+      );
+    }
+  }
+
+  return (
+    <Modal
+      title="Écrire votre image"
+      className="prompt-editor"
+      onClose={finish}
+    >
+      <label className="autocomplete-setting">
+        <span>Autocomplétion</span>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-label="Activer l’autocomplétion"
+          checked={enabled}
+          onChange={(event) => toggleAutocomplete(event.target.checked)}
+        />
+      </label>
+      <PromptTools
+        values={values}
+        onChange={(next) => {
+          update(next);
+          setCaret(next[side].length);
+        }}
+      />
+      <div className="editor-tabs" role="tablist" aria-label="Type de prompt">
+        {sides.map((tab, index) => (
+          <button
+            key={tab}
+            id={`tab-${tab}`}
+            role="tab"
+            aria-selected={side === tab}
+            aria-controls="prompt-panel"
+            tabIndex={side === tab ? 0 : -1}
+            onKeyDown={(event) => {
+              if (
+                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+              )
+                return;
+              event.preventDefault();
+              changeSide(
+                event.key === "Home"
+                  ? "positive"
+                  : event.key === "End"
+                    ? "negative"
+                    : tab === "positive"
+                      ? "negative"
+                      : "positive",
+              );
+            }}
+            onClick={() => changeSide(tab)}
+          >
+            <span>0{index + 1}</span>
+            {tab === "positive" ? "Positif" : "Négatif"}
+            <small aria-label={`${values[tab].length} caractères`}>
+              {values[tab].length}
+            </small>
+          </button>
+        ))}
+      </div>
+      <div
+        className="editor-paper"
+        role="tabpanel"
+        id="prompt-panel"
+        aria-labelledby={`tab-${side}`}
+      >
+        <label className="sr-only" htmlFor="prompt-text">
+          {side === "positive" ? "Prompt positif" : "Prompt négatif"}
+        </label>
+        <textarea
+          id="prompt-text"
+          ref={input}
+          value={value}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          aria-autocomplete={enabled ? "list" : "none"}
+          aria-controls={enabled ? "tag-suggestions" : undefined}
+          aria-activedescendant={
+            bubbleVisible && tags[active] && !pending
+              ? `tag-${active}`
+              : undefined
+          }
+          placeholder={
+            side === "positive"
+              ? "Imaginez la scène. Ajoutez des tags, des détails, une lumière…"
+              : "Décrivez les éléments que vous souhaitez éviter…"
+          }
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onChange={(event) => {
+            update({ ...values, [side]: event.target.value });
+            setCaret(event.target.selectionStart);
+          }}
+          onScroll={(event) => setScroll(event.currentTarget.scrollTop)}
+          onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+          onKeyDown={(event) => {
+            if (composing || event.nativeEvent.isComposing) return;
+            if (
+              (event.ctrlKey || event.metaKey) &&
+              ["z", "y"].includes(event.key.toLowerCase())
+            ) {
+              event.preventDefault();
+              travel(
+                event.shiftKey || event.key.toLowerCase() === "y"
+                  ? "redo"
+                  : "undo",
+              );
+              return;
+            }
+            if (event.key === "Escape" && bubbleVisible) {
+              event.preventDefault();
+              event.stopPropagation();
+              setDismissed(true);
+              return;
+            }
+            if (!bubbleVisible || pending || !tags.length) return;
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              setActive(
+                (index) =>
+                  (index + (event.key === "ArrowDown" ? 1 : tags.length - 1)) %
+                  tags.length,
+              );
+            }
+            if (
+              (event.key === "Enter" && !event.shiftKey) ||
+              event.key === "Tab"
+            ) {
+              event.preventDefault();
+              select(tags[active]);
+            }
+          }}
+        />
+        <div
+          ref={bubble}
+          tabIndex={0}
+          hidden={!bubbleVisible}
+          className="suggestion-bubble"
+          aria-busy={pending}
+          style={{ top: bubbleTop }}
+        >
+          <div className="suggestion-heading">
+            <span>
+              <Sparkles size={14} /> Danbooru
+            </span>
+            <small>
+              {error
+                ? "Saisie libre"
+                : count
+                  ? `${count.toLocaleString("fr-FR")} tags · hors ligne`
+                  : "Préparation des tags…"}
+            </small>
+          </div>
+          <div
+            role="listbox"
+            id="tag-suggestions"
+            aria-label="Suggestions de tags"
+            className="tag-suggestions"
+          >
+            {tags.map((tag, index) => (
+              <div
+                role="option"
+                id={`tag-${index}`}
+                key={tag.name}
+                aria-selected={active === index}
+                aria-disabled={pending}
+                className={`tag-option ${active === index ? "highlighted" : ""}`}
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => select(tag)}
+              >
+                <span className={`tag-dot category-${tag.category}`} />
+                <span>
+                  <strong>
+                    <MatchingTag name={tag.name} query={query} />
+                  </strong>
+                  <small>
+                    {categories[tag.category] ?? "Tag"} ·{" "}
+                    {tag.count.toLocaleString("fr-FR")}
+                  </small>
+                </span>
+                <span className="tag-add" aria-hidden="true">
+                  +
+                </span>
+              </div>
+            ))}
+            {!tags.length && (
+              <span className="suggestion-empty">
+                {error
+                  ? "Suggestions indisponibles"
+                  : pending
+                    ? "Recherche de tags…"
+                    : "Aucun tag correspondant"}
+              </span>
+            )}
+          </div>
+          {error && (
+            <button className="suggestion-retry" onClick={retry}>
+              Réessayer les suggestions
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="editor-hint" role="status">
+        {preferenceWarning ||
+          (!enabled
+            ? "Autocomplétion désactivée"
+            : error ||
+              (count
+                ? `${count.toLocaleString("fr-FR")} tags · suggestions hors ligne`
+                : "Préparation des suggestions…"))}
+      </p>
+      {saveError && (
+        <div className="editor-save-error" role="alert">
+          <p>{saveError} Vos prompts restent appliqués.</p>
+          <button onClick={onClose}>Fermer sans historique</button>
+        </div>
+      )}
+      <footer className="editor-footer">
+        <div>
+          <button
+            aria-label="Annuler la dernière modification"
+            disabled={!history.current.undo.length}
+            onClick={() => travel("undo")}
+          >
+            <Undo2 size={19} />
+          </button>
+          <button
+            aria-label="Rétablir la modification"
+            disabled={!history.current.redo.length}
+            onClick={() => travel("redo")}
+          >
+            <Redo2 size={19} />
+          </button>
+        </div>
+        <button className="primary" onClick={finish}>
+          <Check size={18} /> Terminé
+        </button>
+      </footer>
+    </Modal>
+  );
 }
