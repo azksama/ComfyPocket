@@ -9,8 +9,21 @@ import {
   ShieldCheck,
   Unplug,
   Check,
+  ChevronRight,
+  Layers,
+  Workflow,
+  Bookmark,
+  Palette,
+  Download,
 } from "lucide-react";
-import { native, parsePairing, type Pairing } from "./api";
+import {
+  native,
+  parsePairing,
+  type Pairing,
+  type Stats,
+  type Queue,
+} from "./api";
+import { version } from "../package.json";
 import { LockSettings } from "./AppLock";
 
 export interface ProfileInfo {
@@ -26,6 +39,10 @@ type Props = {
   onConnect: (id: string) => Promise<void>;
   onDisconnect: (alreadyDisconnected?: boolean) => Promise<void>;
   onError: (error: string) => void;
+  stats: Stats | null;
+  queue: Queue;
+  online: boolean;
+  onOpen: (target: "models" | "workflow" | "presets" | "trash") => void;
 };
 const blank: Pairing = { url: "", token: "", certificate: "" };
 
@@ -36,6 +53,10 @@ export default function Connections({
   onConnect,
   onDisconnect,
   onError,
+  stats,
+  queue,
+  online,
+  onOpen,
 }: Props) {
   const [profiles, setProfiles] = useState<ProfileInfo[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
@@ -161,7 +182,7 @@ export default function Connections({
             disabled={disabled || loading}
             onClick={() => reset(true)}
           >
-            <Plus />
+            <Plus size={14} /> Ajouter
           </button>
         </div>
         <p className="muted">
@@ -189,12 +210,42 @@ export default function Connections({
                 </span>
                 <span>
                   <strong>{profile.name}</strong>
-                  <small>{profile.url}</small>
+                  <small>
+                    {profile.active
+                      ? online
+                        ? "Connecté · "
+                        : "Indisponible · "
+                      : ""}
+                    {profile.url}
+                  </small>
                 </span>
                 {profile.active && (
                   <Check size={19} aria-label="Connexion active" />
                 )}
               </div>
+              {profile.active && online && (
+                <div className="settings-resources">
+                  <div>
+                    <small>GPU</small>
+                    <strong>
+                      {stats?.devices[0]?.name.replace(/^.*?NVIDIA /, "") ??
+                        "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <small>VRAM LIBRE</small>
+                    <strong>
+                      {stats?.devices[0]
+                        ? `${(stats.devices[0].vram_free / 1024 ** 3).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go`
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <small>FILE D’ATTENTE</small>
+                    <strong>{queue.queue_pending.length} image(s)</strong>
+                  </div>
+                </div>
+              )}
               <div className="row">
                 <button
                   className={profile.active ? "" : "primary"}
@@ -410,7 +461,68 @@ export default function Connections({
           </form>
         </section>
       )}
+      <div className="connection-tip">
+        <strong>Votre PC reste le moteur.</strong>Gardez le compagnon ouvert en
+        arrière-plan. En déplacement, utilisez votre connexion distante ou
+        WireGuard.
+      </div>
+      <section className="settings-menu">
+        <h2>Bibliothèque & génération</h2>
+        <button disabled={!server} onClick={() => onOpen("models")}>
+          <Layers />
+          <span>
+            <strong>Modèles, LoRAs & upscalers</strong>
+            <small>Retrouver les ressources de votre PC</small>
+          </span>
+          <ChevronRight />
+        </button>
+        <button disabled={!server} onClick={() => onOpen("workflow")}>
+          <Workflow />
+          <span>
+            <strong>Workflows ComfyUI</strong>
+            <small>Importer et adapter un workflow API</small>
+          </span>
+          <ChevronRight />
+        </button>
+        <button disabled={!server} onClick={() => onOpen("presets")}>
+          <Bookmark />
+          <span>
+            <strong>Mes presets</strong>
+            <small>Enregistrer et réutiliser une configuration</small>
+          </span>
+          <ChevronRight />
+        </button>
+      </section>
       <LockSettings />
+      <section className="settings-menu">
+        <h2>L’application</h2>
+        <div className="setting-row">
+          <Palette />
+          <span>
+            <strong>Apparence</strong>
+            <small>Pastel lavande · Clair</small>
+          </span>
+        </div>
+        <button disabled={!server} onClick={() => onOpen("trash")}>
+          <Trash2 />
+          <span>
+            <strong>Corbeille récupérable</strong>
+            <small>Retrouver vos images supprimées</small>
+          </span>
+          <ChevronRight />
+        </button>
+        <div className="setting-row">
+          <Download />
+          <span>
+            <strong>Téléchargements</strong>
+            <small>Pictures / Mochi</small>
+          </span>
+        </div>
+      </section>
+      <div className="settings-version">
+        <span>Mochi</span>
+        <span>Version {version}</span>
+      </div>
     </div>
   );
 }

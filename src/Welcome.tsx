@@ -1,5 +1,6 @@
-import { Sparkles, BookOpen, Heart, ArrowRight } from "lucide-react";
-import mascot from "../assets/brand/mochi.webp";
+import { Sparkles, BookOpen, Heart, ArrowRight, Monitor } from "lucide-react";
+import landscape from "../assets/welcome/yofJz.png";
+import blossoms from "../assets/welcome/H9L7TJ.png";
 
 export default function Welcome({
   onConnect,
@@ -10,11 +11,21 @@ export default function Welcome({
 }) {
   return (
     <section className="onboarding" aria-label="Bienvenue dans Mochi">
-      <img
-        className="onboarding-art"
-        src={mascot}
-        alt="La mascotte souriante de Mochi"
-      />
+      <div className="onboarding-collage" aria-label="Exemples d’inspiration">
+        <img
+          className="welcome-landscape"
+          src={landscape}
+          alt="Forêt sous un ciel pastel"
+        />
+        <img
+          className="welcome-blossoms"
+          src={blossoms}
+          alt="Branche fleurie"
+        />
+        <span>
+          <Monitor size={16} /> Imaginé ici. Généré sur votre PC.
+        </span>
+      </div>
       <div>
         <span className="eyebrow">BIENVENUE DANS VOTRE ATELIER</span>
         <h2>

@@ -8,8 +8,9 @@ import {
 } from "react";
 import {
   Sparkles,
+  SlidersHorizontal,
+  Settings2,
   Images,
-  Settings as SettingsIcon,
   BookOpen,
   RefreshCw,
   X,
@@ -50,6 +51,7 @@ import { importImage, resolveImport, type Imported } from "./metadata";
 import { Picture, clearImageCache, type ViewItem } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
 import SettingsPanel from "./SettingsPanel";
+import StudioNav from "./StudioNav";
 import Connections from "./Connections";
 const Glossary = lazy(() => import("./Glossary"));
 const Viewer = lazy(() => import("./Viewer"));
@@ -58,7 +60,7 @@ import Presets from "./Presets";
 import { usePageNavigation, pages, type Page } from "./PageNavigation";
 import ConnectionStatus from "./ConnectionStatus";
 import GalleryGrid from "./GalleryGrid";
-import mochiIcon from "../assets/brand/mochi.webp";
+
 import Welcome from "./Welcome";
 import Toast from "./Toast";
 
@@ -133,6 +135,10 @@ export default function App() {
     viewerSession = useRef(0);
   const [showConnection, setShowConnection] = useState(false);
   const [epoch, setEpoch] = useState(0);
+  const [presetRequest, setPresetRequest] = useState<{
+    id: number;
+    create?: boolean;
+  }>({ id: 0 });
 
   const {
     queue,
@@ -221,6 +227,7 @@ export default function App() {
     };
   }, [hydrate]);
   function resetSession() {
+    setPresetRequest({ id: 0 });
     generation.current++;
     setEpoch(generation.current);
     galleryRequest.current++;
@@ -669,6 +676,21 @@ export default function App() {
           onConnect={connect}
           onDisconnect={disconnect}
           onError={setError}
+          stats={stats}
+          queue={queue}
+          online={online}
+          onOpen={(target) => {
+            if (target === "trash") {
+              setFilter("trash");
+              setTab("gallery");
+              return;
+            }
+            setTab("create");
+            if (target === "workflow") setMode("workflow");
+            if (target === "models") setMode("simple");
+            if (target === "presets")
+              setPresetRequest((v) => ({ id: v.id + 1, create: false }));
+          }}
         />
       )}
       {(tab === "create" || tab === "gallery") && !server && (
@@ -678,19 +700,196 @@ export default function App() {
         />
       )}
       {tab === "create" && server && (
-        <>
-          <CollapsibleCard
-            className="output-panel"
-            title={
-              jobs.length
-                ? "Votre image prend vie"
-                : results.length
-                  ? "La dernière création"
-                  : "Rendu de génération"
-            }
-            eyebrow="LE RENDU"
-            reveal={jobs.length > 0 || results.length > 0}
+        <div className="atelier-layout">
+          <StudioNav active={active} workflow={mode === "workflow"} />
+          <button
+            className="studio-pc"
+            aria-label={online ? "PC connecté" : "PC indisponible"}
+            onClick={() => setShowConnection(true)}
           >
+            <Monitor size={20} />
+            <span>
+              <strong>
+                {online ? "Studio PC · connecté" : "Studio PC · indisponible"}
+              </strong>
+              <small>
+                {deviceName}
+                {device
+                  ? ` · ${(device.vram_free / 1024 ** 3).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go VRAM libres`
+                  : ""}
+              </small>
+            </span>
+            <ChevronDown size={16} />
+          </button>
+          <div
+            className="configuration-slot"
+            id="studio-configuration"
+            tabIndex={-1}
+          >
+            <Presets
+              request={presetRequest}
+              image={results[0]}
+              settings={settings}
+              mode={mode}
+              workflow={custom}
+              onApply={(p) => {
+                setSettings(p.settings);
+                setMode(p.mode);
+                setCustom(p.workflow);
+                setCustomText(
+                  p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
+                );
+                setImported(null);
+                setNotice(`Preset « ${p.name} » chargé.`);
+                setError("");
+              }}
+            />
+          </div>
+          {imported && (
+            <CollapsibleCard
+              className="import-summary"
+              title="Paramètres importés"
+            >
+              <div className="section-heading">
+                <strong>Import · {imported.source}</strong>
+                <button
+                  aria-label="Fermer le détail de l’import"
+                  onClick={() => setImported(null)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <p>
+                {settings.width} × {settings.height} · {settings.steps} steps ·
+                Seed {settings.seed || "absente"}
+              </p>
+              {imported.warnings.length > 0 && (
+                <ul>
+                  {imported.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+              {custom && (
+                <button
+                  className="text-button"
+                  onClick={() => setMode("workflow")}
+                >
+                  Ouvrir le workflow API original <ArrowUpRight size={15} />
+                </button>
+              )}
+            </CollapsibleCard>
+          )}
+          {mode === "simple" ? (
+            <div className="settings-grid studio-settings">
+              <SettingsPanel
+                settings={settings}
+                onChange={setSettings}
+                info={info}
+                lastSeed={lastSeed}
+                onGlossary={() => setTab("glossary")}
+                key={epoch}
+              />
+            </div>
+          ) : (
+            <CollapsibleCard title="Workflow API">
+              <p className="muted">
+                Conservez les nœuds, modèles et réglages d’un workflow ComfyUI
+                complet. Les champs du mode automatique ne modifient pas ce
+                graphe.
+              </p>
+              <label className="file-picker">
+                <FolderOpen size={19} /> Importer un workflow API
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={(e) => {
+                    void importFile(e.target.files?.[0], "workflow");
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <label>
+                Workflow JSON
+                <textarea
+                  className="code-editor"
+                  rows={14}
+                  spellCheck={false}
+                  value={customText}
+                  onChange={(e) => {
+                    setCustomText(e.target.value);
+                    setCustom(null);
+                  }}
+                />
+              </label>
+              <button
+                onClick={() => {
+                  try {
+                    const w = parseWorkflow(customText);
+                    checkWorkflow(w, info);
+                    setCustom(w);
+                    setNotice("Workflow validé sur ce PC.");
+                    setError("");
+                  } catch (e) {
+                    setError(String(e));
+                  }
+                }}
+              >
+                Valider les modifications
+              </button>
+            </CollapsibleCard>
+          )}
+          <div className="studio-imports">
+            <label className="file-picker">
+              <Upload size={18} /> Paramètres depuis une image
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.json,image/png,image/jpeg,application/json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  void importFile(
+                    file,
+                    file?.name.toLowerCase().endsWith(".json")
+                      ? "workflow"
+                      : "image",
+                  );
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <div className="segmented">
+              <button
+                aria-pressed={mode === "simple"}
+                onClick={() => setMode("simple")}
+              >
+                Automatique
+              </button>
+              <button
+                aria-pressed={mode === "workflow"}
+                onClick={() => setMode("workflow")}
+              >
+                Workflow API
+              </button>
+            </div>
+            <button
+              className="save-preset-shortcut"
+              onClick={() =>
+                setPresetRequest((v) => ({ id: v.id + 1, create: true }))
+              }
+            >
+              + Enregistrer le preset
+            </button>
+          </div>
+          <section
+            id="studio-render"
+            tabIndex={-1}
+            className="render-panel"
+            aria-label="Rendu de génération"
+          >
+            <div className="studio-section-heading">
+              <h2>Rendu en temps réel</h2>
+              {jobs.length > 0 && <span className="live-badge">EN DIRECT</span>}
+            </div>
             <div
               className={
                 results.length || preview ? "output-image" : "output-empty"
@@ -769,170 +968,34 @@ export default function App() {
                 ))}
               </div>
             )}
-          </CollapsibleCard>
-          <div className="studio-toolbar">
-            <Presets
-              image={results[0]}
-              settings={settings}
-              mode={mode}
-              workflow={custom}
-              onApply={(p) => {
-                setSettings(p.settings);
-                setMode(p.mode);
-                setCustom(p.workflow);
-                setCustomText(
-                  p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
-                );
-                setImported(null);
-                setNotice(`Preset « ${p.name} » chargé.`);
-                setError("");
-              }}
-            />
-            <label className="file-picker">
-              <Upload size={18} /> Paramètres depuis une image
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-                onChange={(e) => {
-                  void importFile(e.target.files?.[0], "image");
-                  e.target.value = "";
-                }}
-              />
-            </label>
-            <div className="segmented">
-              <button
-                aria-pressed={mode === "simple"}
-                onClick={() => setMode("simple")}
-              >
-                Automatique
-              </button>
-              <button
-                aria-pressed={mode === "workflow"}
-                onClick={() => setMode("workflow")}
-              >
-                Workflow API
-              </button>
-            </div>
-          </div>
-          {imported && (
-            <CollapsibleCard
-              className="import-summary"
-              title="Paramètres importés"
-            >
-              <div className="section-heading">
-                <strong>Import · {imported.source}</strong>
-                <button
-                  aria-label="Fermer le détail de l’import"
-                  onClick={() => setImported(null)}
-                >
-                  <X size={16} />
-                </button>
+            <div className="generate-bar">
+              <div>
+                <strong>
+                  {mode === "simple"
+                    ? `${settings.batch * settings.batches || 0} image(s)`
+                    : "Workflow personnalisé"}
+                </strong>
+                <small>
+                  {deviceName} · {queue.queue_pending.length} en attente
+                </small>
               </div>
-              <p>
-                {settings.width} × {settings.height} · {settings.steps} steps ·
-                Seed {settings.seed || "absente"}
-              </p>
-              {imported.warnings.length > 0 && (
-                <ul>
-                  {imported.warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              )}
-              {custom && (
-                <button
-                  className="text-button"
-                  onClick={() => setMode("workflow")}
-                >
-                  Ouvrir le workflow API original <ArrowUpRight size={15} />
-                </button>
-              )}
-            </CollapsibleCard>
-          )}
-          {mode === "simple" ? (
-            <div className="settings-grid">
-              <SettingsPanel
-                settings={settings}
-                onChange={setSettings}
-                info={info}
-                lastSeed={lastSeed}
-              />
-            </div>
-          ) : (
-            <CollapsibleCard title="Workflow API">
-              <p className="muted">
-                Conservez les nœuds, modèles et réglages d’un workflow ComfyUI
-                complet. Les champs du mode automatique ne modifient pas ce
-                graphe.
-              </p>
-              <label className="file-picker">
-                <FolderOpen size={19} /> Importer un workflow API
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  onChange={(e) => {
-                    void importFile(e.target.files?.[0], "workflow");
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              <label>
-                Workflow JSON
-                <textarea
-                  className="code-editor"
-                  rows={14}
-                  spellCheck={false}
-                  value={customText}
-                  onChange={(e) => {
-                    setCustomText(e.target.value);
-                    setCustom(null);
-                  }}
-                />
-              </label>
               <button
-                onClick={() => {
-                  try {
-                    const w = parseWorkflow(customText);
-                    checkWorkflow(w, info);
-                    setCustom(w);
-                    setNotice("Workflow validé sur ce PC.");
-                    setError("");
-                  } catch (e) {
-                    setError(String(e));
-                  }
-                }}
+                className="primary"
+                disabled={busy || !online || jobs.length > 0}
+                onClick={() => void generate()}
               >
-                Valider les modifications
+                {busy || jobs.length ? (
+                  <LoaderCircle className="spin" size={19} />
+                ) : (
+                  <Sparkles size={19} />
+                )}
+                <span>
+                  {jobs.length ? "Génération en cours" : "Générer l’image"}
+                </span>
               </button>
-            </CollapsibleCard>
-          )}
-          <div className="generate-bar">
-            <div>
-              <strong>
-                {mode === "simple"
-                  ? `${settings.batch * settings.batches || 0} image(s)`
-                  : "Workflow personnalisé"}
-              </strong>
-              <small>
-                {deviceName} · {queue.queue_pending.length} en attente
-              </small>
-            </div>
-            <button
-              className="primary"
-              disabled={busy || !online || jobs.length > 0}
-              onClick={() => void generate()}
-            >
-              {busy || jobs.length ? (
-                <LoaderCircle className="spin" size={19} />
-              ) : (
-                <Sparkles size={19} />
-              )}
-              <span>
-                {jobs.length ? "Génération en cours" : "Générer l’image"}
-              </span>
-            </button>
-          </div>
-        </>
+            </div>{" "}
+          </section>
+        </div>
       )}
       {tab === "gallery" && server && (
         <>
@@ -1009,7 +1072,7 @@ export default function App() {
             </section>
           ) : (
             <>
-              <div className="section-heading">
+              <div className="section-heading gallery-heading">
                 <h2>
                   {filter === "favorites"
                     ? "À garder tout près"
@@ -1017,24 +1080,25 @@ export default function App() {
                 </h2>
                 <div className="gallery-density">
                   <span className="muted">{gallery.total} images</span>
-                  <label>
-                    <span className="sr-only">Nombre de colonnes</span>
-                    <select
-                      aria-label="Nombre de colonnes"
-                      value={columns}
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        setColumns(n);
-                        writeStored("gallery-columns", n);
-                      }}
-                    >
-                      {[2, 3, 4].map((n) => (
-                        <option key={n} value={n}>
-                          {n} colonnes
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div
+                    className="density-options"
+                    role="group"
+                    aria-label="Nombre de colonnes"
+                  >
+                    {[2, 3, 4].map((n) => (
+                      <button
+                        key={n}
+                        aria-label={`${n} colonnes`}
+                        aria-pressed={columns === n}
+                        onClick={() => {
+                          setColumns(n);
+                          writeStored("gallery-columns", n);
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               {gallery.warnings.map((w, i) => (
@@ -1145,10 +1209,10 @@ export default function App() {
         <nav aria-label="Navigation principale">
           {(
             [
-              { id: "create", label: "Atelier", icon: Sparkles },
+              { id: "create", label: "Atelier", icon: SlidersHorizontal },
               { id: "gallery", label: "Galerie", icon: Images },
               { id: "glossary", label: "Glossaire", icon: BookOpen },
-              { id: "connect", label: "Paramètres", icon: SettingsIcon },
+              { id: "connect", label: "Paramètres", icon: Settings2 },
             ] as const
           ).map((t) => (
             <button
@@ -1159,7 +1223,9 @@ export default function App() {
               title={t.label}
               aria-current={tab === t.id ? "page" : undefined}
             >
-              <t.icon size={22} strokeWidth={1.7} />
+              <span className="nav-icon">
+                <t.icon size={19} strokeWidth={1.7} />
+              </span>
               <span>{t.label}</span>
             </button>
           ))}
@@ -1176,21 +1242,14 @@ export default function App() {
       <div className="workspace">
         <header className="topbar">
           <span className="mochi-wordmark">
-            <img src={mochiIcon} alt="" />
-            MOCHI <small>/ COMFYUI</small>
+            M O C H I <small>/ COMFYUI</small>
           </span>
           <button
-            className={online ? "status connected" : "status"}
-            onClick={() => setShowConnection(true)}
-            aria-haspopup="dialog"
+            className="header-spark"
+            aria-label="Ouvrir l’Atelier"
+            onClick={() => setTab("create")}
           >
-            <span className="dot" />
-            {online
-              ? "PC connecté"
-              : server
-                ? "PC indisponible"
-                : "Non connecté"}
-            <ChevronDown size={14} />
+            <Sparkles size={18} />
           </button>
         </header>
         <main id="main" className="page-window" {...handlers}>
@@ -1209,9 +1268,7 @@ export default function App() {
             ))}
           </div>
         </main>
-        <footer className="app-footer">
-          Créé sur votre PC. Emporté partout.
-        </footer>
+        <div className="app-footer" />
       </div>
       <div className="toast-stack">
         {error && (

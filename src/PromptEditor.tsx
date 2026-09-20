@@ -46,11 +46,13 @@ function MatchingTag({ name, query }: { name: string; query: string }) {
 
 export default function PromptEditor({
   initialTab,
+  initialTool,
   values,
   onChange,
   onClose,
 }: {
   initialTab: Side;
+  initialTool?: "history" | "blocks" | "check";
   values: Prompts;
   onChange: (values: Prompts) => void;
   onClose: () => void;
@@ -228,6 +230,7 @@ export default function PromptEditor({
         />
       </label>
       <PromptTools
+        initialPage={initialTool}
         values={values}
         onChange={(next) => {
           update(next);

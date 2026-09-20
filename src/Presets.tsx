@@ -24,13 +24,16 @@ export default function Presets({
   mode,
   workflow,
   onApply,
+  request,
 }: {
   image?: ViewItem;
+  request?: { id: number; create?: boolean };
   settings: Settings;
   mode: "simple" | "workflow";
   workflow: Workflow | null;
   onApply: (preset: InferencePreset) => void;
 }) {
+  const [current, setCurrent] = useState<InferencePreset | null>(null);
   const [libraryReady, setLibraryReady] = useState(false);
   const [open, setOpen] = useState(false),
     [creating, setCreating] = useState(false),
@@ -47,7 +50,7 @@ export default function Presets({
     const timer = setTimeout(() => setMessage(""), 6000);
     return () => clearTimeout(timer);
   }, [message]);
-  const show = () => {
+  const show = (create = false) => {
     setError("");
     setMessage("");
     setLibraryReady(false);
@@ -59,7 +62,11 @@ export default function Presets({
       setError(String(e));
     }
     setOpen(true);
+    setCreating(create);
   };
+  useEffect(() => {
+    if (request?.id) show(!!request.create);
+  }, [request?.id]);
   const store = (next: InferencePreset[]) => {
     if (!libraryReady)
       throw Error("La bibliothèque est illisible. Son contenu a été conservé.");
@@ -118,6 +125,7 @@ export default function Presets({
         createdAt: Date.now(),
       });
       store([preset, ...readPresets()]);
+      setCurrent(preset);
       setName("");
       setCreating(false);
       setMessage(`« ${preset.name} » enregistré.`);
@@ -130,9 +138,42 @@ export default function Presets({
   };
   return (
     <>
-      <button onClick={show}>
-        <Bookmark size={17} /> Mes presets
-      </button>
+      <section className="studio-configuration">
+        <div className="studio-section-heading">
+          <h2>Votre configuration</h2>
+          <button
+            className="inline-action"
+            aria-label="Mes presets"
+            onClick={() => show()}
+          >
+            Presets ↗
+          </button>
+        </div>
+        <button className="preset-current" onClick={() => show()}>
+          {current?.thumbnail ? (
+            <img src={current.thumbnail} alt="" />
+          ) : (
+            <span className="preset-current-icon">
+              <Bookmark size={20} />
+            </span>
+          )}
+          <span>
+            <strong>
+              {current &&
+              current.mode === mode &&
+              JSON.stringify(current.workflow) === JSON.stringify(workflow) &&
+              JSON.stringify(current.settings) === JSON.stringify(settings)
+                ? current.name
+                : "Configuration personnalisée"}
+            </strong>
+            <small>
+              {settings.model ? shortName(settings.model) : "Choisir un modèle"}{" "}
+              · {settings.width} × {settings.height}
+            </small>
+          </span>
+          <Bookmark size={18} />
+        </button>
+      </section>
       {open && (
         <Modal
           title="Mes presets"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   History,
   Layers,
@@ -92,9 +92,11 @@ function PromptRecord({
 }
 
 export default function PromptTools({
+  initialPage,
   values,
   onChange,
 }: {
+  initialPage?: Page;
   values: Prompts;
   onChange: (value: Prompts) => void;
 }) {
@@ -134,6 +136,9 @@ export default function PromptTools({
       setError(promptStorageError(reason));
     }
   }
+  useEffect(() => {
+    if (initialPage) show(initialPage);
+  }, [initialPage]);
   function close() {
     setPage(null);
     setDraft(null);

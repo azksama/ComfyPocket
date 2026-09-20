@@ -1,4 +1,4 @@
-# Mochi 0.7.0
+# Mochi 0.8.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
 
@@ -176,4 +176,6 @@ Le packaging lit la version dans `package.json` pour nommer son dossier temporai
 
 Le compagnon écoute en HTTPS, exige une clé d’accès et rejette les origines navigateur. ComfyUI reste lié à 127.0.0.1. Le client natif vérifie le certificat du PC et l’adresse du serveur. Aucun abonnement ou service de génération cloud n’est nécessaire.
 
-Les preuves de livraison et les captures sont dans verification/v0.6 à côté du projet. Les tests d'interface utilisent un transport simulé ; le scénario live optionnel utilise réellement le compagnon HTTPS et le GPU. Aucun benchmark GPU supplémentaire n’a été effectué pour la 0.6. La validation sur émulateur est distincte d'un essai sur téléphone physique.
+Les preuves de livraison et les captures sont dans verification/v0.8 à côté du projet. La validation comprend 38 tests de logique, 22 tests du compagnon et des scripts, et 40 scénarios d’interface. Ces derniers utilisent un transport simulé et des images de référence. La connexion HTTPS native et la conservation des données lors de la mise à jour sont vérifiées séparément sur émulateur Android. Aucun nouveau benchmark GPU ni test sur téléphone physique n’a été effectué pour cette refonte.
+
+Les photographies de l’accueil proviennent de la maquette fournie : Ava Tyler (paysage) et Simon Berger (fleurs), via Unsplash. Elles sont embarquées pour rester disponibles hors ligne.
