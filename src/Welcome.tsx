@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { Sparkles, BookOpen, Heart, ArrowRight, Monitor } from "lucide-react";
 import landscape from "../assets/welcome/yofJz.png";
 import blossoms from "../assets/welcome/H9L7TJ.png";
@@ -10,67 +11,75 @@ export default function Welcome({
   onExplore: () => void;
 }) {
   return (
-    <section className="onboarding" aria-label="Bienvenue dans Mochi">
-      <div className="onboarding-collage" aria-label="Exemples d’inspiration">
+    <section className="onboarding" aria-label={tr("Bienvenue dans Mochi")}>
+      <div
+        className="onboarding-collage"
+        aria-label={tr("Exemples d’inspiration")}
+      >
         <img
           className="welcome-landscape"
           src={landscape}
-          alt="Forêt sous un ciel pastel"
+          alt={tr("Forêt sous un ciel pastel")}
         />
         <img
           className="welcome-blossoms"
           src={blossoms}
-          alt="Branche fleurie"
+          alt={tr("Branche fleurie")}
         />
         <span>
-          <Monitor size={16} /> Imaginé ici. Généré sur votre PC.
+          <Monitor size={16} /> {tr("Imaginé ici. Généré sur votre PC.")}{" "}
         </span>
       </div>
       <div>
-        <span className="eyebrow">BIENVENUE DANS VOTRE ATELIER</span>
+        <span className="eyebrow">{tr("BIENVENUE DANS VOTRE ATELIER")}</span>
         <h2>
-          De grandes idées.
-          <br />
-          Au creux de la main.
+          {" "}
+          {tr("De grandes idées.")} <br /> {tr("Au creux de la main.")}{" "}
         </h2>
         <p>
-          Votre compagnon ComfyUI : créez depuis votre téléphone, avec toute la
-          puissance de votre ordinateur.
+          {" "}
+          {tr(
+            "Votre compagnon ComfyUI : créez depuis votre téléphone, avec toute la puissance de votre ordinateur.",
+          )}{" "}
         </p>
       </div>
       <div className="onboarding-features">
         <div>
           <Sparkles />
           <span>
-            <strong>Créez sans limite</strong>
-            <small>Modèles, LoRAs et workflows à portée de main.</small>
+            <strong>{tr("Créez sans limite")}</strong>
+            <small>{tr("Modèles, LoRAs et workflows à portée de main.")}</small>
           </span>
         </div>
         <div>
           <BookOpen />
           <span>
-            <strong>Trouvez les bons mots</strong>
-            <small>Prompts et tags Danbooru pour chaque idée.</small>
+            <strong>{tr("Trouvez les bons mots")}</strong>
+            <small>{tr("Prompts et tags Danbooru pour chaque idée.")}</small>
           </span>
         </div>
         <div>
           <Heart />
           <span>
-            <strong>Gardez vos coups de cœur</strong>
-            <small>Toutes vos créations, dans votre galerie.</small>
+            <strong>{tr("Gardez vos coups de cœur")}</strong>
+            <small>{tr("Toutes vos créations, dans votre galerie.")}</small>
           </span>
         </div>
       </div>
       <div className="onboarding-note">
-        Lancez le compagnon sur votre PC, puis importez son fichier d’appairage
-        dans Mochi. Votre PC reste le moteur.
+        {" "}
+        {tr(
+          "Lancez le compagnon sur votre PC, puis importez son fichier d’appairage dans Mochi. Votre PC reste le moteur.",
+        )}{" "}
       </div>
       <div className="onboarding-actions">
         <button className="primary" onClick={onConnect}>
-          Connecter mon PC <ArrowRight size={18} />
+          {" "}
+          {tr("Connecter mon PC")} <ArrowRight size={18} />
         </button>
         <button className="text-button" onClick={onExplore}>
-          Découvrir le glossaire d’abord
+          {" "}
+          {tr("Découvrir le glossaire d’abord")}{" "}
         </button>
       </div>
     </section>

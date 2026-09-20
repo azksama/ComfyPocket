@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import type { Workflow, ObjectInfo } from "./api";
 import { parse as parseLossless } from "lossless-json";
 
@@ -36,7 +37,7 @@ export function normalizeSettings(s: Partial<Settings>): Settings {
 export const MAX_SEED = 18446744073709551615n;
 export function seedValue(value: string): number | string {
   const text = value.trim() || String(crypto.getRandomValues(new Uint32Array(1))[0]);
-  if (!/^\d+$/.test(text) || BigInt(text) > MAX_SEED) throw new Error("Seed : entier de 0 à 18446744073709551615.");
+  if (!/^\d+$/.test(text) || BigInt(text) > MAX_SEED) throw new Error(tr("Seed : entier de 0 à 18446744073709551615."));
   // ComfyUI converts INT inputs with int(value); decimal strings preserve all 64 bits.
   const n = BigInt(text);
   return n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : n.toString();
@@ -48,22 +49,22 @@ export function losslessJson(text: string): any {
   });
 }
 export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number | string } {
-  if (!s.model) throw new Error("Choisissez un modèle.");
-  if (!s.positive.trim()) throw new Error("Décrivez l’image souhaitée.");
+  if (!s.model) throw new Error(tr("Choisissez un modèle."));
+  if (!s.positive.trim()) throw new Error(tr("Décrivez l’image souhaitée."));
   for (const v of [s.width, s.height])
     if (!Number.isInteger(v) || v < 64 || v > 4096 || v % 8) throw new Error("Dimensions : multiples de 8, entre 64 et 4096.");
   const integer = (v: number, min: number, max: number) => Number.isInteger(v) && v >= min && v <= max;
   const range = (v: number, min: number, max: number) => Number.isFinite(v) && v >= min && v <= max;
   if (!integer(s.steps, 1, 150) || !range(s.cfg, 0, 30) || !integer(s.batch, 1, 8) || !integer(s.batches, 1, 20) || !integer(s.clipSkip, 1, 24))
-    throw new Error("Paramètres de génération invalides.");
-  if (s.hires.enabled && (!range(s.hires.scale, 1, 4) || !integer(s.hires.steps, 1, 150) || !range(s.hires.denoise, 0, 1))) throw new Error("Réglages Hires Fix invalides.");
-  if (s.upscale.enabled && !range(s.upscale.scale, 1, 4)) throw new Error("Facteur d’agrandissement : 1 à 4.");
+    throw new Error(tr("Paramètres de génération invalides."));
+  if (s.hires.enabled && (!range(s.hires.scale, 1, 4) || !integer(s.hires.steps, 1, 150) || !range(s.hires.denoise, 0, 1))) throw new Error(tr("Réglages Hires Fix invalides."));
+  if (s.upscale.enabled && !range(s.upscale.scale, 1, 4)) throw new Error(tr("Facteur d’agrandissement : 1 à 4."));
   const scale = (s.hires.enabled ? s.hires.scale : 1) * (s.upscale.enabled ? s.upscale.scale : 1);
   const highWidth = Math.round(s.width * s.hires.scale / 8) * 8, highHeight = Math.round(s.height * s.hires.scale / 8) * 8;
   const finalScale = s.upscale.enabled ? s.upscale.scale : 1;
   const finalWidth = Math.round((s.hires.enabled ? highWidth : s.width) * finalScale);
   const finalHeight = Math.round((s.hires.enabled ? highHeight : s.height) * finalScale);
-  if (s.width * scale > 16384 || s.height * scale > 16384 || finalWidth > 16384 || finalHeight > 16384) throw new Error("Image finale limitée à 16 384 pixels par côté.");
+  if (s.width * scale > 16384 || s.height * scale > 16384 || finalWidth > 16384 || finalHeight > 16384) throw new Error(tr("Image finale limitée à 16 384 pixels par côté."));
   const seed = seedValue(s.seed);
   const w: Workflow = { "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: s.model } } };
   type Ref = [string, number];
@@ -115,18 +116,18 @@ export function parseWorkflow(text: string): Workflow {
     throw new Error("Workflow API vide ou invalide.");
   for (const node of Object.values(graph) as any[])
     if (!node || typeof node.class_type !== "string" || !node.inputs || typeof node.inputs !== "object" || Array.isArray(node.inputs))
-      throw new Error("Importez le format API de ComfyUI, pas le JSON de l’éditeur visuel.");
+      throw new Error(tr("Importez le format API de ComfyUI, pas le JSON de l’éditeur visuel."));
   return graph;
 }
 export function checkWorkflow(w: Workflow, info: ObjectInfo) {
   const missing = [...new Set(Object.values(w).filter(n => !info[n.class_type]).map(n => n.class_type))];
-  if (missing.length) throw new Error(`Nœuds absents du PC : ${missing.join(", ")}`);
+  if (missing.length) throw new Error(tr("Nœuds absents du PC : {0}", [missing.join(", ")]));
   for (const node of Object.values(w)) {
     if (node.class_type !== "LatentUpscale" || node.inputs.upscale_method !== "bicubic") continue;
     const definition = info.LatentUpscale?.input?.required?.upscale_method;
     const methods = definition?.[0] === "COMBO" ? (definition[1] as { options?: unknown })?.options : definition?.[0];
     if (Array.isArray(methods) && !methods.includes("bicubic")) {
-      throw new Error("L’agrandissement latent bicubique importé n’est pas disponible sur ce PC. Choisissez explicitement une autre méthode Hires Fix.");
+      throw new Error(tr("L’agrandissement latent bicubique importé n’est pas disponible sur ce PC. Choisissez explicitement une autre méthode Hires Fix."));
     }
   }
 }

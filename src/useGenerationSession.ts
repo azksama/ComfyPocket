@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import {
   useState,
   useRef,
@@ -24,7 +25,7 @@ export function useGenerationSession(
   });
   const [jobs, setJobs] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState("Prêt à créer");
+  const [phase, setPhase] = useState(tr("Prêt à créer"));
   const [preview, setPreview] = useState("");
   const [results, setResults] = useState<ViewItem[]>([]);
   const jobsRef = useRef<string[]>([]),
@@ -72,13 +73,13 @@ export function useGenerationSession(
             continue;
           if (e.type === "progress" && d && jobsRef.current.length) {
             setProgress(Math.round((Number(d.value) / Number(d.max)) * 100));
-            setPhase("Génération en cours");
+            setPhase(tr("Génération en cours"));
           }
           if (e.type === "executing" && d?.node && jobsRef.current.length)
-            setPhase("Votre PC compose l’image");
+            setPhase(tr("Votre PC compose l’image"));
         }
         const histories = await mapConcurrent(polled, 3, async (id) => {
-          if (!valid()) throw new Error("Session terminée");
+          if (!valid()) throw new Error(tr("Session terminée"));
           return { id, entry: (await api<History>("/api/history/" + id))[id] };
         });
         if (!valid()) return;
@@ -105,7 +106,7 @@ export function useGenerationSession(
                   entry.status.messages?.find(
                     (m) => m[0] === "execution_error",
                   )?.[1]?.exception_message ??
-                    "Génération interrompue ou échouée.",
+                    tr("Génération interrompue ou échouée."),
                 ),
               );
             }
@@ -119,7 +120,7 @@ export function useGenerationSession(
               done.add(id);
               failed = true;
               onError(
-                "Une tâche a disparu de la file et de l’historique du PC.",
+                tr("Une tâche a disparu de la file et de l’historique du PC."),
               );
             }
           } else missing.current.delete(id);
@@ -137,10 +138,10 @@ export function useGenerationSession(
           setProgress(remaining.length ? 0 : failed ? 0 : 100);
           setPhase(
             remaining.length
-              ? `${remaining.length} lot(s) restant(s)`
+              ? tr("{0} lot(s) restant(s)", [remaining.length])
               : failed
-                ? "Traitement terminé avec une erreur"
-                : "Génération terminée",
+                ? tr("Traitement terminé avec une erreur")
+                : tr("Génération terminée"),
           );
         }
       } catch {
@@ -183,7 +184,7 @@ export function useGenerationSession(
     setResults([]);
     setPreview("");
     setProgress(0);
-    setPhase("Prêt à créer");
+    setPhase(tr("Prêt à créer"));
   };
   return {
     queue,

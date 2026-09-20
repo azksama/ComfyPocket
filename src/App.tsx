@@ -1,3 +1,4 @@
+import { useLocale, t as tr, locale } from "./i18n";
 import {
   useState,
   useEffect,
@@ -99,6 +100,25 @@ const uniqueImages = (items: GalleryItem[]) => [
 ];
 const emptyGallery: Gallery = { items: [], total: 0, warnings: [] };
 export default function App() {
+  useLocale();
+  const followResult = useRef(false);
+  useEffect(() => {
+    const stop = () => {
+      followResult.current = false;
+    };
+    window.addEventListener("pointerdown", stop, { passive: true });
+    window.addEventListener("wheel", stop, { passive: true });
+    window.addEventListener("touchstart", stop, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", stop);
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+    };
+  }, []);
+
+  const [quickMenu, setQuickMenu] = useState(
+    () => stored<boolean>("quick-menu", true) !== false,
+  );
   const [leftHanded, setLeftHanded] = useState(
     () => stored<boolean>("left-handed", false) === true,
   );
@@ -182,7 +202,7 @@ export default function App() {
         return;
       if (b.version < 2)
         throw new Error(
-          "Mettez à jour le compagnon PC avec le lanceur de cette version.",
+          tr("Mettez à jour le compagnon PC avec le lanceur de cette version."),
         );
       const models = choices(i, "CheckpointLoaderSimple", "ckpt_name");
       const saved = normalizeSettings(
@@ -254,7 +274,7 @@ export default function App() {
     setCustomText("");
     setMode("simple");
     setProgress(0);
-    setPhase("Prêt à créer");
+    setPhase(tr("Prêt à créer"));
     clearImageCache();
     setUndo(null);
   }
@@ -271,7 +291,7 @@ export default function App() {
       if (version !== generation.current) return;
       await hydrate(url, false, version);
       if (version !== generation.current) return;
-      setNotice("Connexion chiffrée établie avec votre PC.");
+      setNotice(tr("Connexion chiffrée établie avec votre PC."));
     } catch (e) {
       if (version === generation.current) setError(String(e));
     } finally {
@@ -285,6 +305,7 @@ export default function App() {
     setTab("connect");
   }
   async function generate() {
+    followResult.current = true;
     if (submitLock.current || !online) return;
     submitLock.current = true;
     setBusy(true);
@@ -294,11 +315,12 @@ export default function App() {
     try {
       const batchCount = mode === "workflow" ? 1 : settings.batches;
       if (!Number.isInteger(batchCount) || batchCount < 1 || batchCount > 20)
-        throw new Error("Nombre de lots : 1 à 20.");
+        throw new Error(tr("Nombre de lots : 1 à 20."));
       const builds: { workflow: Workflow; settings?: Settings }[] = [];
       for (let n = 0; n < batchCount; n++) {
         if (mode === "workflow") {
-          if (!custom) throw new Error("Importez et validez un workflow API.");
+          if (!custom)
+            throw new Error(tr("Importez et validez un workflow API."));
           builds.push({ workflow: custom });
           continue;
         }
@@ -308,7 +330,9 @@ export default function App() {
           )
         )
           throw new Error(
-            "Le modèle importé est absent de ce PC. Choisissez un modèle disponible.",
+            tr(
+              "Le modèle importé est absent de ce PC. Choisissez un modèle disponible.",
+            ),
           );
         const s = {
           ...settings,
@@ -335,8 +359,10 @@ export default function App() {
       removeStored("results:" + server);
       setPreview("");
       setProgress(0);
-      setPhase("En attente du GPU");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setPhase(tr("En attente du GPU"));
+      document
+        .getElementById("studio-render")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
       for (const b of builds) {
         if (version !== generation.current) break;
         const response = await api<{
@@ -367,7 +393,9 @@ export default function App() {
       if (version !== generation.current) return;
       setError(
         String(e) +
-          (jobsRef.current.length ? " Les lots déjà envoyés continuent." : ""),
+          (jobsRef.current.length
+            ? tr(" Les lots déjà envoyés continuent.")
+            : ""),
       );
     } finally {
       setBusy(false);
@@ -393,7 +421,7 @@ export default function App() {
         jobsRef.current.filter((id) => !pending.includes(id)),
         server,
       );
-      setPhase("Annulation demandée");
+      setPhase(tr("Annulation demandée"));
       setPreview("");
     } catch (e) {
       if (version === generation.current) setError(String(e));
@@ -446,6 +474,67 @@ export default function App() {
   }, [tab]);
   const same = (a: GalleryItem | undefined, b: GalleryItem) =>
     a?.root === b.root && a.relative === b.relative;
+  async function resultSource(item: ViewItem): Promise<GalleryItem> {
+    if (item.gallery) return item.gallery;
+    const url = new URL(item.path, "https://local");
+    if (
+      url.pathname !== "/api/view" ||
+      url.searchParams.get("type") !== "output"
+    )
+      throw new Error(
+        tr("Cette image ne se trouve pas dans le dossier de résultats."),
+      );
+    const relative = [
+      url.searchParams.get("subfolder"),
+      url.searchParams.get("filename"),
+    ]
+      .filter(Boolean)
+      .join("/");
+    // The companion's first root is the ComfyUI output directory (--output).
+    const page = await api<Gallery>(
+      `/bridge/gallery?root=0&limit=100&q=${encodeURIComponent(relative)}`,
+    );
+    const match = page.items.find(
+      (i) => i.root === 0 && i.relative.replace(/\\/g, "/") === relative,
+    );
+    if (!match)
+      throw new Error(
+        tr(
+          "Image introuvable dans la collection. Réessayez dans quelques instants.",
+        ),
+      );
+    return match;
+  }
+  function dismissResult(item: ViewItem) {
+    setResults((old) => {
+      const next = old.filter((i) => i.path !== item.path);
+      writeStored("results:" + server, next);
+      return next;
+    });
+  }
+  const [resultBusy, setResultBusy] = useState(false);
+  const resultLock = useRef(false);
+  async function resultAction(kind: "favorite" | "trash", item: ViewItem) {
+    if (resultLock.current) return;
+    resultLock.current = true;
+    setResultBusy(true);
+    const revision = generation.current;
+    try {
+      const resolved = { ...item, gallery: await resultSource(item) };
+      if (revision !== generation.current) return;
+      if (kind === "favorite")
+        await favorite(resolved, !resolved.gallery.favorite);
+      else {
+        await deleteImage(resolved);
+        if (revision === generation.current) dismissResult(item);
+      }
+    } catch (e) {
+      if (revision === generation.current) setError(String(e));
+    } finally {
+      resultLock.current = false;
+      setResultBusy(false);
+    }
+  }
   async function favorite(item: ViewItem, value: boolean) {
     if (!item.gallery) return;
     const version = generation.current;
@@ -456,6 +545,15 @@ export default function App() {
       favorite: value,
     });
     if (version !== generation.current) return;
+    setResults((old) => {
+      const next = old.map((i) =>
+        i.path === item.path || same(i.gallery, g)
+          ? { ...i, gallery: { ...g, favorite: value } }
+          : i,
+      );
+      writeStored("results:" + server, next);
+      return next;
+    });
     galleryRequest.current++;
     setGalleryBusy(false);
     setGallery((old) => {
@@ -490,11 +588,18 @@ export default function App() {
       relative: g.relative,
     });
     if (version !== generation.current) return;
+    setResults((old) => {
+      const next = old.filter(
+        (i) => i.path !== item.path && !same(i.gallery, g),
+      );
+      writeStored("results:" + server, next);
+      return next;
+    });
     galleryRequest.current++;
     setGalleryBusy(false);
     if (!silent) {
       setUndo(deleted);
-      setNotice("Image déplacée dans la corbeille du PC.");
+      setNotice(tr("Image déplacée dans la corbeille du PC."));
     }
     setGallery((old) => ({
       ...old,
@@ -518,7 +623,7 @@ export default function App() {
       await api("/bridge/restore", { root: item.root, id: item.id });
       if (version !== generation.current) return;
       setUndo(null);
-      setNotice("Image restaurée à son emplacement d’origine.");
+      setNotice(tr("Image restaurée à son emplacement d’origine."));
       await loadGallery();
     } catch (e) {
       if (version === generation.current) setError(String(e));
@@ -549,10 +654,10 @@ export default function App() {
     setPreview("");
     setViewer(null);
     setTab("create");
-    setPhase("Paramètres chargés depuis l’image");
+    setPhase(tr("Paramètres chargés depuis l’image"));
     setError("");
     setNotice(
-      "Les paramètres et la seed reconnus sont prêts à être réutilisés.",
+      tr("Les paramètres et la seed reconnus sont prêts à être réutilisés."),
     );
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -565,7 +670,7 @@ export default function App() {
     setError("");
     try {
       if (file.size > (type === "image" ? 64 : 10) * 1024 * 1024)
-        throw new Error("Fichier trop volumineux.");
+        throw new Error(tr("Fichier trop volumineux."));
       if (type === "image") {
         const url = await dataUrl(file);
         await reuse(
@@ -589,7 +694,7 @@ export default function App() {
     }
   }
   const device = stats?.devices?.[0];
-  const deviceName = (device?.name ?? "GPU du PC")
+  const deviceName = (device?.name ?? tr("GPU du PC"))
     .replace(/^cuda:\d+\s*/, "")
     .replace(/\s*:\s*cudaMallocAsync.*$/, "")
     .replace(/^NVIDIA GeForce\s+/, "");
@@ -632,27 +737,27 @@ export default function App() {
           <h1>
             {
               {
-                create: "Votre imagination,",
-                gallery: "Vos petits mondes",
-                glossary: "Le mot juste.",
-                connect: "À votre rythme.",
+                create: tr("Votre imagination,"),
+                gallery: tr("Vos petits mondes"),
+                glossary: tr("Le mot juste."),
+                connect: tr("À votre rythme."),
               }[tab]
             }
           </h1>
           <p>
             {
               {
-                create: "La puissance de votre PC. La liberté du mobile.",
-                gallery: "Vos créations, autant d’idées à retrouver.",
-                glossary: "Un glossaire Danbooru pour guider vos idées.",
-                connect: "Votre ordinateur, vos préférences, votre espace.",
+                create: tr("La puissance de votre PC. La liberté du mobile."),
+                gallery: tr("Vos créations, autant d’idées à retrouver."),
+                glossary: tr("Un glossaire Danbooru pour guider vos idées."),
+                connect: tr("Votre ordinateur, vos préférences, votre espace."),
               }[tab]
             }
           </p>
         </div>
         {tab === "gallery" && (
           <button
-            aria-label="Actualiser la galerie"
+            aria-label={tr("Actualiser la galerie")}
             disabled={galleryBusy || !server}
             onClick={() => void loadGallery().catch(() => {})}
           >
@@ -665,7 +770,7 @@ export default function App() {
           fallback={
             <div
               className="section-skeleton"
-              aria-label="Ouverture du glossaire"
+              aria-label={tr("Ouverture du glossaire")}
             />
           }
         >
@@ -680,11 +785,20 @@ export default function App() {
           onConnect={connect}
           onDisconnect={disconnect}
           onError={setError}
+          quickMenu={quickMenu}
+          onQuickMenu={(value) => {
+            setQuickMenu(value);
+            writeStored("quick-menu", value);
+          }}
           leftHanded={leftHanded}
           onHandedness={(value) => {
             setLeftHanded(value);
             if (!writeStored("left-handed", value))
-              notify("Ce choix s’applique pour cette session ; l’enregistrement est indisponible.");
+              notify(
+                tr(
+                  "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
+                ),
+              );
           }}
           stats={stats}
           queue={queue}
@@ -713,18 +827,24 @@ export default function App() {
         <div className="atelier-layout">
           <button
             className="studio-pc"
-            aria-label={online ? "PC connecté" : "PC indisponible"}
+            aria-label={online ? tr("PC connecté") : tr("PC indisponible")}
             onClick={() => setShowConnection(true)}
           >
             <Monitor size={20} />
             <span>
               <strong>
-                {online ? "Studio PC · connecté" : "Studio PC · indisponible"}
+                {online
+                  ? tr("Studio PC · connecté")
+                  : tr("Studio PC · indisponible")}
               </strong>
               <small>
                 {deviceName}
                 {device
-                  ? ` · ${(device.vram_free / 1024 ** 3).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go VRAM libres`
+                  ? tr(" · {0} Go VRAM libres", [
+                      (device.vram_free / 1024 ** 3).toLocaleString(locale(), {
+                        maximumFractionDigits: 1,
+                      }),
+                    ])
                   : ""}
               </small>
             </span>
@@ -749,7 +869,7 @@ export default function App() {
                   p.workflow ? JSON.stringify(p.workflow, null, 2) : "",
                 );
                 setImported(null);
-                setNotice(`Preset « ${p.name} » chargé.`);
+                setNotice(tr("Preset « {0} » chargé.", [p.name]));
                 setError("");
               }}
             />
@@ -757,12 +877,14 @@ export default function App() {
           {imported && (
             <CollapsibleCard
               className="import-summary"
-              title="Paramètres importés"
+              title={tr("Paramètres importés")}
             >
               <div className="section-heading">
-                <strong>Import · {imported.source}</strong>
+                <strong>
+                  {tr("Import ·")} {imported.source}
+                </strong>
                 <button
-                  aria-label="Fermer le détail de l’import"
+                  aria-label={tr("Fermer le détail de l’import")}
                   onClick={() => setImported(null)}
                 >
                   <X size={16} />
@@ -784,7 +906,9 @@ export default function App() {
                   className="text-button"
                   onClick={() => setMode("workflow")}
                 >
-                  Ouvrir le workflow API original <ArrowUpRight size={15} />
+                  {" "}
+                  {tr("Ouvrir le workflow API original")}{" "}
+                  <ArrowUpRight size={15} />
                 </button>
               )}
             </CollapsibleCard>
@@ -803,12 +927,13 @@ export default function App() {
           ) : (
             <CollapsibleCard title="Workflow API">
               <p className="muted">
-                Conservez les nœuds, modèles et réglages d’un workflow ComfyUI
-                complet. Les champs du mode automatique ne modifient pas ce
-                graphe.
+                {" "}
+                {tr(
+                  "Conservez les nœuds, modèles et réglages d’un workflow ComfyUI complet. Les champs du mode automatique ne modifient pas ce graphe.",
+                )}{" "}
               </p>
               <label className="file-picker">
-                <FolderOpen size={19} /> Importer un workflow API
+                <FolderOpen size={19} /> {tr("Importer un workflow API")}{" "}
                 <input
                   type="file"
                   accept=".json,application/json"
@@ -837,20 +962,21 @@ export default function App() {
                     const w = parseWorkflow(customText);
                     checkWorkflow(w, info);
                     setCustom(w);
-                    setNotice("Workflow validé sur ce PC.");
+                    setNotice(tr("Workflow validé sur ce PC."));
                     setError("");
                   } catch (e) {
                     setError(String(e));
                   }
                 }}
               >
-                Valider les modifications
+                {" "}
+                {tr("Valider les modifications")}{" "}
               </button>
             </CollapsibleCard>
           )}
           <div className="studio-imports">
             <label className="file-picker">
-              <Upload size={18} /> Paramètres depuis une image
+              <Upload size={18} /> {tr("Paramètres depuis une image")}{" "}
               <input
                 type="file"
                 accept=".png,.jpg,.jpeg,.json,image/png,image/jpeg,application/json"
@@ -871,7 +997,8 @@ export default function App() {
                 aria-pressed={mode === "simple"}
                 onClick={() => setMode("simple")}
               >
-                Automatique
+                {" "}
+                {tr("Automatique")}{" "}
               </button>
               <button
                 aria-pressed={mode === "workflow"}
@@ -886,18 +1013,21 @@ export default function App() {
                 setPresetRequest((v) => ({ id: v.id + 1, create: true }))
               }
             >
-              + Enregistrer le preset
+              {" "}
+              {tr("+ Enregistrer le preset")}{" "}
             </button>
           </div>
           <section
             id="studio-render"
             tabIndex={-1}
             className="render-panel"
-            aria-label="Rendu de génération"
+            aria-label={tr("Rendu de génération")}
           >
             <div className="studio-section-heading">
-              <h2>Rendu en temps réel</h2>
-              {jobs.length > 0 && <span className="live-badge">EN DIRECT</span>}
+              <h2>{tr("Rendu en temps réel")}</h2>
+              {jobs.length > 0 && (
+                <span className="live-badge">{tr("EN DIRECT")}</span>
+              )}
             </div>
             <div
               className={
@@ -905,9 +1035,20 @@ export default function App() {
               }
             >
               {preview ? (
-                <img src={preview} alt="Aperçu de génération en cours" />
+                <img src={preview} alt={tr("Aperçu de génération en cours")} />
               ) : results[0] ? (
                 <Picture
+                  onLoad={() => {
+                    if (followResult.current && active)
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById("studio-render")
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          }),
+                      );
+                  }}
                   path={results[0].path}
                   source={results[0].url}
                   alt={results[0].name}
@@ -927,25 +1068,63 @@ export default function App() {
                   <span className="empty-orbit">
                     <Sparkles size={34} />
                   </span>
-                  <h3>Imaginez la suite.</h3>
+                  <h3>{tr("Imaginez la suite.")}</h3>
                   <p>
-                    Votre prochaine image apparaîtra ici,
-                    <br />
-                    avec son aperçu pendant la génération.
+                    {" "}
+                    {tr("Votre prochaine image apparaîtra ici,")} <br />{" "}
+                    {tr("avec son aperçu pendant la génération.")}{" "}
                   </p>
                 </>
               )}
             </div>
+            {!preview && results[0] && (
+              <div className="result-actions">
+                <button
+                  disabled={resultBusy}
+                  aria-label={tr("Masquer ce résultat")}
+                  onClick={() => dismissResult(results[0])}
+                >
+                  <X size={18} />
+                  <span>{tr("Masquer")}</span>
+                </button>
+                <button
+                  disabled={resultBusy}
+                  aria-label={tr("Favori du résultat")}
+                  aria-pressed={!!results[0].gallery?.favorite}
+                  onClick={() => void resultAction("favorite", results[0])}
+                >
+                  <Heart
+                    size={18}
+                    fill={
+                      results[0].gallery?.favorite ? "currentColor" : "none"
+                    }
+                  />
+                  <span>{tr("Favori")}</span>
+                </button>
+                <button
+                  disabled={resultBusy}
+                  aria-label={tr("Supprimer ce résultat")}
+                  onClick={() => void resultAction("trash", results[0])}
+                >
+                  <Trash2 size={18} />
+                  <span>{tr("Corbeille")}</span>
+                </button>
+              </div>
+            )}
             <div className="output-footer">
               <span role="status">
-                {phase}
+                {tr(phase)}
                 {!jobs.length && results.length > 0
-                  ? ` · ${results.length} image${results.length > 1 ? "s" : ""}`
+                  ? tr(" · {0} image{1}", [
+                      results.length,
+                      results.length > 1 ? "s" : "",
+                    ])
                   : ""}
               </span>
               {jobs.length > 0 && (
                 <button className="text-button" onClick={() => void cancel()}>
-                  Annuler mes lots
+                  {" "}
+                  {tr("Annuler mes lots")}{" "}
                 </button>
               )}
             </div>
@@ -953,26 +1132,28 @@ export default function App() {
               <progress
                 max={100}
                 value={progress}
-                aria-label="Progression de génération"
+                aria-label={tr("Progression de génération")}
               />
             )}
             {results.length > 1 && (
               <div className="result-strip">
-                {results.map((r, i) => (
+                {results.map((r) => (
                   <Picture
                     small
                     key={r.path}
                     path={r.path}
                     alt={r.name}
-                    onOpen={(url) =>
-                      openViewer({
-                        items: results.map((v, n) =>
-                          n === i ? { ...v, url } : v,
-                        ),
-                        index: i,
-                        fromGallery: false,
-                      })
-                    }
+                    actionLabel={tr("Afficher le résultat {0}", [r.name])}
+                    onOpen={() => {
+                      setResults((old) => {
+                        const next = [
+                          r,
+                          ...old.filter((item) => item.path !== r.path),
+                        ];
+                        writeStored("results:" + server, next);
+                        return next;
+                      });
+                    }}
                   />
                 ))}
               </div>
@@ -981,11 +1162,14 @@ export default function App() {
               <div>
                 <strong>
                   {mode === "simple"
-                    ? `${settings.batch * settings.batches || 0} image(s)`
-                    : "Workflow personnalisé"}
+                    ? tr("{0} image(s)", [
+                        settings.batch * settings.batches || 0,
+                      ])
+                    : tr("Workflow personnalisé")}
                 </strong>
                 <small>
-                  {deviceName} · {queue.queue_pending.length} en attente
+                  {deviceName} · {queue.queue_pending.length}{" "}
+                  {tr("en attente")}{" "}
                 </small>
               </div>
               <button
@@ -999,7 +1183,9 @@ export default function App() {
                   <Sparkles size={19} />
                 )}
                 <span>
-                  {jobs.length ? "Génération en cours" : "Générer l’image"}
+                  {jobs.length
+                    ? tr("Génération en cours")
+                    : tr("Générer l’image")}
                 </span>
               </button>
             </div>{" "}
@@ -1012,14 +1198,14 @@ export default function App() {
             <label className="search-box">
               <Search size={19} />
               <input
-                aria-label="Rechercher dans la galerie"
-                placeholder="Rechercher une image…"
+                aria-label={tr("Rechercher dans la galerie")}
+                placeholder={tr("Rechercher une image…")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               {search && (
                 <button
-                  aria-label="Effacer la recherche de galerie"
+                  aria-label={tr("Effacer la recherche de galerie")}
                   onClick={() => setSearch("")}
                 >
                   <X size={18} />
@@ -1027,9 +1213,9 @@ export default function App() {
               )}
             </label>
             <label className="root-select">
-              <span className="sr-only">Dossier</span>
+              <span className="sr-only">{tr("Dossier")}</span>
               <select value={root} onChange={(e) => setRoot(e.target.value)}>
-                <option value="">Tous les dossiers</option>
+                <option value="">{tr("Tous les dossiers")}</option>
                 {roots.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -1043,61 +1229,65 @@ export default function App() {
               aria-pressed={filter === "all"}
               onClick={() => setFilter("all")}
             >
-              <Images size={17} /> Toutes
+              <Images size={17} /> {tr("Toutes")}{" "}
             </button>
             <button
               aria-pressed={filter === "favorites"}
               onClick={() => setFilter("favorites")}
             >
-              <Heart size={17} /> Favoris
+              <Heart size={17} /> {tr("Favoris")}{" "}
             </button>
             <button
               aria-pressed={filter === "trash"}
               onClick={() => setFilter("trash")}
             >
-              <Trash2 size={17} /> Corbeille
+              <Trash2 size={17} /> {tr("Corbeille")}{" "}
             </button>
           </div>
           {filter === "trash" ? (
             <section className="panel">
-              <h2>Corbeille récupérable</h2>
+              <h2>{tr("Corbeille récupérable")}</h2>
               <p className="muted">
-                Les images restent sur le PC jusqu’à leur restauration. Aucune
-                suppression définitive automatique.
+                {" "}
+                {tr(
+                  "Les images restent sur le PC jusqu’à leur restauration. Aucune suppression définitive automatique.",
+                )}{" "}
               </p>
               {trash.map((t) => (
                 <div className="trash-row" key={t.id}>
                   <Trash2 size={20} />
                   <span>
                     <strong>{t.name}</strong>
-                    <small>{new Date(t.deleted).toLocaleString("fr-FR")}</small>
+                    <small>
+                      {new Date(t.deleted).toLocaleString(locale())}
+                    </small>
                   </span>
                   <button onClick={() => void restore(t)}>
-                    <RotateCcw size={17} /> Restaurer
+                    <RotateCcw size={17} /> {tr("Restaurer")}{" "}
                   </button>
                 </div>
               ))}
-              {!trash.length && <p>La corbeille est vide.</p>}
+              {!trash.length && <p>{tr("La corbeille est vide.")}</p>}
             </section>
           ) : (
             <>
               <div className="section-heading gallery-heading">
                 <h2>
                   {filter === "favorites"
-                    ? "À garder tout près"
-                    : "Votre collection"}
+                    ? tr("À garder tout près")
+                    : tr("Votre collection")}
                 </h2>
                 <div className="gallery-density">
                   <span className="muted">{gallery.total} images</span>
                   <div
                     className="density-options"
                     role="group"
-                    aria-label="Nombre de colonnes"
+                    aria-label={tr("Nombre de colonnes")}
                   >
                     {[2, 3, 4].map((n) => (
                       <button
                         key={n}
-                        aria-label={`${n} colonnes`}
+                        aria-label={tr("{0} colonnes", [n])}
                         aria-pressed={columns === n}
                         onClick={() => {
                           setColumns(n);
@@ -1154,17 +1344,23 @@ export default function App() {
                   <Heart size={32} />
                   <h3>
                     {search || root
-                      ? "Aucune image ne correspond."
+                      ? tr("Aucune image ne correspond.")
                       : filter === "favorites"
-                        ? "Vos coups de cœur auront leur place ici."
-                        : "Aucune image pour le moment."}
+                        ? tr("Vos coups de cœur auront leur place ici.")
+                        : tr("Aucune image pour le moment.")}
                   </h3>
                   <p className="muted">
                     {search || root
-                      ? "Essayez un autre nom ou explorez tous les dossiers."
+                      ? tr(
+                          "Essayez un autre nom ou explorez tous les dossiers.",
+                        )
                       : filter === "favorites"
-                        ? "Touchez le cœur d’une image pour la retrouver ici."
-                        : "Vos générations sur le PC apparaîtront dans cette collection."}
+                        ? tr(
+                            "Touchez le cœur d’une image pour la retrouver ici.",
+                          )
+                        : tr(
+                            "Vos générations sur le PC apparaîtront dans cette collection.",
+                          )}
                   </p>
                   {(search || root) && (
                     <button
@@ -1173,7 +1369,8 @@ export default function App() {
                         setRoot("");
                       }}
                     >
-                      Effacer les filtres
+                      {" "}
+                      {tr("Effacer les filtres")}{" "}
                     </button>
                   )}
                 </div>
@@ -1184,7 +1381,8 @@ export default function App() {
                   disabled={galleryBusy}
                   onClick={() => void loadGallery(true).catch(() => {})}
                 >
-                  Afficher la suite
+                  {" "}
+                  {tr("Afficher la suite")}{" "}
                 </button>
               )}
             </>
@@ -1195,11 +1393,23 @@ export default function App() {
   );
   return (
     <div className={`app ${leftHanded ? "left-handed" : ""}`}>
-      {tab === "create" && server && (
-        <StudioNav active workflow={mode === "workflow"} leftHanded={leftHanded} />
+      {tab === "create" && server && quickMenu && (
+        <StudioNav
+          active
+          workflow={mode === "workflow"}
+          leftHanded={leftHanded}
+          generating={busy || !online || jobs.length > 0}
+          onGenerate={() => {
+            document
+              .getElementById("studio-render")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            void generate();
+          }}
+        />
       )}
       <a className="skip" href="#main">
-        Aller au contenu
+        {" "}
+        {tr("Aller au contenu")}{" "}
       </a>
       <aside className="sidebar">
         <a
@@ -1215,16 +1425,16 @@ export default function App() {
           </span>
           <span>
             Mochi
-            <small>VOTRE ATELIER CRÉATIF</small>
+            <small>{tr("VOTRE ATELIER CRÉATIF")}</small>
           </span>
         </a>
-        <nav aria-label="Navigation principale">
+        <nav aria-label={tr("Navigation principale")}>
           {(
             [
-              { id: "create", label: "Atelier", icon: SlidersHorizontal },
-              { id: "gallery", label: "Galerie", icon: Images },
-              { id: "glossary", label: "Glossaire", icon: BookOpen },
-              { id: "connect", label: "Paramètres", icon: Settings2 },
+              { id: "create", label: tr("Atelier"), icon: SlidersHorizontal },
+              { id: "gallery", label: tr("Galerie"), icon: Images },
+              { id: "glossary", label: tr("Glossaire"), icon: BookOpen },
+              { id: "connect", label: tr("Paramètres"), icon: Settings2 },
             ] as const
           ).map((t) => (
             <button
@@ -1245,9 +1455,8 @@ export default function App() {
         <div className="sidebar-foot">
           <Monitor size={22} />
           <p>
-            Votre PC crée.
-            <br />
-            Vos idées voyagent.
+            {" "}
+            {tr("Votre PC crée.")} <br /> {tr("Vos idées voyagent.")}{" "}
           </p>
         </div>
       </aside>
@@ -1258,7 +1467,7 @@ export default function App() {
           </span>
           <button
             className="header-spark"
-            aria-label="Ouvrir l’Atelier"
+            aria-label={tr("Ouvrir l’Atelier")}
             onClick={() => setTab("create")}
           >
             <img src={mochiHeader} alt="" width={32} height={24} />
@@ -1302,7 +1511,7 @@ export default function App() {
           >
             {undo && (
               <button onClick={() => void restore(undo)}>
-                <RotateCcw size={16} /> Annuler la suppression
+                <RotateCcw size={16} /> {tr("Annuler la suppression")}{" "}
               </button>
             )}
           </Toast>
@@ -1323,7 +1532,8 @@ export default function App() {
         <Suspense
           fallback={
             <div className="viewer-opening" role="status">
-              <LoaderCircle className="spin" /> Ouverture de l’image…
+              <LoaderCircle className="spin" />{" "}
+              {tr("Ouverture de l’image…")}{" "}
             </div>
           }
         >

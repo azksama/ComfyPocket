@@ -1,3 +1,5 @@
+import LanguagePicker from "./LanguagePicker";
+import { t as tr, locale } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Monitor,
@@ -33,6 +35,8 @@ export interface ProfileInfo {
   active: boolean;
 }
 type Props = {
+  quickMenu: boolean;
+  onQuickMenu: (value: boolean) => void;
   leftHanded: boolean;
   onHandedness: (value: boolean) => void;
   server: string;
@@ -49,6 +53,8 @@ type Props = {
 const blank: Pairing = { url: "", token: "", certificate: "" };
 
 export default function Connections({
+  quickMenu,
+  onQuickMenu,
   leftHanded,
   onHandedness,
   server,
@@ -140,7 +146,7 @@ export default function Connections({
   const fill = (text: string) => {
     setPairing(parsePairing(text));
     setRaw("");
-    if (!name) setName("Mon PC");
+    if (!name) setName(tr("Mon PC"));
   };
   const save = (connect: boolean) =>
     run(async () => {
@@ -150,7 +156,7 @@ export default function Connections({
       const wasActive = profiles.some((p) => p.id === editing && p.active);
       const id = await native<string>("save_profile", {
         id: editing,
-        name: name.trim() || "Mon PC",
+        name: name.trim() || tr("Mon PC"),
         pairing: next,
       });
       if (wasActive) await onDisconnect(true);
@@ -179,27 +185,32 @@ export default function Connections({
       <section className="panel" aria-busy={loading || working}>
         <div className="section-heading">
           <div>
-            <h2>Mes ordinateurs</h2>
+            <h2>{tr("Mes ordinateurs")}</h2>
           </div>
           <button
-            aria-label="Ajouter une connexion"
+            aria-label={tr("Ajouter une connexion")}
             disabled={disabled || loading}
             onClick={() => reset(true)}
           >
-            <Plus size={14} /> Ajouter
+            <Plus size={14} /> {tr("Ajouter")}{" "}
           </button>
         </div>
         <p className="muted">
-          Un profil pour chaque PC, ou pour ses adresses Wi-Fi et WireGuard.
+          {" "}
+          {tr(
+            "Un profil pour chaque PC, ou pour ses adresses Wi-Fi et WireGuard.",
+          )}{" "}
         </p>
         {loading && (
           <p className="hint" role="status">
-            Chargement des connexions…
+            {" "}
+            {tr("Chargement des connexions…")}{" "}
           </p>
         )}
         {!loading && !profiles.length && !error && (
           <p className="hint">
-            Importez l’appairage de votre PC pour commencer.
+            {" "}
+            {tr("Importez l’appairage de votre PC pour commencer.")}{" "}
           </p>
         )}
         <div className="profile-list">
@@ -217,14 +228,14 @@ export default function Connections({
                   <small>
                     {profile.active
                       ? online
-                        ? "Connecté · "
-                        : "Indisponible · "
+                        ? tr("Connecté · ")
+                        : tr("Indisponible · ")
                       : ""}
                     {profile.url}
                   </small>
                 </span>
                 {profile.active && (
-                  <Check size={19} aria-label="Connexion active" />
+                  <Check size={19} aria-label={tr("Connexion active")} />
                 )}
               </div>
               {profile.active && online && (
@@ -237,16 +248,25 @@ export default function Connections({
                     </strong>
                   </div>
                   <div>
-                    <small>VRAM LIBRE</small>
+                    <small>{tr("VRAM LIBRE")}</small>
                     <strong>
                       {stats?.devices[0]
-                        ? `${(stats.devices[0].vram_free / 1024 ** 3).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go`
+                        ? tr("{0} Go", [
+                            (
+                              stats.devices[0].vram_free /
+                              1024 ** 3
+                            ).toLocaleString(locale(), {
+                              maximumFractionDigits: 1,
+                            }),
+                          ])
                         : "—"}
                     </strong>
                   </div>
                   <div>
-                    <small>FILE D’ATTENTE</small>
-                    <strong>{queue.queue_pending.length} image(s)</strong>
+                    <small>{tr("FILE D’ATTENTE")}</small>
+                    <strong>
+                      {queue.queue_pending.length} {tr("image(s)")}
+                    </strong>
                   </div>
                 </div>
               )}
@@ -257,10 +277,10 @@ export default function Connections({
                   onClick={() => void connect(profile.id)}
                 >
                   <Link size={16} />
-                  {profile.active ? "Reconnecter" : "Connecter"}
+                  {profile.active ? tr("Reconnecter") : tr("Connecter")}
                 </button>
                 <button
-                  aria-label={`Modifier ${profile.name}`}
+                  aria-label={tr("Modifier {0}", [profile.name])}
                   disabled={disabled}
                   onClick={() =>
                     void run(async () => {
@@ -280,13 +300,15 @@ export default function Connections({
                   <Pencil size={18} />
                 </button>
                 <button
-                  aria-label={`Supprimer le profil ${profile.name}`}
+                  aria-label={tr("Supprimer le profil {0}", [profile.name])}
                   disabled={disabled}
                   onClick={() =>
                     void run(async () => {
                       if (
                         !confirm(
-                          `Supprimer le profil « ${profile.name} » de cet appareil ?`,
+                          tr("Supprimer le profil « {0} » de cet appareil ?", [
+                            profile.name,
+                          ]),
                         )
                       )
                         return;
@@ -314,7 +336,7 @@ export default function Connections({
               })
             }
           >
-            <Unplug size={17} /> Déconnecter
+            <Unplug size={17} /> {tr("Déconnecter")}{" "}
           </button>
         )}
         {error && !form && <p role="alert">{error}</p>}
@@ -322,10 +344,13 @@ export default function Connections({
       {form && (
         <section ref={formRef} className="panel connection-form">
           <div className="section-heading">
-            <h2>{editing ? "Modifier la connexion" : "Ajouter un PC"}</h2>
+            <h2>
+              {editing ? tr("Modifier la connexion") : tr("Ajouter un PC")}
+            </h2>
             {profiles.length > 0 && (
               <button disabled={disabled} onClick={() => reset(false)}>
-                Fermer
+                {" "}
+                {tr("Fermer")}{" "}
               </button>
             )}
           </div>
@@ -340,16 +365,17 @@ export default function Connections({
               style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
             >
               <label>
-                Nom de la connexion
+                {" "}
+                {tr("Nom de la connexion")}{" "}
                 <input
                   value={name}
                   maxLength={80}
-                  placeholder="PC maison · Wi-Fi"
+                  placeholder={tr("PC maison · Wi-Fi")}
                   onChange={(e) => setName(e.target.value)}
                 />
               </label>
               <label className="file-picker">
-                <FolderOpen size={19} /> Importer un fichier d’appairage
+                <FolderOpen size={19} /> {tr("Importer un fichier d’appairage")}{" "}
                 <input
                   type="file"
                   accept=".json,application/json"
@@ -359,7 +385,7 @@ export default function Connections({
                       void run(async () => {
                         if (file.size > 100_000)
                           throw new Error(
-                            "Fichier d’appairage trop volumineux.",
+                            tr("Fichier d’appairage trop volumineux."),
                           );
                         fill(await file.text());
                       });
@@ -368,9 +394,10 @@ export default function Connections({
                 />
               </label>
               <details>
-                <summary>Coller un fichier d’appairage</summary>
+                <summary>{tr("Coller un fichier d’appairage")}</summary>
                 <label>
-                  Ou collez son contenu
+                  {" "}
+                  {tr("Ou collez son contenu")}{" "}
                   <textarea
                     value={raw}
                     maxLength={100_000}
@@ -393,11 +420,13 @@ export default function Connections({
                     }
                   }}
                 >
-                  Lire l’appairage
+                  {" "}
+                  {tr("Lire l’appairage")}{" "}
                 </button>
               </details>
               <label>
-                Adresse du PC
+                {" "}
+                {tr("Adresse du PC")}{" "}
                 <input
                   type="url"
                   value={pairing.url}
@@ -412,7 +441,8 @@ export default function Connections({
                 />
               </label>
               <label>
-                Clé d’accès
+                {" "}
+                {tr("Clé d’accès")}{" "}
                 <input
                   type="password"
                   value={pairing.token}
@@ -426,9 +456,10 @@ export default function Connections({
                 />
               </label>
               <details>
-                <summary>Certificat du PC</summary>
+                <summary>{tr("Certificat du PC")}</summary>
                 <label>
-                  Certificat PEM
+                  {" "}
+                  {tr("Certificat PEM")}{" "}
                   <textarea
                     value={pairing.certificate}
                     maxLength={65536}
@@ -443,22 +474,24 @@ export default function Connections({
                 </label>
               </details>
               <p className="hint">
-                <ShieldCheck size={16} /> L’adresse doit être couverte par le
-                certificat du PC. Le tunnel WireGuard reste géré par votre
-                application VPN.
+                <ShieldCheck size={16} />{" "}
+                {tr(
+                  "L’adresse doit être couverte par le certificat du PC. Le tunnel WireGuard reste géré par votre application VPN.",
+                )}{" "}
               </p>
               {error && <p role="alert">{error}</p>}
               <div className="row">
                 <button type="button" onClick={() => void save(false)}>
-                  Enregistrer
+                  {" "}
+                  {tr("Enregistrer")}{" "}
                 </button>
                 <button type="submit" className="primary">
                   <Link size={17} />
                   {working
-                    ? "Connexion…"
+                    ? tr("Connexion…")
                     : editing
-                      ? "Enregistrer et connecter"
-                      : "Connecter mon PC"}
+                      ? tr("Enregistrer et connecter")
+                      : tr("Connecter mon PC")}
                 </button>
               </div>
             </fieldset>
@@ -466,49 +499,64 @@ export default function Connections({
         </section>
       )}
       <div className="connection-tip">
-        <strong>Votre PC reste le moteur.</strong>Gardez le compagnon ouvert en
-        arrière-plan. En déplacement, utilisez votre connexion distante ou
-        WireGuard.
+        <strong>{tr("Votre PC reste le moteur.")}</strong>
+        {tr(
+          "Gardez le compagnon ouvert en arrière-plan. En déplacement, utilisez votre connexion distante ou WireGuard.",
+        )}{" "}
       </div>
       <section className="settings-menu">
-        <h2>Bibliothèque & génération</h2>
+        <h2>{tr("Bibliothèque & génération")}</h2>
         <button disabled={!server} onClick={() => onOpen("models")}>
           <Layers />
           <span>
-            <strong>Modèles, LoRAs & upscalers</strong>
-            <small>Retrouver les ressources de votre PC</small>
+            <strong>{tr("Modèles, LoRAs & upscalers")}</strong>
+            <small>{tr("Retrouver les ressources de votre PC")}</small>
           </span>
           <ChevronRight />
         </button>
         <button disabled={!server} onClick={() => onOpen("workflow")}>
           <Workflow />
           <span>
-            <strong>Workflows ComfyUI</strong>
-            <small>Importer et adapter un workflow API</small>
+            <strong>{tr("Workflows ComfyUI")}</strong>
+            <small>{tr("Importer et adapter un workflow API")}</small>
           </span>
           <ChevronRight />
         </button>
         <button disabled={!server} onClick={() => onOpen("presets")}>
           <Bookmark />
           <span>
-            <strong>Mes presets</strong>
-            <small>Enregistrer et réutiliser une configuration</small>
+            <strong>{tr("Mes presets")}</strong>
+            <small>{tr("Enregistrer et réutiliser une configuration")}</small>
           </span>
           <ChevronRight />
         </button>
       </section>
       <LockSettings />
       <section className="settings-menu">
-        <h2>L’application</h2>
+        <h2>{tr("L’application")}</h2>
+        <LanguagePicker />
         <label className="switch-row handedness-setting">
           <span>
-            <strong>Mode gaucher</strong>
-            <small>Placer les raccourcis de l’Atelier à gauche</small>
+            <strong>{tr("Menu rapide de l’Atelier")}</strong>
+            <small>{tr("Accès aux sections et à la génération")}</small>
           </span>
           <input
             type="checkbox"
             role="switch"
-            aria-label="Mode gaucher"
+            aria-label={tr("Menu rapide de l’Atelier")}
+            checked={quickMenu}
+            onChange={(e) => onQuickMenu(e.target.checked)}
+          />
+        </label>
+        <label className="switch-row handedness-setting">
+          <span>
+            <strong>{tr("Mode gaucher")}</strong>
+            <small>{tr("Placer les raccourcis de l’Atelier à gauche")}</small>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label={tr("Mode gaucher")}
             checked={leftHanded}
             onChange={(e) => onHandedness(e.target.checked)}
           />
@@ -516,22 +564,22 @@ export default function Connections({
         <div className="setting-row">
           <Palette />
           <span>
-            <strong>Apparence</strong>
-            <small>Pastel lavande · Clair</small>
+            <strong>{tr("Apparence")}</strong>
+            <small>{tr("Pastel lavande · Clair")}</small>
           </span>
         </div>
         <button disabled={!server} onClick={() => onOpen("trash")}>
           <Trash2 />
           <span>
-            <strong>Corbeille récupérable</strong>
-            <small>Retrouver vos images supprimées</small>
+            <strong>{tr("Corbeille récupérable")}</strong>
+            <small>{tr("Retrouver vos images supprimées")}</small>
           </span>
           <ChevronRight />
         </button>
         <div className="setting-row">
           <Download />
           <span>
-            <strong>Téléchargements</strong>
+            <strong>{tr("Téléchargements")}</strong>
             <small>Pictures / Mochi</small>
           </span>
         </div>

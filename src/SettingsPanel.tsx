@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { appendBlock, checkPrompts } from "./promptLibrary";
 import { useState, useMemo } from "react";
 import {
@@ -35,9 +36,9 @@ export function NumberField({
 }) {
   return (
     <label>
-      <span>{caption ?? label}</span>
+      <span>{tr(caption ?? label)}</span>
       <input
-        aria-label={label}
+        aria-label={tr(label)}
         type="number"
         inputMode={step < 1 ? "decimal" : "numeric"}
         value={Number.isFinite(value) ? value : ""}
@@ -64,18 +65,21 @@ export function SelectField({
 }) {
   const list = options.some((o) => o.value === value)
     ? options
-    : [{ value, label: `${value || "Aucun"} · indisponible` }, ...options];
+    : [
+        { value, label: tr("{0} · indisponible", [value || tr("Aucun")]) },
+        ...options,
+      ];
   return (
     <label>
-      {label}
+      {tr(label)}
       <select
-        aria-label={label}
+        aria-label={tr(label)}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
         {list.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {tr(o.label)}
           </option>
         ))}
       </select>
@@ -136,7 +140,11 @@ export default function SettingsPanel({
   const options = (node: string, field: string, label = (v: string) => v) =>
     choices(info, node, field).map((value) => ({ value, label: label(value) }));
   const upscalers = options("UpscaleModelLoader", "model_name", shortName).map(
-    (v) => ({ ...v, value: "model:" + v.value, label: v.label + " · modèle" }),
+    (v) => ({
+      ...v,
+      value: "model:" + v.value,
+      label: v.label + tr(" · modèle"),
+    }),
   );
   const addPreset = () => {
     if (
@@ -164,16 +172,19 @@ export default function SettingsPanel({
           id="studio-loras"
           tabIndex={-1}
           className="studio-loras"
-          aria-label="LoRAs actifs"
+          aria-label={tr("LoRAs actifs")}
         >
           <div className="studio-section-heading">
-            <h2>LoRAs actifs · {s.loras.length}</h2>
+            <h2>
+              {tr("LoRAs actifs ·")} {s.loras.length}
+            </h2>
             <button
               className="inline-action"
               aria-label="LoRA / LyCORIS"
               onClick={() => setPicker("loras")}
             >
-              + Ajouter un LoRA
+              {" "}
+              {tr("+ Ajouter un LoRA")}{" "}
             </button>
           </div>
           {s.loras.map((l, i) => (
@@ -203,7 +214,8 @@ export default function SettingsPanel({
           ))}
           {!s.loras.length && (
             <p className="hint">
-              Ajoutez un style ou un concept depuis votre PC.
+              {" "}
+              {tr("Ajoutez un style ou un concept depuis votre PC.")}{" "}
             </p>
           )}
         </section>
@@ -214,35 +226,38 @@ export default function SettingsPanel({
           aria-label="Prompts"
         >
           <div className="studio-section-heading">
-            <h2>Les mots font l’image</h2>
+            <h2>{tr("Les mots font l’image")}</h2>
             <button
               className="inline-action"
               onClick={() => openEditor("positive", "history")}
             >
-              <History size={13} /> Historique
+              <History size={13} /> {tr("Historique")}{" "}
             </button>
           </div>
           <button
             className="prompt-entry prompt-launch positive-entry"
-            aria-label="Votre idée"
+            aria-label={tr("Votre idée")}
             onClick={() => openEditor("positive")}
           >
-            <small>POSITIF</small>
-            <span>{s.positive || "Une scène, une lumière, une émotion…"}</span>
+            <small>{tr("POSITIF")}</small>
+            <span>
+              {s.positive || tr("Une scène, une lumière, une émotion…")}
+            </span>
           </button>
           <div className="prompt-shortcuts">
             <button onClick={() => openEditor("positive", "blocks")}>
-              + Bloc réutilisable
+              {" "}
+              {tr("+ Bloc réutilisable")}{" "}
             </button>
-            <button onClick={onGlossary}>Ouvrir le glossaire</button>
+            <button onClick={onGlossary}>{tr("Ouvrir le glossaire")}</button>
           </div>
           <button
             className="prompt-entry prompt-launch negative-entry"
-            aria-label="Prompt négatif"
+            aria-label={tr("Prompt négatif")}
             onClick={() => openEditor("negative")}
           >
-            <small>NÉGATIF</small>
-            <span>{s.negative || "Ce que vous préférez éviter…"}</span>
+            <small>{tr("NÉGATIF")}</small>
+            <span>{s.negative || tr("Ce que vous préférez éviter…")}</span>
           </button>
           {issues.length > 0 && (
             <button
@@ -261,10 +276,10 @@ export default function SettingsPanel({
           id="studio-generation"
           tabIndex={-1}
           className="studio-generation"
-          aria-label="Réglages de génération"
+          aria-label={tr("Réglages de génération")}
         >
           <div className="studio-section-heading">
-            <h2>Réglages de génération</h2>
+            <h2>{tr("Réglages de génération")}</h2>
           </div>
           <div className="inference-row">
             <div className="field-tile dimensions-tile">
@@ -272,7 +287,7 @@ export default function SettingsPanel({
               <div>
                 <input
                   type="number"
-                  aria-label="Largeur"
+                  aria-label={tr("Largeur")}
                   min={64}
                   max={4096}
                   step={8}
@@ -287,7 +302,7 @@ export default function SettingsPanel({
                 <span>×</span>
                 <input
                   type="number"
-                  aria-label="Hauteur"
+                  aria-label={tr("Hauteur")}
                   min={64}
                   max={4096}
                   step={8}
@@ -300,7 +315,7 @@ export default function SettingsPanel({
                   }
                 />
                 <button
-                  aria-label="Formats et dimensions"
+                  aria-label={tr("Formats et dimensions")}
                   onClick={() => setFormatsOpen(true)}
                 >
                   <ChevronDown size={15} />
@@ -312,7 +327,7 @@ export default function SettingsPanel({
                 SEED{" "}
                 <button
                   type="button"
-                  aria-label="Seed aléatoire"
+                  aria-label={tr("Seed aléatoire")}
                   onClick={() => change("seed", "")}
                 >
                   <Dices size={13} />
@@ -322,7 +337,7 @@ export default function SettingsPanel({
                 aria-label="Seed"
                 inputMode="numeric"
                 value={s.seed}
-                placeholder="−1 · aléatoire"
+                placeholder={tr("−1 · aléatoire")}
                 onChange={(e) => change("seed", e.target.value)}
               />
             </label>
@@ -344,8 +359,8 @@ export default function SettingsPanel({
               onChange={(v) => change("cfg", v)}
             />
             <NumberField
-              label="Batch size · images par lot"
-              caption="Lot"
+              label={tr("Batch size · images par lot")}
+              caption={tr("Lot")}
               value={s.batch}
               min={1}
               max={8}
@@ -371,14 +386,14 @@ export default function SettingsPanel({
             />
           </div>
           <details className="advanced-inference">
-            <summary>Lots, VAE et Clip skip</summary>
+            <summary>{tr("Lots, VAE et Clip skip")}</summary>
 
             <div className="field-grid">
               <SelectField
                 label="VAE"
                 value={s.vae}
                 options={[
-                  { value: "", label: "Inclus dans le modèle" },
+                  { value: "", label: tr("Inclus dans le modèle") },
                   ...options("VAELoader", "vae_name", shortName),
                 ]}
                 onChange={(v) => change("vae", v)}
@@ -393,7 +408,7 @@ export default function SettingsPanel({
             </div>
 
             <NumberField
-              label="Batches · nombre de lots"
+              label={tr("Batches · nombre de lots")}
               value={s.batches}
               min={1}
               max={20}
@@ -404,12 +419,15 @@ export default function SettingsPanel({
                 className="inline-action"
                 onClick={() => change("seed", lastSeed)}
               >
-                <Copy size={13} /> Reprendre la dernière seed : {lastSeed}
+                <Copy size={13} /> {tr("Reprendre la dernière seed :")}{" "}
+                {lastSeed}
               </button>
             )}
             <p className="hint">
-              {s.batch * s.batches || 0} images demandées. Une seed fixe
-              augmente de 1 entre les lots.
+              {s.batch * s.batches || 0}{" "}
+              {tr(
+                "images demandées. Une seed fixe augmente de 1 entre les lots.",
+              )}{" "}
             </p>
           </details>
           <details className="hires-options">
@@ -420,7 +438,7 @@ export default function SettingsPanel({
                   {s.hires.enabled ? `Hires ×${s.hires.scale} · ` : ""}
                   {s.upscale.enabled
                     ? shortName(s.upscale.method)
-                    : "Agrandir et affiner les détails"}
+                    : tr("Agrandir et affiner les détails")}
                 </small>
               </span>
               <ChevronDown size={18} />
@@ -429,11 +447,11 @@ export default function SettingsPanel({
               <label className="switch-row">
                 <span>
                   <strong>Hires Fix</strong>
-                  <small>Agrandir puis affiner les détails</small>
+                  <small>{tr("Agrandir puis affiner les détails")}</small>
                 </span>
                 <input
                   role="switch"
-                  aria-label="Activer Hires Fix"
+                  aria-label={tr("Activer Hires Fix")}
                   type="checkbox"
                   checked={s.hires.enabled}
                   onChange={(e) =>
@@ -444,7 +462,7 @@ export default function SettingsPanel({
               {s.hires.enabled && (
                 <div className="addon-fields">
                   <SelectField
-                    label="Upscaler Hires Fix"
+                    label={tr("Upscaler Hires Fix")}
                     value={s.hires.method}
                     options={[
                       ...options("LatentUpscale", "upscale_method", (v) =>
@@ -458,7 +476,7 @@ export default function SettingsPanel({
                   />
                   <div className="field-grid">
                     <NumberField
-                      label="Facteur Hires Fix"
+                      label={tr("Facteur Hires Fix")}
                       value={s.hires.scale}
                       min={1}
                       max={4}
@@ -468,7 +486,7 @@ export default function SettingsPanel({
                       }
                     />
                     <NumberField
-                      label="Steps Hires Fix"
+                      label={tr("Steps Hires Fix")}
                       value={s.hires.steps}
                       min={1}
                       max={150}
@@ -488,8 +506,10 @@ export default function SettingsPanel({
                     />
                   </div>
                   <p className="hint">
-                    Les LoRA, le VAE et le Clip skip choisis s’appliquent aux
-                    deux passes.
+                    {" "}
+                    {tr(
+                      "Les LoRA, le VAE et le Clip skip choisis s’appliquent aux deux passes.",
+                    )}{" "}
                   </p>
                 </div>
               )}
@@ -498,11 +518,11 @@ export default function SettingsPanel({
               <label className="switch-row">
                 <span>
                   <strong>Upscaler</strong>
-                  <small>Agrandissement de l’image finale</small>
+                  <small>{tr("Agrandissement de l’image finale")}</small>
                 </span>
                 <input
                   role="switch"
-                  aria-label="Activer Upscaler"
+                  aria-label={tr("Activer Upscaler")}
                   type="checkbox"
                   checked={s.upscale.enabled}
                   onChange={(e) =>
@@ -516,7 +536,7 @@ export default function SettingsPanel({
               {s.upscale.enabled && (
                 <div className="addon-fields field-grid">
                   <SelectField
-                    label="Upscaler final"
+                    label={tr("Upscaler final")}
                     value={s.upscale.method}
                     options={[
                       ...options("ImageScaleBy", "upscale_method", (v) =>
@@ -529,7 +549,7 @@ export default function SettingsPanel({
                     }
                   />
                   <NumberField
-                    label="Facteur Upscaler"
+                    label={tr("Facteur Upscaler")}
                     value={s.upscale.scale}
                     min={1}
                     max={4}
@@ -543,7 +563,8 @@ export default function SettingsPanel({
             </div>
             {(s.hires.enabled || s.upscale.enabled) && (
               <p className="hint">
-                Sortie estimée :{" "}
+                {" "}
+                {tr("Sortie estimée :")}{" "}
                 {Math.round(
                   (s.hires.enabled
                     ? Math.round((s.width * s.hires.scale) / 8) * 8
@@ -555,7 +576,9 @@ export default function SettingsPanel({
                     ? Math.round((s.height * s.hires.scale) / 8) * 8
                     : s.height) * (s.upscale.enabled ? s.upscale.scale : 1),
                 )}{" "}
-                px. Les grands formats consomment davantage de VRAM.
+                {tr(
+                  "px. Les grands formats consomment davantage de VRAM.",
+                )}{" "}
               </p>
             )}
           </details>
@@ -563,26 +586,30 @@ export default function SettingsPanel({
       </div>
       {formatsOpen && (
         <Modal
-          title="Formats et dimensions"
+          title={tr("Formats et dimensions")}
           onClose={() => setFormatsOpen(false)}
         >
           <p className="hint">
-            Dimensions libres de 64 à 4 096 pixels, par multiples de 8.
+            {" "}
+            {tr(
+              "Dimensions libres de 64 à 4 096 pixels, par multiples de 8.",
+            )}{" "}
           </p>
           <button
             onClick={() => onChange({ ...s, width: s.height, height: s.width })}
           >
-            <ArrowLeftRight size={16} /> Inverser largeur et hauteur
+            <ArrowLeftRight size={16} />{" "}
+            {tr("Inverser largeur et hauteur")}{" "}
           </button>
           <div className="size-presets">
             {[
-              { width: 1024, height: 1024, label: "Carré" },
-              { width: 832, height: 1216, label: "Portrait" },
-              { width: 1216, height: 832, label: "Paysage" },
+              { width: 1024, height: 1024, label: tr("Carré") },
+              { width: 832, height: 1216, label: tr("Portrait") },
+              { width: 1216, height: 832, label: tr("Paysage") },
               { width: 512, height: 512, label: "SD 1.5" },
             ].map((p) => (
               <button
-                key={p.label}
+                key={tr(p.label)}
                 className={
                   s.width === p.width && s.height === p.height ? "selected" : ""
                 }
@@ -597,7 +624,7 @@ export default function SettingsPanel({
                     height: 23 * Math.min(1, p.height / p.width),
                   }}
                 />
-                <strong>{p.label}</strong>
+                <strong>{tr(p.label)}</strong>
                 <small>
                   {p.width} × {p.height}
                 </small>
@@ -605,7 +632,7 @@ export default function SettingsPanel({
             ))}
           </div>
           <details>
-            <summary>Mes formats personnalisés</summary>
+            <summary>{tr("Mes formats personnalisés")}</summary>
             <div className="row">
               {presets.map((p) => (
                 <div className="preset-chip" key={`${p.width}x${p.height}`}>
@@ -613,7 +640,10 @@ export default function SettingsPanel({
                     {p.width} × {p.height}
                   </button>
                   <button
-                    aria-label={`Supprimer le format ${p.width} par ${p.height}`}
+                    aria-label={tr("Supprimer le format {0} par {1}", [
+                      p.width,
+                      p.height,
+                    ])}
                     onClick={() => {
                       const next = presets.filter((v) => v !== p);
                       setPresets(next);
@@ -628,8 +658,8 @@ export default function SettingsPanel({
                 </div>
               ))}
             </div>
-            <button onClick={addPreset}>
-              <Plus size={16} /> Mémoriser ce format
+            <button className="save-format" onClick={addPreset}>
+              <Plus size={16} /> {tr("Mémoriser ce format")}{" "}
             </button>
           </details>
         </Modal>
@@ -650,8 +680,8 @@ export default function SettingsPanel({
           }
           title={
             picker === "checkpoints"
-              ? "Choisir un modèle"
-              : "Ajouter un LoRA / LyCORIS"
+              ? tr("Choisir un modèle")
+              : tr("Ajouter un LoRA / LyCORIS")
           }
           kind={picker}
           names={picker === "checkpoints" ? models : loras}

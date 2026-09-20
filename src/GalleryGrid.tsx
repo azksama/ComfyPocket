@@ -1,6 +1,7 @@
+import { t as tr, locale } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Heart, Download, Trash2, X, CheckSquare } from "lucide-react";
+import { Heart, Download, Trash2, X, CheckSquare } from "lucide-react";
 import { galleryPath, imageUrl, native, type GalleryItem } from "./api";
 import { Picture, type ViewItem } from "./components";
 const keyOf = (item: GalleryItem) => `${item.root}:${item.relative}`;
@@ -86,7 +87,7 @@ export default function GalleryGrid({
       );
     } catch {
       if (alive.current && scopeRef.current === scope)
-        setError("Le favori n’a pas pu être modifié.");
+        setError(tr("Le favori n’a pas pu être modifié."));
     } finally {
       favoriteLocks.current.delete(key);
       if (alive.current) setPendingFavorites(new Set(favoriteLocks.current));
@@ -127,7 +128,10 @@ export default function GalleryGrid({
       if (failed.length) {
         setSelected(new Set(failed));
         setError(
-          `${failed.length} action(s) ont échoué. Ces images restent sélectionnées pour réessayer.`,
+          tr(
+            "{0} action(s) ont échoué. Ces images restent sélectionnées pour réessayer.",
+            [failed.length],
+          ),
         );
       } else if (kind === "trash") {
         setSelected(new Set());
@@ -135,7 +139,14 @@ export default function GalleryGrid({
       }
       if (done)
         onNotice(
-          `${done} image(s) ${kind === "trash" ? "déplacée(s) dans la corbeille" : kind === "favorite" ? "mise(s) en favori" : "enregistrée(s) sur cet appareil"}.`,
+          tr("{0} image(s) {1}.", [
+            done,
+            kind === "trash"
+              ? tr("déplacée(s) dans la corbeille")
+              : kind === "favorite"
+                ? tr("mise(s) en favori")
+                : tr("enregistrée(s) sur cet appareil"),
+          ]),
         );
     } finally {
       operation.current = false;
@@ -158,17 +169,22 @@ export default function GalleryGrid({
           }}
         >
           <CheckSquare size={17} />
-          {selecting ? "Quitter la sélection" : "Sélectionner"}
+          {selecting ? tr("Quitter la sélection") : tr("Sélectionner")}
         </button>
         {selecting && (
           <button
             disabled={busy}
             onClick={() => setSelected(new Set(items.map(keyOf)))}
           >
-            Tout sélectionner
+            {" "}
+            {tr("Tout sélectionner")}{" "}
           </button>
         )}
-        {selecting && <small>{items.length} image(s) chargée(s)</small>}
+        {selecting && (
+          <small>
+            {items.length} {tr("image(s) chargée(s)")}
+          </small>
+        )}
       </div>
       <div
         className={`gallery-grid ${selecting ? "selection-mode" : ""}`}
@@ -228,18 +244,16 @@ export default function GalleryGrid({
             />
             {selecting ? (
               <button
-                className="selection-check"
-                aria-label={`Sélectionner ${item.name}`}
+                className="selection-target"
+                aria-label={tr("Sélectionner {0}", [item.name])}
                 aria-pressed={selected.has(keyOf(item))}
                 disabled={busy}
                 onClick={() => toggle(item)}
-              >
-                {selected.has(keyOf(item)) && <Check size={21} />}
-              </button>
+              ></button>
             ) : (
               <button
                 className="favorite-button"
-                aria-label={`${item.favorite ? "Retirer des favoris" : "Mettre en favori"} ${item.name}`}
+                aria-label={`${item.favorite ? tr("Retirer des favoris") : tr("Mettre en favori")} ${item.name}`}
                 aria-pressed={!!item.favorite}
                 disabled={pendingFavorites.has(keyOf(item))}
                 onClick={() => void favoriteOne(item)}
@@ -253,7 +267,7 @@ export default function GalleryGrid({
             <div className="gallery-caption">
               <strong>{item.name}</strong>
               <small>
-                {new Date(item.modified).toLocaleDateString("fr-FR", {
+                {new Date(item.modified).toLocaleDateString(locale(), {
                   day: "numeric",
                   month: "short",
                 })}{" "}
@@ -269,35 +283,38 @@ export default function GalleryGrid({
           <div
             className="batch-toolbar"
             role="region"
-            aria-label="Actions sur la sélection"
+            aria-label={tr("Actions sur la sélection")}
           >
             <div>
-              <strong>{selected.size} sélectionnée(s)</strong>
+              <strong aria-label={tr("{0} sélectionnée(s)", [selected.size])}>
+                {selected.size}
+                <small>{tr("sélection")}</small>
+              </strong>
               <span role="status">{progress}</span>
             </div>
             <button
-              aria-label="Supprimer la sélection"
+              aria-label={tr("Supprimer la sélection")}
               disabled={busy || !selected.size}
               onClick={() => void action("trash")}
             >
               <Trash2 size={21} />
             </button>
             <button
-              aria-label="Mettre la sélection en favori"
+              aria-label={tr("Mettre la sélection en favori")}
               disabled={busy || !selected.size}
               onClick={() => void action("favorite")}
             >
               <Heart size={21} />
             </button>
             <button
-              aria-label="Télécharger la sélection"
+              aria-label={tr("Télécharger la sélection")}
               disabled={busy || !selected.size}
               onClick={() => void action("download")}
             >
               <Download size={21} />
             </button>
             <button
-              aria-label="Fermer la sélection"
+              aria-label={tr("Fermer la sélection")}
               disabled={busy}
               onClick={() => {
                 setSelecting(false);
@@ -315,7 +332,7 @@ export default function GalleryGrid({
           <p className="batch-error" role="alert">
             {error}
             <button
-              aria-label="Fermer l’erreur de sélection"
+              aria-label={tr("Fermer l’erreur de sélection")}
               onClick={() => setError("")}
             >
               <X size={16} />

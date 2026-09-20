@@ -1,5 +1,7 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import {
+  Sparkles,
   Bookmark,
   Box,
   Layers,
@@ -21,7 +23,11 @@ export default function StudioNav({
   active,
   workflow,
   leftHanded,
+  onGenerate,
+  generating,
 }: {
+  onGenerate: () => void;
+  generating: boolean;
   active: boolean;
   workflow: boolean;
   leftHanded: boolean;
@@ -62,15 +68,15 @@ export default function StudioNav({
     <nav
       ref={ref}
       className={`studio-quick-nav ${leftHanded ? "on-left" : "on-right"}`}
-      aria-label="Sections de l’Atelier"
+      aria-label={tr("Sections de l’Atelier")}
     >
       {sections
         .filter((_, index) => !workflow || index === 0 || index === 5)
         .map(({ id, label, Icon }) => (
           <button
             key={id}
-            aria-label={`Aller à ${label}`}
-            title={label}
+            aria-label={tr("Aller à {0}", [label])}
+            title={tr(label)}
             aria-current={current === id ? "location" : undefined}
             onClick={() => {
               const target = document.getElementById(id);
@@ -85,9 +91,18 @@ export default function StudioNav({
             }}
           >
             <Icon size={15} />
-            <span className="quick-nav-tooltip">{label}</span>
+            <span className="quick-nav-tooltip">{tr(label)}</span>
           </button>
         ))}
+      <button
+        className="quick-generate"
+        aria-label={tr("Générer depuis le menu rapide")}
+        title={tr("Générer l’image")}
+        disabled={generating}
+        onClick={onGenerate}
+      >
+        <Sparkles size={17} />
+      </button>
     </nav>
   );
 }

@@ -1,3 +1,4 @@
+import { t as tr, locale } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Cpu, MemoryStick, RefreshCw, Settings } from "lucide-react";
 import { api, type Stats } from "./api";
@@ -5,8 +6,12 @@ import { Modal } from "./components";
 
 const memory = (value?: number) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? `${(value / 1024 ** 3).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Go`
-    : "Indisponible";
+    ? tr("{0} Go", [
+        (value / 1024 ** 3).toLocaleString(locale(), {
+          maximumFractionDigits: 1,
+        }),
+      ])
+    : tr("Indisponible");
 function MemoryMeter({
   total,
   free,
@@ -54,7 +59,7 @@ export default function ConnectionStatus({
   onSettings: () => void;
 }) {
   const [stats, setStats] = useState(initial);
-  const [state, setState] = useState("Vérification…");
+  const [state, setState] = useState(tr("Vérification…"));
   const [updated, setUpdated] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,7 +70,7 @@ export default function ConnectionStatus({
     let live = true,
       pending = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    setState(server ? "Vérification…" : "Non connecté");
+    setState(server ? tr("Vérification…") : tr("Non connecté"));
     setStats(null);
     setUpdated("");
     setError("");
@@ -78,13 +83,13 @@ export default function ConnectionStatus({
         const data = await api<Stats>("/api/system_stats");
         if (live) {
           setStats(data);
-          setState("Connecté");
+          setState(tr("Connecté"));
           setError("");
-          setUpdated(new Date().toLocaleTimeString("fr-FR"));
+          setUpdated(new Date().toLocaleTimeString(locale()));
         }
       } catch (e) {
         if (live) {
-          setState("PC indisponible");
+          setState(tr("PC indisponible"));
           setStats(null);
           setError(String(e));
         }
@@ -114,14 +119,18 @@ export default function ConnectionStatus({
   const address = addressOf(server);
   const devices = Array.isArray(stats?.devices) ? stats.devices : [];
   return (
-    <Modal title="État du PC" onClose={onClose} className="connection-status">
+    <Modal
+      title={tr("État du PC")}
+      onClose={onClose}
+      className="connection-status"
+    >
       <div className="section-heading">
         <span className="connection-state" role="status">
-          <span className={`dot ${state === "Connecté" ? "online" : ""}`} />
+          <span className={`dot ${state === tr("Connecté") ? "online" : ""}`} />
           {state}
         </span>
         <button
-          aria-label="Actualiser l’état du PC"
+          aria-label={tr("Actualiser l’état du PC")}
           disabled={busy || !server}
           onClick={refresh}
         >
@@ -130,11 +139,11 @@ export default function ConnectionStatus({
       </div>
       <dl className="connection-details">
         <div>
-          <dt>Adresse IP / hôte</dt>
-          <dd>{address?.hostname ?? "Aucun PC"}</dd>
+          <dt>{tr("Adresse IP / hôte")}</dt>
+          <dd>{address?.hostname ?? tr("Aucun PC")}</dd>
         </div>
         <div>
-          <dt>Port HTTPS</dt>
+          <dt>{tr("Port HTTPS")}</dt>
           <dd>{address ? address.port || "443" : "—"}</dd>
         </div>
       </dl>
@@ -147,29 +156,35 @@ export default function ConnectionStatus({
               .replace(/\s*:\s*cudaMallocAsync.*$/, "")}
           </h3>
           <p>
-            VRAM disponible <strong>{memory(gpu.vram_free)}</strong>
-            <span>sur {memory(gpu.vram_total)}</span>
+            {" "}
+            {tr("VRAM disponible")} <strong>{memory(gpu.vram_free)}</strong>
+            <span>
+              {tr("sur")} {memory(gpu.vram_total)}
+            </span>
           </p>
           <MemoryMeter
             total={gpu.vram_total}
             free={gpu.vram_free}
-            label={`VRAM disponible GPU ${index + 1}`}
+            label={tr("VRAM disponible GPU {0}", [index + 1])}
           />
         </section>
       ))}
       <section className="resource-stat">
         <h3>
-          <MemoryStick size={19} />
-          Mémoire du PC
+          <MemoryStick size={19} /> {tr("Mémoire du PC")}{" "}
         </h3>
         <p>
-          RAM disponible <strong>{memory(stats?.system?.ram_free)}</strong>
-          <span>sur {memory(stats?.system?.ram_total)}</span>
+          {" "}
+          {tr("RAM disponible")}{" "}
+          <strong>{memory(stats?.system?.ram_free)}</strong>
+          <span>
+            {tr("sur")} {memory(stats?.system?.ram_total)}
+          </span>
         </p>
         <MemoryMeter
           total={stats?.system?.ram_total}
           free={stats?.system?.ram_free}
-          label="RAM disponible"
+          label={tr("RAM disponible")}
         />
       </section>
       {error && (
@@ -178,12 +193,12 @@ export default function ConnectionStatus({
         </p>
       )}
       <p className="hint">
-        {updated && state === "Connecté"
-          ? `Actualisé à ${updated}`
-          : "Les ressources sont lues directement sur le PC."}
+        {updated && state === tr("Connecté")
+          ? tr("Actualisé à {0}", [updated])
+          : tr("Les ressources sont lues directement sur le PC.")}
       </p>
       <button onClick={onSettings}>
-        <Settings size={17} /> Gérer les connexions
+        <Settings size={17} /> {tr("Gérer les connexions")}{" "}
       </button>
     </Modal>
   );

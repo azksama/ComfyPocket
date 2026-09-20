@@ -1,5 +1,6 @@
+import { t as tr } from "./i18n";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Search, Heart, Check } from "lucide-react";
+import { Search, Heart, Check, FileText } from "lucide-react";
 import { api } from "./api";
 import { Picture } from "./Picture";
 import { Modal } from "./Modal";
@@ -42,7 +43,9 @@ export function ModelPicker({
       .catch(() => {
         if (live)
           setError(
-            "Favoris indisponibles. Redémarrez le compagnon PC avec cette version.",
+            tr(
+              "Favoris indisponibles. Redémarrez le compagnon PC avec cette version.",
+            ),
           );
       });
     return () => {
@@ -61,7 +64,7 @@ export function ModelPicker({
       );
       setFavorites(data[kind] ?? []);
     } catch {
-      setError("Le favori n’a pas pu être enregistré sur le PC.");
+      setError(tr("Le favori n’a pas pu être enregistré sur le PC."));
     } finally {
       lock.current = false;
       setSaving(false);
@@ -79,8 +82,8 @@ export function ModelPicker({
         <Search size={19} />
         <input
           autoFocus
-          aria-label="Rechercher un modèle"
-          placeholder="Nom du modèle…"
+          aria-label={tr("Rechercher un modèle")}
+          placeholder={tr("Nom du modèle…")}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -89,7 +92,9 @@ export function ModelPicker({
         />
       </label>
       <div className="model-filter">
-        <span className="muted">{filtered.length} disponibles</span>
+        <span className="muted">
+          {filtered.length} {tr("disponibles")}
+        </span>
         <button
           aria-pressed={onlyFavorites}
           disabled={!ready}
@@ -99,7 +104,7 @@ export function ModelPicker({
           }}
         >
           <Heart size={16} fill={onlyFavorites ? "currentColor" : "none"} />{" "}
-          Favoris
+          {tr("Favoris")}{" "}
         </button>
       </div>
       {error && (
@@ -127,44 +132,49 @@ export function ModelPicker({
               </span>
               {name === value && <Check size={20} />}
             </button>
-            {kind === "loras" && (
+            <div className="model-actions">
               <button
-                className="lora-detail-button"
-                aria-label={`Fiche ${shortName(name)}`}
-                onClick={() => setDetail(name)}
+                className="model-star"
+                aria-label={`${favorites.includes(name) ? tr("Retirer des favoris") : tr("Mettre en favori")} ${shortName(name)}`}
+                aria-pressed={favorites.includes(name)}
+                disabled={!ready || saving}
+                onClick={() => void favorite(name)}
               >
-                Fiche
+                <Heart
+                  size={20}
+                  fill={favorites.includes(name) ? "currentColor" : "none"}
+                />
               </button>
-            )}
-            <button
-              className="model-star"
-              aria-label={`${favorites.includes(name) ? "Retirer des favoris" : "Mettre en favori"} ${shortName(name)}`}
-              aria-pressed={favorites.includes(name)}
-              disabled={!ready || saving}
-              onClick={() => void favorite(name)}
-            >
-              <Heart
-                size={20}
-                fill={favorites.includes(name) ? "currentColor" : "none"}
-              />
-            </button>
+              {kind === "loras" && (
+                <button
+                  className="lora-detail-button"
+                  aria-label={tr("Fiche {0}", [shortName(name)])}
+                  onClick={() => setDetail(name)}
+                >
+                  <FileText size={18} />
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
       {filtered.length > limit && (
         <button className="wide" onClick={() => setLimit((n) => n + 60)}>
-          Afficher la suite
+          {" "}
+          {tr("Afficher la suite")}{" "}
         </button>
       )}
       {!filtered.length && (
         <p>
           {onlyFavorites
-            ? "Marquez vos modèles avec le cœur pour les retrouver ici."
-            : "Aucun modèle ne correspond à cette recherche."}
+            ? tr("Marquez vos modèles avec le cœur pour les retrouver ici.")
+            : tr("Aucun modèle ne correspond à cette recherche.")}
         </p>
       )}
       {detail && (
-        <Suspense fallback={<p role="status">Ouverture de la fiche…</p>}>
+        <Suspense
+          fallback={<p role="status">{tr("Ouverture de la fiche…")}</p>}
+        >
           <LoraDetails
             name={detail}
             onClose={() => setDetail(null)}

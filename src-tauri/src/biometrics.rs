@@ -1,7 +1,7 @@
 #[cfg(target_os = "android")]
 use tauri::Manager;
 #[cfg(target_os = "android")]
-async fn call(
+pub(crate) async fn call(
     app: &tauri::AppHandle,
     command: &'static str,
     args: serde_json::Value,

@@ -1,5 +1,7 @@
+import { t as tr, locale } from "./i18n";
+import PromptTranslation, { insertTranslation } from "./PromptTranslation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, Undo2, Redo2, Sparkles } from "lucide-react";
+import { Check, Undo2, Redo2, Sparkles, Languages } from "lucide-react";
 import { Modal } from "./components";
 import { insertTag, tagRange, type Tag } from "./tags";
 import PromptTools from "./PromptTools";
@@ -57,6 +59,12 @@ export default function PromptEditor({
   onChange: (values: Prompts) => void;
   onClose: () => void;
 }) {
+  const [translation, setTranslation] = useState<
+    { start: number; end: number } | null | undefined
+  >(undefined);
+  const translationSelection = useRef<{ start: number; end: number } | null>(
+    null,
+  );
   const [side, setSide] = useState(initialTab);
   const [caret, setCaret] = useState(values[initialTab].length);
   const [active, setActive] = useState(0);
@@ -212,27 +220,43 @@ export default function PromptEditor({
       localStorage.setItem("autocomplete-enabled", String(checked));
     } catch {
       setPreferenceWarning(
-        "Ce choix s’applique pour cette session ; il n’a pas pu être enregistré.",
+        tr(
+          "Ce choix s’applique pour cette session ; il n’a pas pu être enregistré.",
+        ),
       );
     }
   }
 
   return (
     <Modal
-      title="Écrire votre image"
+      title={tr("Écrire votre image")}
       className="prompt-editor"
       onClose={finish}
     >
       <label className="autocomplete-setting">
-        <span>Autocomplétion</span>
+        <span>{tr("Autocomplétion")}</span>
         <input
           type="checkbox"
           role="switch"
-          aria-label="Activer l’autocomplétion"
+          aria-label={tr("Activer l’autocomplétion")}
           checked={enabled}
           onChange={(event) => toggleAutocomplete(event.target.checked)}
         />
       </label>
+      <button
+        className="prompt-translate-button"
+        onPointerDown={() => {
+          const field = input.current;
+          translationSelection.current =
+            field && document.activeElement === field
+              ? { start: field.selectionStart, end: field.selectionEnd }
+              : null;
+        }}
+        onClick={() => setTranslation(translationSelection.current)}
+      >
+        <Languages size={18} />
+        {tr("Traduire des mots")}
+      </button>
       <PromptTools
         initialPage={initialTool}
         values={values}
@@ -241,7 +265,11 @@ export default function PromptEditor({
           setCaret(next[side].length);
         }}
       />
-      <div className="editor-tabs" role="tablist" aria-label="Type de prompt">
+      <div
+        className="editor-tabs"
+        role="tablist"
+        aria-label={tr("Type de prompt")}
+      >
         {sides.map((tab, index) => (
           <button
             key={tab}
@@ -269,8 +297,8 @@ export default function PromptEditor({
             onClick={() => changeSide(tab)}
           >
             <span>0{index + 1}</span>
-            {tab === "positive" ? "Positif" : "Négatif"}
-            <small aria-label={`${values[tab].length} caractères`}>
+            {tab === "positive" ? tr("Positif") : tr("Négatif")}
+            <small aria-label={tr("{0} caractères", [values[tab].length])}>
               {values[tab].length}
             </small>
           </button>
@@ -284,7 +312,7 @@ export default function PromptEditor({
         aria-labelledby={`tab-${side}`}
       >
         <label className="sr-only" htmlFor="prompt-text">
-          {side === "positive" ? "Prompt positif" : "Prompt négatif"}
+          {side === "positive" ? tr("Prompt positif") : tr("Prompt négatif")}
         </label>
         <textarea
           id="prompt-text"
@@ -302,8 +330,10 @@ export default function PromptEditor({
           }
           placeholder={
             side === "positive"
-              ? "Imaginez la scène. Ajoutez des tags, des détails, une lumière…"
-              : "Décrivez les éléments que vous souhaitez éviter…"
+              ? tr(
+                  "Imaginez la scène. Ajoutez des tags, des détails, une lumière…",
+                )
+              : tr("Décrivez les éléments que vous souhaitez éviter…")
           }
           onCompositionStart={() => setComposing(true)}
           onCompositionEnd={() => setComposing(false)}
@@ -368,16 +398,18 @@ export default function PromptEditor({
             </span>
             <small>
               {error
-                ? "Saisie libre"
+                ? tr("Saisie libre")
                 : count
-                  ? `${count.toLocaleString("fr-FR")} tags · hors ligne`
-                  : "Préparation des tags…"}
+                  ? tr("{0} tags · hors ligne", [
+                      count.toLocaleString(locale()),
+                    ])
+                  : tr("Préparation des tags…")}
             </small>
           </div>
           <div
             role="listbox"
             id="tag-suggestions"
-            aria-label="Suggestions de tags"
+            aria-label={tr("Suggestions de tags")}
             className="tag-suggestions"
           >
             {tags.map((tag, index) => (
@@ -397,8 +429,8 @@ export default function PromptEditor({
                     <MatchingTag name={tag.name} query={query} />
                   </strong>
                   <small>
-                    {categories[tag.category] ?? "Tag"} ·{" "}
-                    {tag.count.toLocaleString("fr-FR")}
+                    {tr(categories[tag.category] ?? "Tag")} ·{" "}
+                    {tag.count.toLocaleString(locale())}
                   </small>
                 </span>
                 <span className="tag-add" aria-hidden="true">
@@ -409,16 +441,17 @@ export default function PromptEditor({
             {!tags.length && (
               <span className="suggestion-empty">
                 {error
-                  ? "Suggestions indisponibles"
+                  ? tr("Suggestions indisponibles")
                   : pending
-                    ? "Recherche de tags…"
-                    : "Aucun tag correspondant"}
+                    ? tr("Recherche de tags…")
+                    : tr("Aucun tag correspondant")}
               </span>
             )}
           </div>
           {error && (
             <button className="suggestion-retry" onClick={retry}>
-              Réessayer les suggestions
+              {" "}
+              {tr("Réessayer les suggestions")}{" "}
             </button>
           )}
         </div>
@@ -426,29 +459,47 @@ export default function PromptEditor({
       <p className="editor-hint" role="status">
         {preferenceWarning ||
           (!enabled
-            ? "Autocomplétion désactivée"
+            ? tr("Autocomplétion désactivée")
             : error ||
               (count
-                ? `${count.toLocaleString("fr-FR")} tags · suggestions hors ligne`
-                : "Préparation des suggestions…"))}
+                ? tr("{0} tags · suggestions hors ligne", [
+                    count.toLocaleString(locale()),
+                  ])
+                : tr("Préparation des suggestions…")))}
       </p>
       {saveError && (
         <div className="editor-save-error" role="alert">
-          <p>{saveError} Vos prompts restent appliqués.</p>
-          <button onClick={onClose}>Fermer sans historique</button>
+          <p>
+            {saveError} {tr("Vos prompts restent appliqués.")}
+          </p>
+          <button onClick={onClose}>{tr("Fermer sans historique")}</button>
         </div>
+      )}
+      {translation !== undefined && (
+        <PromptTranslation
+          initial={
+            translation ? value.slice(translation.start, translation.end) : ""
+          }
+          onClose={() => setTranslation(undefined)}
+          onInsert={(text) => {
+            const next = insertTranslation(value, text, translation);
+            update({ ...values, [side]: next.text });
+            setTranslation(undefined);
+            focusAt(next.caret);
+          }}
+        />
       )}
       <footer className="editor-footer">
         <div>
           <button
-            aria-label="Annuler la dernière modification"
+            aria-label={tr("Annuler la dernière modification")}
             disabled={!history.current.undo.length}
             onClick={() => travel("undo")}
           >
             <Undo2 size={19} />
           </button>
           <button
-            aria-label="Rétablir la modification"
+            aria-label={tr("Rétablir la modification")}
             disabled={!history.current.redo.length}
             onClick={() => travel("redo")}
           >
@@ -456,7 +507,7 @@ export default function PromptEditor({
           </button>
         </div>
         <button className="primary" onClick={finish}>
-          <Check size={18} /> Terminé
+          <Check size={18} /> {tr("Terminé")}{" "}
         </button>
       </footer>
     </Modal>

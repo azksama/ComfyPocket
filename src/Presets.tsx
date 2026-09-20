@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import {
   Bookmark,
@@ -69,7 +70,9 @@ export default function Presets({
   }, [request?.id]);
   const store = (next: InferencePreset[]) => {
     if (!libraryReady)
-      throw Error("La bibliothèque est illisible. Son contenu a été conservé.");
+      throw Error(
+        tr("La bibliothèque est illisible. Son contenu a été conservé."),
+      );
     writePresets(next);
     setItems(next);
   };
@@ -111,7 +114,7 @@ export default function Presets({
         canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
         canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
         const context = canvas.getContext("2d");
-        if (!context) throw Error("Création de la vignette impossible.");
+        if (!context) throw Error(tr("Création de la vignette impossible."));
         context.drawImage(img, 0, 0, canvas.width, canvas.height);
         thumbnail = canvas.toDataURL("image/jpeg", 0.75);
       }
@@ -128,7 +131,7 @@ export default function Presets({
       setCurrent(preset);
       setName("");
       setCreating(false);
-      setMessage(`« ${preset.name} » enregistré.`);
+      setMessage(tr("« {0} » enregistré.", [preset.name]));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -140,10 +143,10 @@ export default function Presets({
     <>
       <section className="studio-configuration">
         <div className="studio-section-heading">
-          <h2>Votre configuration</h2>
+          <h2>{tr("Votre configuration")}</h2>
           <button
             className="inline-action"
-            aria-label="Mes presets"
+            aria-label={tr("Mes presets")}
             onClick={() => show()}
           >
             Presets ↗
@@ -164,10 +167,12 @@ export default function Presets({
               JSON.stringify(current.workflow) === JSON.stringify(workflow) &&
               JSON.stringify(current.settings) === JSON.stringify(settings)
                 ? current.name
-                : "Configuration personnalisée"}
+                : tr("Configuration personnalisée")}
             </strong>
             <small>
-              {settings.model ? shortName(settings.model) : "Choisir un modèle"}{" "}
+              {settings.model
+                ? shortName(settings.model)
+                : tr("Choisir un modèle")}{" "}
               · {settings.width} × {settings.height}
             </small>
           </span>
@@ -176,7 +181,7 @@ export default function Presets({
       </section>
       {open && (
         <Modal
-          title="Mes presets"
+          title={tr("Mes presets")}
           className="presets-page"
           onClose={() => {
             if (!saveLock.current) setOpen(false);
@@ -187,10 +192,10 @@ export default function Presets({
               <label className="search-box">
                 <Search size={18} />
                 <input
-                  aria-label="Rechercher un preset"
+                  aria-label={tr("Rechercher un preset")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher un preset…"
+                  placeholder={tr("Rechercher un preset…")}
                 />
               </label>
               <button
@@ -202,12 +207,13 @@ export default function Presets({
                   setCreating(true);
                 }}
               >
-                <Plus size={18} /> Nouveau preset
+                <Plus size={18} /> {tr("Nouveau preset")}{" "}
               </button>
             </div>
             {mode === "workflow" && !workflow && (
               <p className="hint">
-                Validez le workflow API avant de l’enregistrer.
+                {" "}
+                {tr("Validez le workflow API avant de l’enregistrer.")}{" "}
               </p>
             )}
             {error && !creating && <p role="alert">{error}</p>}
@@ -217,7 +223,8 @@ export default function Presets({
                   {renaming === p.id ? (
                     <div className="preset-rename">
                       <label>
-                        Nouveau titre
+                        {" "}
+                        {tr("Nouveau titre")}{" "}
                         <input
                           autoFocus
                           maxLength={80}
@@ -240,15 +247,18 @@ export default function Presets({
                           })
                         }
                       >
-                        Valider le titre
+                        {" "}
+                        {tr("Valider le titre")}{" "}
                       </button>
-                      <button onClick={() => setRenaming(null)}>Annuler</button>
+                      <button onClick={() => setRenaming(null)}>
+                        {tr("Annuler")}
+                      </button>
                     </div>
                   ) : (
                     <>
                       <button
                         className="preset-load"
-                        aria-label={`Charger ${p.name}`}
+                        aria-label={tr("Charger {0}", [p.name])}
                         onClick={() => {
                           onApply(parsePreset(p));
                           setOpen(false);
@@ -278,13 +288,13 @@ export default function Presets({
                             LoRA ·{" "}
                             {p.settings.hires.enabled
                               ? "Hires Fix"
-                              : "Sans Hires Fix"}
+                              : tr("Sans Hires Fix")}
                           </small>
                         </span>
                       </button>
                       <div className="preset-tools">
                         <button
-                          aria-label={`Renommer ${p.name}`}
+                          aria-label={tr("Renommer {0}", [p.name])}
                           onClick={() => {
                             setRenaming(p.id);
                             setRename(p.name);
@@ -293,12 +303,12 @@ export default function Presets({
                           <Pencil size={17} />
                         </button>
                         <button
-                          aria-label={`Supprimer le preset ${p.name}`}
+                          aria-label={tr("Supprimer le preset {0}", [p.name])}
                           onClick={() =>
                             action(() => {
                               store(items.filter((i) => i.id !== p.id));
                               setUndo(p);
-                              setMessage("Preset supprimé.");
+                              setMessage(tr("Preset supprimé."));
                             })
                           }
                         >
@@ -313,20 +323,21 @@ export default function Presets({
             {items.length > 0 && !filtered.length && (
               <div className="preset-empty">
                 <Search size={30} />
-                <p>Aucun preset ne correspond à votre recherche.</p>
+                <p>{tr("Aucun preset ne correspond à votre recherche.")}</p>
                 <button onClick={() => setSearch("")}>
-                  Effacer la recherche
+                  {" "}
+                  {tr("Effacer la recherche")}{" "}
                 </button>
               </div>
             )}
             {!items.length && (
               <div className="preset-empty">
                 <Bookmark size={34} />
-                <p>Vos réglages favoris, prêts à être retrouvés.</p>
+                <p>{tr("Vos réglages favoris, prêts à être retrouvés.")}</p>
               </div>
             )}
             <label className="file-picker">
-              <Upload size={17} /> Importer un preset JSON
+              <Upload size={17} /> {tr("Importer un preset JSON")}{" "}
               <input
                 type="file"
                 disabled={!libraryReady}
@@ -338,10 +349,10 @@ export default function Presets({
                   setError("");
                   try {
                     if (file.size > 10 * 1024 ** 2)
-                      throw Error("Preset supérieur à 10 Mo.");
+                      throw Error(tr("Preset supérieur à 10 Mo."));
                     const preset = parsePreset(losslessJson(await file.text()));
                     store([{ ...preset, id: crypto.randomUUID() }, ...items]);
-                    setMessage(`« ${preset.name} » importé.`);
+                    setMessage(tr("« {0} » importé.", [preset.name]));
                   } catch (error) {
                     setError(String(error));
                   }
@@ -358,11 +369,11 @@ export default function Presets({
                     action(() => {
                       store([undo, ...items]);
                       setUndo(null);
-                      setMessage("Preset restauré.");
+                      setMessage(tr("Preset restauré."));
                     })
                   }
                 >
-                  <RotateCcw size={16} /> Annuler la suppression
+                  <RotateCcw size={16} /> {tr("Annuler la suppression")}{" "}
                 </button>
               )}
             </div>
@@ -371,7 +382,7 @@ export default function Presets({
       )}
       {creating && open && (
         <Modal
-          title="Nouveau preset"
+          title={tr("Nouveau preset")}
           className="new-preset-dialog"
           onClose={() => {
             if (!saveLock.current) setCreating(false);
@@ -397,7 +408,7 @@ export default function Presets({
               )}
               <span>
                 <strong>
-                  {shortName(settings.model) || "Réglages actuels"}
+                  {shortName(settings.model) || tr("Réglages actuels")}
                 </strong>
                 <small>
                   {settings.width} × {settings.height} · {settings.steps} steps
@@ -406,13 +417,14 @@ export default function Presets({
               </span>
             </div>
             <label>
-              Titre du preset
+              {" "}
+              {tr("Titre du preset")}{" "}
               <input
                 autoFocus
                 maxLength={80}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Portrait doux, paysage cinématique…"
+                placeholder={tr("Portrait doux, paysage cinématique…")}
               />
             </label>
             {error && <p role="alert">{error}</p>}
@@ -422,14 +434,15 @@ export default function Presets({
                 disabled={saving}
                 onClick={() => setCreating(false)}
               >
-                Annuler
+                {" "}
+                {tr("Annuler")}{" "}
               </button>
               <button
                 className="primary"
                 type="submit"
                 disabled={saving || !name.trim()}
               >
-                {saving ? "Enregistrement…" : "Enregistrer"}
+                {saving ? tr("Enregistrement…") : tr("Enregistrer")}
               </button>
             </div>
           </form>

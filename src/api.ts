@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 export { parsePairing } from "./pairing";
 export interface Pairing {
@@ -72,7 +73,7 @@ export async function native<T>(
     body: JSON.stringify({ command, args }),
   });
   if (!r.ok)
-    throw new Error("Ouvrez l’application Tauri pour connecter votre PC.");
+    throw new Error(tr("Ouvrez l’application Tauri pour connecter votre PC."));
   const data = await r.json();
   if (data.error) throw new Error(data.error);
   return data.value;

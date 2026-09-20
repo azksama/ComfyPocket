@@ -1,4 +1,246 @@
 /* Native Android reserves system-bar and keyboard insets outside the WebView. */
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+.dialog-actions > button {
+  flex: 1 1 160px;
+  min-height: 44px;
+  justify-content: center;
+}
+dialog details > summary {
+  margin-bottom: 16px;
+}
+dialog .save-format {
+  margin-top: 16px;
+}
+dialog.model-dialog,
+dialog.lora-details {
+  background: var(--canvas, #faf8fc);
+  color: var(--ink);
+}
+.model-dialog .model-card {
+  background: #f0eaf6;
+  border: 0;
+  padding: 8px;
+  gap: 8px;
+}
+.model-dialog .model-card.selected {
+  background: #e9dcf6;
+}
+.model-dialog .model-choice {
+  background: transparent;
+  min-width: 0;
+}
+.model-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: center;
+}
+.model-actions > button {
+  position: static;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 8px;
+  background: #faf8fc;
+  border-radius: 14px;
+}
+.studio-lora input.lora-toggle {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 36px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  flex: 0 0 36px;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden;
+}
+.studio-lora input.lora-toggle::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 1px 3px #3c23532a;
+  transform: none;
+}
+.studio-lora input.lora-toggle:checked::after {
+  transform: translateX(14px);
+}
+.studio-quick-nav .quick-generate {
+  background: var(--accent);
+  color: white;
+  margin-top: 4px;
+}
+.app:has(.studio-quick-nav.on-right) .studio-section-heading {
+  padding-right: 24px;
+}
+.app:has(.studio-quick-nav.on-left) .studio-section-heading {
+  padding-left: 24px;
+}
+.app:has(.studio-quick-nav.on-right) .lora-heading {
+  padding-right: 20px;
+}
+.app:has(.studio-quick-nav.on-left) .lora-heading {
+  padding-left: 20px;
+}
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.result-actions > button {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 12px;
+  padding: 10px;
+}
+.gallery-card .selection-target {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+.gallery-card .selection-target:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -5px;
+}
+.batch-toolbar.batch-toolbar {
+  display: grid;
+  grid-template-columns: minmax(54px, 1fr) repeat(4, 40px);
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 22px;
+  max-width: calc(100vw - 24px);
+  box-shadow: 0 6px 24px #33234420;
+}
+.batch-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.batch-toolbar strong {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 18px;
+  line-height: 1.1;
+}
+.batch-toolbar strong small {
+  font-size: 10px;
+  font-weight: 500;
+}
+.batch-toolbar > button {
+  width: 40px;
+  height: 44px;
+  padding: 10px;
+  min-width: 0;
+  border-radius: 14px;
+  background: #faf8fc;
+}
+.batch-toolbar [role="status"]:empty {
+  display: none;
+}
+.translation-dialog {
+  max-width: 520px;
+}
+.language-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-block: 16px;
+}
+.language-options button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 8px;
+  background: #f0eaf6;
+  border-radius: 24px;
+}
+.language-options button[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.language-options img {
+  width: 100%;
+  max-width: 140px;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.language-options button > svg {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--accent);
+}
+.translation-dialog > label {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+}
+.translation-dialog textarea {
+  min-height: 90px;
+}
+.translation-languages {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  gap: 10px;
+  align-items: end;
+}
+.translation-languages label {
+  min-width: 0;
+}
+.translation-languages button {
+  padding: 10px;
+}
+.translation-dialog .translation-cellular {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.translation-cellular input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+.prompt-translate-button {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.prompt-editor.compact-editor .prompt-translate-button {
+  position: absolute;
+  top: 45px;
+  left: 12px;
+  font-size: 11px;
+  min-height: 26px;
+  padding: 3px 6px;
+}
 .studio-quick-nav.studio-quick-nav {
   position: fixed;
   top: 50%;
@@ -63,7 +305,7 @@
   margin-top: 22px;
   margin-bottom: 8px;
 }
-.model-select > span > small {
+.studio-model .model-select > span > small {
   color: #685e72;
 }
 .prompt-editor.prompt-editor {
@@ -378,3 +620,8 @@
     margin: 8px auto;
   }
 }
+
+.batch-toolbar strong small { color: #5b4f65; }
+.app:has(.studio-quick-nav.on-right) .model-select { padding-right: 36px; }
+.app:has(.studio-quick-nav.on-left) .model-select { padding-left: 36px; }
+.app:has(.studio-quick-nav.on-right) .seed-tile > span { padding-right: 24px; }

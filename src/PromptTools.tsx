@@ -1,3 +1,4 @@
+import { t as tr, locale } from "./i18n";
 import { useMemo, useState, useEffect } from "react";
 import {
   History,
@@ -29,14 +30,15 @@ type Page = LibraryKind | "check";
 type DeletedEntry = { item: PromptEntry; index: number };
 const searchable = (text: string) =>
   text
-    .toLocaleLowerCase("fr-FR")
+    .toLocaleLowerCase(locale())
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/_/g, " ");
-const dateFormat = new Intl.DateTimeFormat("fr-FR", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+const dateFormat = () =>
+  new Intl.DateTimeFormat(locale(), {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
 function PromptRecord({
   entry,
@@ -54,35 +56,41 @@ function PromptRecord({
   return (
     <article className="prompt-record">
       <header>
-        <h3>{entry.title || "Prompt sans titre"}</h3>
+        <h3>{entry.title || tr("Prompt sans titre")}</h3>
         {kind === "history" && (
           <time dateTime={new Date(entry.at).toISOString()}>
-            {dateFormat.format(entry.at)}
+            {dateFormat().format(entry.at)}
           </time>
         )}
       </header>
       <details className="prompt-record-text">
-        <summary>Voir les prompts</summary>
+        <summary>{tr("Voir les prompts")}</summary>
         <p>
-          <b>Positif</b>
-          {entry.positive || "Aucun texte"}
+          <b>{tr("Positif")}</b>
+          {entry.positive || tr("Aucun texte")}
         </p>
         <p>
-          <b>Négatif</b>
-          {entry.negative || "Aucun texte"}
+          <b>{tr("Négatif")}</b>
+          {entry.negative || tr("Aucun texte")}
         </p>
       </details>
       <div className="prompt-record-actions">
         <button className="prompt-record-apply" onClick={onApply}>
-          {kind === "blocks" ? "Insérer" : "Restaurer"}
+          {kind === "blocks" ? tr("Insérer") : tr("Restaurer")}
         </button>
         <div>
           {kind === "blocks" && (
-            <button aria-label={`Modifier ${entry.title}`} onClick={onEdit}>
+            <button
+              aria-label={tr("Modifier {0}", [entry.title])}
+              onClick={onEdit}
+            >
               <Pencil size={17} />
             </button>
           )}
-          <button aria-label={`Supprimer ${entry.title}`} onClick={onDelete}>
+          <button
+            aria-label={tr("Supprimer {0}", [entry.title])}
+            onClick={onDelete}
+          >
             <Trash2 size={17} />
           </button>
         </div>
@@ -199,13 +207,13 @@ export default function PromptTools({
     <>
       <div className="prompt-tools">
         <button onClick={() => show("history")}>
-          <History size={16} /> Historique
+          <History size={16} /> {tr("Historique")}{" "}
         </button>
         <button onClick={() => show("blocks")}>
-          <Layers size={16} /> Blocs
+          <Layers size={16} /> {tr("Blocs")}{" "}
         </button>
         <button onClick={() => show("check")}>
-          <ScanText size={16} /> Vérifier
+          <ScanText size={16} /> {tr("Vérifier")}{" "}
           {issues.length > 0 && (
             <span className="prompt-issue-count">({issues.length})</span>
           )}
@@ -215,10 +223,10 @@ export default function PromptTools({
         <Modal
           title={
             page === "check"
-              ? "Vérifier les prompts"
+              ? tr("Vérifier les prompts")
               : page === "history"
-                ? "Historique de prompts"
-                : "Blocs réutilisables"
+                ? tr("Historique de prompts")
+                : tr("Blocs réutilisables")
           }
           className="prompt-library"
           onClose={close}
@@ -226,9 +234,10 @@ export default function PromptTools({
           {page === "check" ? (
             <>
               <p className="hint prompt-check-description">
-                Analyse locale des tags séparés par des virgules. Les
-                contradictions de sens restent des pistes à vérifier, selon la
-                scène.
+                {" "}
+                {tr(
+                  "Analyse locale des tags séparés par des virgules. Les contradictions de sens restent des pistes à vérifier, selon la scène.",
+                )}{" "}
               </p>
               {issues.length ? (
                 <ul className="prompt-issues">
@@ -242,7 +251,9 @@ export default function PromptTools({
               ) : (
                 <div className="prompt-library-empty">
                   <CheckCircle2 size={32} />
-                  <p>Aucun conflit repéré par les règles disponibles.</p>
+                  <p>
+                    {tr("Aucun conflit repéré par les règles disponibles.")}
+                  </p>
                 </div>
               )}
             </>
@@ -253,11 +264,11 @@ export default function PromptTools({
                   <Search size={19} aria-hidden="true" />
                   <input
                     type="search"
-                    aria-label="Rechercher dans les prompts"
+                    aria-label={tr("Rechercher dans les prompts")}
                     placeholder={
                       page === "history"
-                        ? "Rechercher un prompt…"
-                        : "Rechercher un bloc…"
+                        ? tr("Rechercher un prompt…")
+                        : tr("Rechercher un bloc…")
                     }
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -269,22 +280,29 @@ export default function PromptTools({
                     disabled={!ready || items.length >= PROMPT_LIBRARY_LIMIT}
                     onClick={() => beginDraft()}
                   >
-                    <Plus size={18} /> Nouveau bloc
+                    <Plus size={18} /> {tr("Nouveau bloc")}{" "}
                   </button>
                 )}
               </div>
               <div className="prompt-library-meta">
                 <span>
                   {search
-                    ? `${filtered.length} résultat${filtered.length === 1 ? "" : "s"}`
+                    ? tr("{0} résultat{1}", [
+                        filtered.length,
+                        filtered.length === 1 ? "" : "s",
+                      ])
                     : `${items.length} / ${PROMPT_LIBRARY_LIMIT}`}
                 </span>
-                <span>Sur cet appareil</span>
+                <span>{tr("Sur cet appareil")}</span>
               </div>
               <p className="hint prompt-library-description">
                 {page === "history"
-                  ? "Versions enregistrées à la fermeture de l’éditeur ou au lancement d’une génération. Les plus anciennes sont effacées si l’espace manque."
-                  : "Insérer un bloc ajoute ses textes aux prompts actuels."}
+                  ? tr(
+                      "Versions enregistrées à la fermeture de l’éditeur ou au lancement d’une génération. Les plus anciennes sont effacées si l’espace manque.",
+                    )
+                  : tr(
+                      "Insérer un bloc ajoute ses textes aux prompts actuels.",
+                    )}
               </p>
               {ready && (
                 <div className="prompt-records">
@@ -328,29 +346,34 @@ export default function PromptTools({
                   )}
                   <p>
                     {search
-                      ? "Aucun prompt ne correspond à votre recherche."
+                      ? tr("Aucun prompt ne correspond à votre recherche.")
                       : page === "history"
-                        ? "Aucun prompt enregistré pour le moment."
-                        : "Créez votre premier bloc : éclairage, style, composition…"}
+                        ? tr("Aucun prompt enregistré pour le moment.")
+                        : tr(
+                            "Créez votre premier bloc : éclairage, style, composition…",
+                          )}
                   </p>
                   {search && (
                     <button onClick={() => setSearch("")}>
-                      Effacer la recherche
+                      {" "}
+                      {tr("Effacer la recherche")}{" "}
                     </button>
                   )}
                 </div>
               )}
               {page === "blocks" && items.length >= PROMPT_LIBRARY_LIMIT && (
                 <p className="hint">
-                  Limite de 100 blocs atteinte. Supprimez un bloc pour en créer
-                  un nouveau.
+                  {" "}
+                  {tr(
+                    "Limite de 100 blocs atteinte. Supprimez un bloc pour en créer un nouveau.",
+                  )}{" "}
                 </p>
               )}
               {deleted && (
                 <div className="prompt-library-undo" role="status">
-                  <span>Prompt supprimé</span>
+                  <span>{tr("Prompt supprimé")}</span>
                   <button onClick={undoDelete}>
-                    <RotateCcw size={16} /> Annuler
+                    <RotateCcw size={16} /> {tr("Annuler")}{" "}
                   </button>
                 </div>
               )}
@@ -360,7 +383,7 @@ export default function PromptTools({
             <div className="prompt-library-error" role="alert">
               <p>{error}</p>
               {!ready && page !== "check" && (
-                <button onClick={() => show(page)}>Réessayer</button>
+                <button onClick={() => show(page)}>{tr("Réessayer")}</button>
               )}
             </div>
           )}
@@ -368,7 +391,7 @@ export default function PromptTools({
       )}
       {draft && page === "blocks" && (
         <Modal
-          title="Éditer le bloc"
+          title={tr("Éditer le bloc")}
           className="prompt-library prompt-block-editor"
           onClose={() => setDraft(null)}
         >
@@ -379,12 +402,13 @@ export default function PromptTools({
             }}
           >
             <label>
-              Titre
+              {" "}
+              {tr("Titre")}{" "}
               <input
                 autoFocus
                 maxLength={80}
                 required
-                placeholder="Lumière douce, photo argentique…"
+                placeholder={tr("Lumière douce, photo argentique…")}
                 value={draft.title}
                 onChange={(event) =>
                   setDraft({ ...draft, title: event.target.value })
@@ -393,7 +417,7 @@ export default function PromptTools({
             </label>
             {(["positive", "negative"] as const).map((side) => (
               <label key={side}>
-                {side === "positive" ? "Positif" : "Négatif"}
+                {side === "positive" ? tr("Positif") : tr("Négatif")}
                 <textarea
                   maxLength={20000}
                   value={draft[side]}
@@ -406,7 +430,8 @@ export default function PromptTools({
             {draftError && <p role="alert">{draftError}</p>}
             <div className="prompt-block-footer">
               <button type="button" onClick={() => setDraft(null)}>
-                Annuler
+                {" "}
+                {tr("Annuler")}{" "}
               </button>
               <button
                 className="primary"
@@ -415,7 +440,8 @@ export default function PromptTools({
                   (!draft.positive.trim() && !draft.negative.trim())
                 }
               >
-                Enregistrer
+                {" "}
+                {tr("Enregistrer")}{" "}
               </button>
             </div>
           </form>

@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect } from "react";
 import open from "../assets/brand/expressions/open.webp";
 import closed from "../assets/brand/expressions/closed.webp";
@@ -34,7 +35,7 @@ export function StartupSplash({ onDone }: { onDone: () => void }) {
     <div
       className="startup-splash"
       role="status"
-      aria-label="Démarrage de Mochi"
+      aria-label={tr("Démarrage de Mochi")}
     >
       <MochiMascot jumping />
       <h1>Mochi</h1>

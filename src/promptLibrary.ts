@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 export type Prompts = { positive: string; negative: string };
 export type PromptEntry = Prompts & { id: string; title: string; at: number };
 export type LibraryKind = "history" | "blocks";
@@ -35,7 +36,7 @@ function validateEntries(value: unknown): asserts value is PromptEntry[] {
     new Set(value.map((item) => item.id)).size !== value.length
   ) {
     throw new Error(
-      "Bibliothèque de prompts illisible. Les données enregistrées ont été conservées.",
+      tr("Bibliothèque de prompts illisible. Les données enregistrées ont été conservées."),
     );
   }
 }
@@ -52,7 +53,7 @@ export function readPromptLibrary(kind: LibraryKind): PromptEntry[] {
     data = JSON.parse(raw ?? "[]");
   } catch {
     throw new Error(
-      "Bibliothèque de prompts illisible. Les données enregistrées ont été conservées.",
+      tr("Bibliothèque de prompts illisible. Les données enregistrées ont été conservées."),
     );
   }
   validateEntries(data);
@@ -61,7 +62,7 @@ export function readPromptLibrary(kind: LibraryKind): PromptEntry[] {
 
 export function writePromptLibrary(kind: LibraryKind, entries: PromptEntry[]) {
   if (entries.length > PROMPT_LIBRARY_LIMIT)
-    throw new Error("Limite de 100 éléments atteinte.");
+    throw new Error(tr("Limite de 100 éléments atteinte."));
   validateEntries(entries);
   localStorage.setItem(key(kind), JSON.stringify(entries));
 }
@@ -76,10 +77,10 @@ function isQuotaError(error: unknown) {
 
 export function promptStorageError(error: unknown) {
   if (isQuotaError(error))
-    return "Le stockage est plein. Libérez des éléments dans l’historique ou les blocs, puis réessayez.";
+    return tr("Le stockage est plein. Libérez des éléments dans l’historique ou les blocs, puis réessayez.");
   return error instanceof Error
     ? error.message
-    : "L’enregistrement sur cet appareil a échoué.";
+    : tr("L’enregistrement sur cet appareil a échoué.");
 }
 
 export function rememberPrompt(prompts: Prompts) {
@@ -164,13 +165,13 @@ export function checkPrompts(prompts: Prompts): string[] {
   const messages: string[] = [];
   for (const tag of positive)
     if (negativeSet.has(tag))
-      messages.push(`« ${tag} » apparaît dans le positif et le négatif.`);
+      messages.push(tr("« {0} » apparaît dans le positif et le négatif.", [tag]));
   for (const group of groups) {
     const p = positive.find((t) => group.includes(t)),
       n = negative.find((t) => group.includes(t));
     if (p && n && p !== n)
       messages.push(
-        `« ${p} » et « ${n} » expriment une idée similaire dans les deux prompts.`,
+        tr("« {0} » et « {1} » expriment une idée similaire dans les deux prompts.", [p, n]),
       );
   }
   // Excluding two opposite attributes does not request an impossible scene.
@@ -179,7 +180,7 @@ export function checkPrompts(prompts: Prompts): string[] {
       b = positive.find((t) => groups[i + 1].includes(t));
     if (a && b)
       messages.push(
-        `Prompt positif : « ${a} » et « ${b} » peuvent se contredire selon la scène.`,
+        tr("Prompt positif : « {0} » et « {1} » peuvent se contredire selon la scène.", [a, b]),
       );
   }
   return messages;

@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { cachedImage } from "./imageCache";
@@ -6,10 +7,14 @@ export function Picture({
   path,
   alt,
   onOpen,
+  onLoad,
+  actionLabel,
   thumbnail = false,
   source,
   small = false,
 }: {
+  onLoad?: () => void;
+  actionLabel?: string;
   path: string;
   alt: string;
   onOpen?: (url: string) => void;
@@ -54,6 +59,7 @@ export function Picture({
   }, [requestPath, source, attempt]);
   const content = url ? (
     <img
+      onLoad={onLoad}
       src={url}
       alt={alt}
       loading="lazy"
@@ -64,7 +70,7 @@ export function Picture({
     <span className="image-placeholder">
       <ImageIcon size={thumbnail ? 24 : 32} />
       {!thumbnail && (
-        <small>{error ? "Image indisponible" : "Chargement…"}</small>
+        <small>{error ? tr("Image indisponible") : tr("Chargement…")}</small>
       )}
     </span>
   );
@@ -74,7 +80,7 @@ export function Picture({
         <button
           className="image-button"
           onClick={() => onOpen(small ? "" : url)}
-          aria-label={`Agrandir ${alt}`}
+          aria-label={actionLabel ?? tr("Agrandir {0}", [alt])}
         >
           {content}
         </button>
@@ -86,7 +92,8 @@ export function Picture({
           className="retry-image"
           onClick={() => setAttempt((value) => value + 1)}
         >
-          Réessayer
+          {" "}
+          {tr("Réessayer")}{" "}
         </button>
       )}
     </div>

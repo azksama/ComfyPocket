@@ -1,3 +1,4 @@
+import { useLocale, t as tr } from "./i18n";
 import {
   useCallback,
   useEffect,
@@ -34,7 +35,7 @@ const lockChanged = "pocket-lock-changed";
 let authenticationActive = false;
 async function status() {
   const value = await native<LockState | null>("lock_status");
-  if (!value && isTauri()) throw Error("État du verrouillage indisponible");
+  if (!value && isTauri()) throw Error(tr("État du verrouillage indisponible"));
   return value ?? desktop;
 }
 function autoPromptEnabled() {
@@ -46,6 +47,10 @@ function autoPromptEnabled() {
 }
 
 export function AppLock({ children }: { children: ReactNode }) {
+  const language = useLocale();
+  useEffect(() => {
+    void native("set_app_language", { language }).catch(() => {});
+  }, [language]);
   const [state, setState] = useState<LockState | null>(null);
   const [opened, setOpened] = useState(false);
   const [launching, setLaunching] = useState(true);
@@ -147,7 +152,9 @@ export function AppLock({ children }: { children: ReactNode }) {
         <dialog
           ref={dialog}
           className="lock-screen"
-          aria-label={launching ? "Démarrage" : "Application verrouillée"}
+          aria-label={
+            launching ? tr("Démarrage") : tr("Application verrouillée")
+          }
           onCancel={(e) => e.preventDefault()}
         >
           {launching ? (
@@ -155,18 +162,18 @@ export function AppLock({ children }: { children: ReactNode }) {
           ) : (
             <>
               <MochiMascot />
-              <h1>Mochi est enfermé</h1>
-              <p>Libérez-le pour retrouver vos créations.</p>
+              <h1>{tr("Mochi est enfermé")}</h1>
+              <p>{tr("Libérez-le pour retrouver vos créations.")}</p>
               <button
                 className="primary"
                 disabled={busy || !state}
                 onClick={() => void unlock()}
               >
                 <Fingerprint size={21} />
-                {busy ? "Authentification…" : "Le libérer"}
+                {busy ? tr("Authentification…") : tr("Le libérer")}
               </button>
               {error && <p role="alert">{error}</p>}
-              <small>Biométrie ou code de verrouillage Android</small>
+              <small>{tr("Biométrie ou code de verrouillage Android")}</small>
             </>
           )}
         </dialog>
@@ -233,17 +240,17 @@ export function LockSettings() {
   return (
     <section className="panel biometric-settings">
       <div className="section-heading">
-        <h2>Sécurité & confidentialité</h2>
+        <h2>{tr("Sécurité & confidentialité")}</h2>
         <Fingerprint size={23} />
       </div>
       <label className="switch-row">
         <span>
-          <strong>Verrouillage biométrique</strong>
-          <small>Empreinte, visage ou code Android</small>
+          <strong>{tr("Verrouillage biométrique")}</strong>
+          <small>{tr("Empreinte, visage ou code Android")}</small>
         </span>
         <input
           role="switch"
-          aria-label="Activer le verrouillage biométrique"
+          aria-label={tr("Activer le verrouillage biométrique")}
           type="checkbox"
           checked={state.enabled}
           disabled={busy || !state.available}
@@ -257,11 +264,14 @@ export function LockSettings() {
         />
       </label>
       <p className="hint">
-        Verrouillage à chaque nouveau démarrage et après le délai choisi en
-        arrière-plan. Les captures d’écran sont autorisées.
+        {" "}
+        {tr(
+          "Verrouillage à chaque nouveau démarrage et après le délai choisi en arrière-plan. Les captures d’écran sont autorisées.",
+        )}{" "}
       </p>
       <label>
-        Verrouiller après
+        {" "}
+        {tr("Verrouiller après")}{" "}
         <select
           value={state.delaySeconds ?? 0}
           disabled={busy || !state.enabled}
@@ -273,11 +283,11 @@ export function LockSettings() {
           }
         >
           {[
-            [0, "Immédiatement"],
-            [30, "30 secondes"],
-            [60, "1 minute"],
-            [300, "5 minutes"],
-            [900, "15 minutes"],
+            [0, tr("Immédiatement")],
+            [30, tr("30 secondes")],
+            [60, tr("1 minute")],
+            [300, tr("5 minutes")],
+            [900, tr("15 minutes")],
           ].map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -287,8 +297,9 @@ export function LockSettings() {
       </label>
       <label className="switch-row">
         <span>
-          Masquer l’aperçu des applications récentes
-          <small>Android 13 et versions suivantes</small>
+          {" "}
+          {tr("Masquer l’aperçu des applications récentes")}{" "}
+          <small>{tr("Android 13 et versions suivantes")}</small>
         </span>
         <input
           role="switch"
@@ -304,7 +315,7 @@ export function LockSettings() {
         />
       </label>
       <label className="switch-row">
-        <span>Demander la biométrie au démarrage</span>
+        <span>{tr("Demander la biométrie au démarrage")}</span>
         <input
           role="switch"
           type="checkbox"
@@ -320,7 +331,7 @@ export function LockSettings() {
               setError("");
             } catch {
               setError(
-                "Impossible d’enregistrer cette préférence sur l’appareil.",
+                tr("Impossible d’enregistrer cette préférence sur l’appareil."),
               );
             }
           }}
@@ -328,8 +339,10 @@ export function LockSettings() {
       </label>
       {!state.available && (
         <p className="hint">
-          Configurez une empreinte, un visage ou un code de verrouillage dans
-          les réglages Android.
+          {" "}
+          {tr(
+            "Configurez une empreinte, un visage ou un code de verrouillage dans les réglages Android.",
+          )}{" "}
         </p>
       )}
       {state.enabled && (
@@ -338,7 +351,7 @@ export function LockSettings() {
           disabled={busy}
           onClick={() => void update("lock_session")}
         >
-          <LockKeyhole size={17} /> Verrouiller maintenant
+          <LockKeyhole size={17} /> {tr("Verrouiller maintenant")}{" "}
         </button>
       )}
       {error && <p role="alert">{error}</p>}

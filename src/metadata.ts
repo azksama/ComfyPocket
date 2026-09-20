@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import exifr from "exifr";
 import { Unzlib } from "fflate";
 import { defaults, losslessJson, normalizeSettings, parseWorkflow, type Settings } from "./workflow";
@@ -14,7 +15,7 @@ function inflate(bytes: Uint8Array) {
   const parts: Uint8Array[] = []; let size = 0;
   const z = new Unzlib(chunk => {
     size += chunk.length;
-    if (size > MAX) throw new Error("Métadonnées trop volumineuses.");
+    if (size > MAX) throw new Error(tr("Métadonnées trop volumineuses."));
     parts.push(chunk);
   });
   for (let p = 0; p < bytes.length; p += 256) z.push(bytes.subarray(p, p + 256), p + 256 >= bytes.length);
@@ -28,9 +29,9 @@ export function pngTags(bytes: Uint8Array): Record<string, string> {
   let total = 0;
   for (let p = 8; p + 12 <= bytes.length;) {
     const length = dv.getUint32(p), type = utf8.decode(bytes.subarray(p + 4, p + 8));
-    if (length > bytes.length - p - 12) throw new Error("PNG tronqué.");
+    if (length > bytes.length - p - 12) throw new Error(tr("PNG tronqué."));
     if (["tEXt", "zTXt", "iTXt"].includes(type)) {
-      if (length > MAX) throw new Error("Métadonnées trop volumineuses.");
+      if (length > MAX) throw new Error(tr("Métadonnées trop volumineuses."));
       const data = bytes.subarray(p + 8, p + 8 + length), end = data.indexOf(0);
       if (end > 0 && end <= 79) {
         const key = utf8.decode(data.subarray(0, end)); let value: Uint8Array;
@@ -40,11 +41,11 @@ export function pngTags(bytes: Uint8Array): Record<string, string> {
           value = inflate(data.subarray(end + 2));
         } else {
           const language = data.indexOf(0, end + 3), translated = data.indexOf(0, language + 1);
-          if (language < 0 || translated < 0 || data[end + 2] !== 0) throw new Error("Métadonnées PNG invalides.");
+          if (language < 0 || translated < 0 || data[end + 2] !== 0) throw new Error(tr("Métadonnées PNG invalides."));
           value = data[end + 1] === 1 ? inflate(data.subarray(translated + 1)) : data.subarray(translated + 1);
         }
         total += value.length;
-        if (total > MAX) throw new Error("Métadonnées trop volumineuses.");
+        if (total > MAX) throw new Error(tr("Métadonnées trop volumineuses."));
         tags[key] = decode(value);
       }
     }
@@ -65,13 +66,13 @@ export function commentText(value: unknown): string {
   return decode(header.startsWith("ASCII") ? bytes.subarray(8) : bytes).replace(/\0+$/, "");
 }
 export async function importImage(bytes: Uint8Array): Promise<Imported> {
-  if (bytes.length > 64 * 1024 * 1024) throw new Error("Image supérieure à 64 Mo.");
+  if (bytes.length > 64 * 1024 * 1024) throw new Error(tr("Image supérieure à 64 Mo."));
   let tags: Record<string, string> = {};
   if (bytes[0] === 137 && utf8.decode(bytes.subarray(1, 4)) === "PNG") tags = pngTags(bytes);
   else if (bytes[0] === 255 && bytes[1] === 216) {
     const exif = await exifr.parse(bytes, { userComment: true, pick: ["UserComment", "ImageDescription", "XPComment"], reviveValues: false });
     tags.parameters = commentText(exif?.UserComment ?? exif?.userComment) || commentText(exif?.ImageDescription) || commentText(exif?.XPComment);
-  } else throw new Error("Import des paramètres : choisissez une image PNG ou JPEG.");
+  } else throw new Error(tr("Import des paramètres : choisissez une image PNG ou JPEG."));
   return parseTags(tags);
 }
 export function samplerName(text: string) {
@@ -82,7 +83,7 @@ export function samplerName(text: string) {
 }
 function a1111(text: string, warnings: string[]): Partial<Settings> {
   const match = /(?:^|\n)Steps:\s*\d+/.exec(text);
-  if (!match) throw new Error("Aucun paramètre de génération reconnu dans cette image.");
+  if (!match) throw new Error(tr("Aucun paramètre de génération reconnu dans cette image."));
   const before = text.slice(0, match.index).trim(), negative = before.indexOf("Negative prompt:");
   const fields = Object.fromEntries([...text.slice(match.index).matchAll(/(?:^|,|\n)\s*([\w .-]+):\s*("(?:[^"\\]|\\.)*"|[^,\n]*)/g)].map(m => [m[1].trim(), m[2].replace(/^"|"$/g, "").trim()]));
   const s: Partial<Settings> = { positive: (negative < 0 ? before : before.slice(0, negative)).trim(), negative: negative < 0 ? "" : before.slice(negative + 16).trim() };
@@ -100,7 +101,7 @@ function a1111(text: string, warnings: string[]): Partial<Settings> {
     let mapped = /latent|nearest/i.test(method) ? "nearest-exact" : "model:" + method;
     if (/^Latent\s*\(bicubic\)$/i.test(method)) mapped = "bicubic";
     else if (mapped === "nearest-exact" && !/^(?:Latent\s*\(nearest-exact\)|nearest-exact)$/i.test(method)) {
-      warnings.push(`Hires Fix « ${method} » n’a pas d’équivalent exact reconnu. La méthode nearest-exact est proposée ; vérifiez ce réglage avant de générer.`);
+      warnings.push(tr("Hires Fix « {0} » n’a pas d’équivalent exact reconnu. La méthode nearest-exact est proposée ; vérifiez ce réglage avant de générer.", [method]));
     }
     s.hires = { ...defaults.hires, enabled: true, scale: Number(fields["Hires upscale"] ?? 2), steps: Number(fields["Hires steps"] ?? s.steps), denoise: Number(fields["Denoising strength"] ?? 0.7), method: mapped };
   }
@@ -164,10 +165,10 @@ export function parseTags(tags: Record<string, string>): Imported {
     if (workflow) Object.assign(settings, graphSettings(workflow));
     return { settings, workflow, source: "Stability Matrix", warnings: ["Les extensions propres au workflow restent disponibles dans le workflow API original."] };
   }
-  if (workflow) return { settings: graphSettings(workflow), workflow, source: "ComfyUI", warnings: ["Réglages reconnus chargés. Utilisez le workflow API original pour conserver les nœuds personnalisés."] };
+  if (workflow) return { settings: graphSettings(workflow), workflow, source: "ComfyUI", warnings: [tr("Réglages reconnus chargés. Utilisez le workflow API original pour conserver les nœuds personnalisés.")] };
   const raw = tags.parameters || tags.user_comment || "";
   const warnings: string[] = [];
-  return { settings: a1111(raw, warnings), source: "Paramètres PNG / EXIF", warnings };
+  return { settings: a1111(raw, warnings), source: tr("Paramètres PNG / EXIF"), warnings };
 }
 export function resolveImport(result: Imported, catalogs: { models: string[]; loras: string[]; vaes: string[]; samplers: string[]; schedulers: string[] }): Imported {
   const warnings = [...result.warnings];
@@ -176,15 +177,15 @@ export function resolveImport(result: Imported, catalogs: { models: string[]; lo
     const stem = (s: string) => s.split(/[\\/]/).pop()!.replace(/\.(safetensors|ckpt|pt|pth)$/i, "").toLowerCase();
     const hits = list.filter(v => stem(v) === stem(value));
     if (hits.length === 1) return hits[0];
-    warnings.push(`${label} absent ou ambigu sur ce PC : ${value}`); return value;
+    warnings.push(tr("{0} absent ou ambigu sur ce PC : {1}", [label, value])); return value;
   };
   const s = normalizeSettings(result.settings);
-  if (s.model) s.model = match(s.model, catalogs.models, "Modèle"); else warnings.push("Modèle non retrouvé : sélectionnez-le avant de générer.");
+  if (s.model) s.model = match(s.model, catalogs.models, tr("Modèle")); else warnings.push(tr("Modèle non retrouvé : sélectionnez-le avant de générer."));
   s.loras = s.loras.map(l => ({ ...l, name: match(l.name, catalogs.loras, "LoRA") }));
   if (s.vae) s.vae = match(s.vae, catalogs.vaes, "VAE");
-  if (!catalogs.samplers.includes(s.sampler)) warnings.push(`Sampler absent : ${s.sampler}`);
-  if (!catalogs.schedulers.includes(s.scheduler)) warnings.push(`Scheduler absent : ${s.scheduler}`);
-  if (!s.seed) warnings.push("Aucune seed dans cette image. La seed reste aléatoire.");
+  if (!catalogs.samplers.includes(s.sampler)) warnings.push(tr("Sampler absent : {0}", [s.sampler]));
+  if (!catalogs.schedulers.includes(s.scheduler)) warnings.push(tr("Scheduler absent : {0}", [s.scheduler]));
+  if (!s.seed) warnings.push(tr("Aucune seed dans cette image. La seed reste aléatoire."));
   s.batches = 1;
   return { ...result, settings: s, warnings };
 }

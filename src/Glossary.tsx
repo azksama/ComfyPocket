@@ -1,3 +1,4 @@
+import { useLocale, locale, t as tr } from "./i18n";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
@@ -71,6 +72,7 @@ function Glossary({
   onAdd: (tags: string[], side: "positive" | "negative") => void;
   onNotice: (message: string) => void;
 }) {
+  useLocale();
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState("person");
   const [theme, setTheme] = useState("Hair color");
@@ -126,7 +128,10 @@ function Glossary({
   const add = (side: "positive" | "negative") => {
     onAdd(selected, side);
     onNotice(
-      `${selected.length} tag(s) ajouté(s) au prompt ${side === "positive" ? "positif" : "négatif"}.`,
+      tr("{0} tag(s) ajouté(s) au prompt {1}.", [
+        selected.length,
+        side === "positive" ? tr("positif") : tr("négatif"),
+      ]),
     );
     setSelected([]);
   };
@@ -136,8 +141,8 @@ function Glossary({
         <Search size={18} />
         <input
           ref={searchRef}
-          aria-label="Rechercher dans le glossaire"
-          placeholder="Chercher un tag, une idée…"
+          aria-label={tr("Rechercher dans le glossaire")}
+          placeholder={tr("Chercher un tag, une idée…")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -146,7 +151,7 @@ function Glossary({
         />
         {query && (
           <button
-            aria-label="Effacer la recherche"
+            aria-label={tr("Effacer la recherche")}
             onClick={() => {
               setQuery("");
               searchRef.current?.focus();
@@ -174,8 +179,8 @@ function Glossary({
                 <span className="theme-icon">
                   <Icon />
                 </span>
-                <strong>{name}</strong>
-                <small>{detail}</small>
+                <strong>{tr(name)}</strong>
+                <small>{tr(detail)}</small>
               </button>
             ))}
           </div>
@@ -188,19 +193,24 @@ function Glossary({
                     setTheme("");
                   }}
                 >
-                  Toutes les catégories
+                  {" "}
+                  {tr("Toutes les catégories")}{" "}
                 </button>
                 <ChevronRight size={13} />
-                <span>{families.find((f) => f.id === family)?.name}</span>
+                <span>
+                  {tr(families.find((f) => f.id === family)?.name ?? "")}
+                </span>
               </div>
               <div className="section-heading">
-                <h2>Tout est dans le détail</h2>
-                <span className="muted">{themes.length} catégories</span>
+                <h2>{tr("Tout est dans le détail")}</h2>
+                <span className="muted">
+                  {themes.length} {tr("catégories")}
+                </span>
               </div>
               <div
                 ref={categoryRef}
                 className="theme-choices"
-                aria-label="Catégories"
+                aria-label={tr("Catégories")}
               >
                 {themes.map((t) => (
                   <button
@@ -217,7 +227,7 @@ function Glossary({
                 ))}
               </div>
               {current.sections.length > 1 && (
-                <div className="section-choices" aria-label="Rubriques">
+                <div className="section-choices" aria-label={tr("Rubriques")}>
                   {current.sections.map((s, i) => (
                     <button
                       key={i}
@@ -243,15 +253,17 @@ function Glossary({
             </>
           ) : (
             <p className="hint">
-              {catalog.themes.length} catégories · Disponible hors ligne. Les
-              tags de personnages nommés et de séries sont exclus.
+              {catalog.themes.length}{" "}
+              {tr(
+                "catégories · Disponible hors ligne. Les tags de personnages nommés et de séries sont exclus.",
+              )}{" "}
             </p>
           )}
         </>
       )}
       {query && (
         <div className="section-heading">
-          <h2>Résultats de recherche</h2>
+          <h2>{tr("Résultats de recherche")}</h2>
           <span className="muted">{flat.length} tags</span>
         </div>
       )}
@@ -276,7 +288,11 @@ function Glossary({
                 />
                 <span>
                   <strong>{tag}</strong>
-                  <small>{translations[tag] ?? display(tag)}</small>
+                  <small>
+                    {locale() === "en"
+                      ? display(tag)
+                      : (translations[tag] ?? display(tag))}
+                  </small>
                   {query && <small>{context}</small>}
                 </span>
                 {selected.includes(tag) ? (
@@ -292,27 +308,30 @@ function Glossary({
               className="load-more"
               onClick={() => setLimit((n) => n + 80)}
             >
-              Afficher la suite
+              {" "}
+              {tr("Afficher la suite")}{" "}
             </button>
           )}
           {!flat.length && (
             <div className="empty-state">
               <Search size={30} />
-              <h3>Aucun tag trouvé</h3>
-              <p>Essayez un mot plus court ou une autre catégorie.</p>
+              <h3>{tr("Aucun tag trouvé")}</h3>
+              <p>{tr("Essayez un mot plus court ou une autre catégorie.")}</p>
             </div>
           )}
         </>
       )}
       {selected.length > 0 && (
         <div className="glossary-selection">
-          <strong>Votre sélection · {selected.length} tag(s)</strong>
+          <strong>
+            {tr("Votre sélection ·")} {selected.length} tag(s)
+          </strong>
           <div className="selected-tags">
             {selected.map((tag) => (
               <button
                 key={tag}
                 onClick={() => select(tag)}
-                aria-label={`Retirer ${tag} de la sélection`}
+                aria-label={tr("Retirer {0} de la sélection", [tag])}
               >
                 {display(tag)} <X size={13} />
               </button>
@@ -320,10 +339,10 @@ function Glossary({
           </div>
           <div>
             <button onClick={() => add("negative")}>
-              <Minus size={16} /> Négatif
+              <Minus size={16} /> {tr("Négatif")}{" "}
             </button>
             <button className="primary" onClick={() => add("positive")}>
-              <Plus size={16} /> Positif
+              <Plus size={16} /> {tr("Positif")}{" "}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 mod biometrics;
+mod translation;
 mod transport;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use biometrics::{lock_session, lock_status, set_biometric_lock, set_lock_options, unlock};
@@ -299,7 +300,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_pocket::init())
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(tauri::generate_handler![translation::translate_text, translation::set_app_language,
             lock_status,
             unlock,
             lock_session,

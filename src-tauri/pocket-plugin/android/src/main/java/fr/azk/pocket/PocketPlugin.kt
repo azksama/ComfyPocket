@@ -1,5 +1,12 @@
 package fr.azk.pocket
 
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.TranslatorOptions
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.common.model.DownloadConditions
+import java.util.concurrent.atomic.AtomicBoolean
+import android.os.Handler
+import android.os.Looper
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
@@ -32,6 +39,11 @@ class LockArgs { var enabled: Boolean = false }
 @InvokeArg
 class LockOptionsArgs { var delaySeconds: Long = 0; var hideRecents: Boolean = true }
 
+@InvokeArg
+class TranslationArgs { lateinit var text: String; lateinit var source: String; lateinit var target: String; var cellular: Boolean = false }
+@InvokeArg
+class LanguageArgs { lateinit var language: String }
+
 @TauriPlugin
 class PocketPlugin(private val activity: Activity): Plugin(activity) {
  private val worker = Executors.newSingleThreadExecutor()
@@ -59,6 +71,38 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
  }
  override fun onResume() { expire(); backgroundAt = -1; protectRecents() }
  override fun onPause() { if (enabled && backgroundAt < 0) { backgroundAt = SystemClock.elapsedRealtime(); expire() } }
+
+ @Command fun setAppLanguage(invoke: Invoke) {
+  val language = invoke.parseArgs(LanguageArgs::class.java).language
+  if (language !in listOf("fr", "en")) { invoke.reject("Invalid language"); return }
+  preferences.edit().putString("language", language).apply()
+  invoke.resolve(JSObject())
+ }
+ @Command fun translateText(invoke: Invoke) { activity.runOnUiThread {
+  expire()
+  if (enabled && !unlocked) { invoke.reject("Application locked"); return@runOnUiThread }
+  val args = invoke.parseArgs(TranslationArgs::class.java)
+  if (args.text.isBlank() || args.text.length > 10000 || args.source !in TranslateLanguage.getAllLanguages() || args.target !in TranslateLanguage.getAllLanguages()) { invoke.reject("Invalid translation request"); return@runOnUiThread }
+  val translator = Translation.getClient(TranslatorOptions.Builder().setSourceLanguage(args.source).setTargetLanguage(args.target).build())
+  val completed = AtomicBoolean(false)
+  val handler = Handler(Looper.getMainLooper())
+  lateinit var timeout: Runnable
+  fun finish(text: String?, error: String?) {
+   if (!completed.compareAndSet(false, true)) return
+   handler.removeCallbacks(timeout)
+   translator.close()
+   expire()
+   if (enabled && !unlocked) invoke.reject("Application locked")
+   else if (error != null) invoke.reject(error)
+   else invoke.resolve(JSObject().put("text", text))
+  }
+  timeout = Runnable { finish(null, "Translation timed out. Check your connection and try again.") }
+  handler.postDelayed(timeout, 300000)
+  val conditions = DownloadConditions.Builder().apply { if (!args.cellular) requireWifi() }.build()
+  translator.downloadModelIfNeeded(conditions).addOnSuccessListener {
+   if (!completed.get()) translator.translate(args.text).addOnSuccessListener { finish(it, null) }.addOnFailureListener { finish(null, it.message ?: "Translation failed") }
+  }.addOnFailureListener { finish(null, it.message ?: "Model download failed") }
+ } }
  @Command fun lockStatus(invoke: Invoke) { activity.runOnUiThread { protectRecents(); invoke.resolve(status()) } }
  @Command fun assertUnlocked(invoke: Invoke) { activity.runOnUiThread { expire(); if (enabled && !unlocked) invoke.reject("Application verrouillée") else invoke.resolve(JSObject()) } }
  @Command fun lockSession(invoke: Invoke) { activity.runOnUiThread { lockRevision++; if (enabled) unlocked = false; invoke.resolve(status()) } }
@@ -79,7 +123,7 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
     override fun onAuthenticationError(code: Int, message: CharSequence) { authenticating = false; invoke.reject(message.toString()) }
    })
    try {
-    prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(if (change == false) "Désactiver le verrouillage" else "Déverrouiller Mochi").setSubtitle("Biométrie ou code de votre téléphone").setAllowedAuthenticators(authenticators).build())
+    prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(if (preferences.getString("language", "fr") == "en") { if (change == false) "Disable app lock" else "Unlock Mochi" } else if (change == false) "Désactiver le verrouillage" else "Déverrouiller Mochi").setSubtitle(if (preferences.getString("language", "fr") == "en") "Biometrics or device passcode" else "Biométrie ou code de votre téléphone").setAllowedAuthenticators(authenticators).build())
    } catch (e: Exception) { authenticating = false; invoke.reject(e.message ?: "Authentification indisponible") }
   }
  }

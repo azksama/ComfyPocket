@@ -1,14 +1,15 @@
+import { t as tr } from "./i18n";
 import type { Pairing } from "./api";
 
 /** Validate before a profile write; certificate trust is checked by the native client. */
 export function parsePairing(text: string): Pairing {
   if (text.length > 100_000)
-    throw new Error("Fichier d’appairage trop volumineux.");
+    throw new Error(tr("Fichier d’appairage trop volumineux."));
   let value: unknown;
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error("Le fichier d’appairage doit contenir du JSON valide.");
+    throw new Error(tr("Le fichier d’appairage doit contenir du JSON valide."));
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Le fichier doit contenir url, token et certificate.");
@@ -27,7 +28,7 @@ export function parsePairing(text: string): Pairing {
   try {
     url = new URL(p.url.trim());
   } catch {
-    throw new Error("L’adresse du PC est invalide.");
+    throw new Error(tr("L’adresse du PC est invalide."));
   }
   if (
     url.protocol !== "https:" ||
@@ -39,7 +40,7 @@ export function parsePairing(text: string): Pairing {
     url.password
   ) {
     throw new Error(
-      "Utilisez une adresse HTTPS sans chemin, identifiant ni paramètres.",
+      tr("Utilisez une adresse HTTPS sans chemin, identifiant ni paramètres."),
     );
   }
   const token = p.token.trim(),
@@ -50,7 +51,7 @@ export function parsePairing(text: string): Pairing {
     !/^[\x21-\x7e]+$/.test(token)
   ) {
     throw new Error(
-      "La clé d’accès doit contenir entre 32 et 256 caractères sans espace.",
+      tr("La clé d’accès doit contenir entre 32 et 256 caractères sans espace."),
     );
   }
   if (!certificate || certificate.length > 64 * 1024) {

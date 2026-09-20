@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Heart, Trash2, Download, SlidersHorizontal } from "lucide-react";
 import { imageUrl, native } from "./api";
@@ -150,7 +151,9 @@ export default function Viewer({
         .catch(() => {
           if (live)
             setMessage(
-              "Image indisponible. Fermez puis rouvrez l’image pour réessayer.",
+              tr(
+                "Image indisponible. Fermez puis rouvrez l’image pour réessayer.",
+              ),
             );
         });
     return () => {
@@ -289,7 +292,7 @@ export default function Viewer({
   });
   if (!item) return null;
   return (
-    <Modal title="Votre image" onClose={onClose} className="photo-viewer">
+    <Modal title={tr("Votre image")} onClose={onClose} className="photo-viewer">
       <div
         className="viewer-stage"
         ref={stage}
@@ -464,7 +467,7 @@ export default function Viewer({
                     }
                   />
                 ) : offset === 0 ? (
-                  <span>Chargement de l’image…</span>
+                  <span>{tr("Chargement de l’image…")}</span>
                 ) : null}
               </div>
             );
@@ -477,7 +480,7 @@ export default function Viewer({
         data-action={drag.x < 0 ? "trash" : "favorite"}
         role="img"
         aria-label={
-          drag.x < 0 ? "Déplacer dans la corbeille" : "Mettre en favori"
+          drag.x < 0 ? tr("Déplacer dans la corbeille") : tr("Mettre en favori")
         }
         style={{
           opacity: Math.min(1, Math.abs(drag.x) / 100),
@@ -500,7 +503,9 @@ export default function Viewer({
       <div className="viewer-actions">
         <button
           aria-label={
-            item.gallery?.favorite ? "Retirer des favoris" : "Mettre en favori"
+            item.gallery?.favorite
+              ? tr("Retirer des favoris")
+              : tr("Mettre en favori")
           }
           aria-pressed={!!item.gallery?.favorite}
           disabled={busy || !item.gallery}
@@ -511,7 +516,7 @@ export default function Viewer({
           <Heart fill={item.gallery?.favorite ? "currentColor" : "none"} />
         </button>
         <button
-          aria-label="Enregistrer sur cet appareil"
+          aria-label={tr("Enregistrer sur cet appareil")}
           disabled={busy || !url}
           onClick={() =>
             void run(async () => {
@@ -527,14 +532,14 @@ export default function Viewer({
           <Download />
         </button>
         <button
-          aria-label="Réutiliser les paramètres"
+          aria-label={tr("Réutiliser les paramètres")}
           disabled={busy || !url}
           onClick={() => void run(() => onReuse(item, url))}
         >
           <SlidersHorizontal />
         </button>
         <button
-          aria-label="Déplacer dans la corbeille"
+          aria-label={tr("Déplacer dans la corbeille")}
           disabled={busy || !item.gallery}
           onClick={() => horizontal(true)}
         >
@@ -542,7 +547,7 @@ export default function Viewer({
         </button>
       </div>
       <p role="status" className="viewer-message">
-        {busy ? "Traitement…" : message}
+        {busy ? tr("Traitement…") : message}
       </p>
     </Modal>
   );

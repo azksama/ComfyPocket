@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Copy, Star, X } from "lucide-react";
 import { api } from "./api";
@@ -76,7 +77,7 @@ export function StudioModel({
         setFavorite((data.checkpoints ?? []).includes(name));
     } catch {
       if (version === revision.current)
-        setError("Le favori n’a pas pu être enregistré.");
+        setError(tr("Le favori n’a pas pu être enregistré."));
     } finally {
       pending.current = false;
       if (version === revision.current) setReady(true);
@@ -85,9 +86,10 @@ export function StudioModel({
   return (
     <section id="studio-model" tabIndex={-1}>
       <div className="studio-section-heading">
-        <h2>Modèle</h2>
+        <h2>{tr("Modèle")}</h2>
         <button className="inline-action" onClick={onBrowse}>
-          Parcourir les modèles
+          {" "}
+          {tr("Parcourir les modèles")}{" "}
         </button>
       </div>
       <div className="studio-model">
@@ -96,13 +98,13 @@ export function StudioModel({
           onClick={onBrowse}
           aria-label={
             name
-              ? `Changer de modèle : ${shortName(name)}`
-              : "Choisir un modèle"
+              ? tr("Changer de modèle : {0}", [shortName(name)])
+              : tr("Choisir un modèle")
           }
         >
           <Picture path={modelPath("checkpoints", name)} alt="" thumbnail />
           <span>
-            <strong>{name ? shortName(name) : "Choisir un modèle"}</strong>
+            <strong>{name ? shortName(name) : tr("Choisir un modèle")}</strong>
             <small>
               Checkpoint{info.baseModel ? ` · ${info.baseModel}` : ""}
             </small>
@@ -117,7 +119,7 @@ export function StudioModel({
             onClick={() => void toggle()}
           >
             <Star size={14} fill={favorite ? "currentColor" : "none"} />
-            {favorite ? "Favori" : "Ajouter aux favoris"}
+            {favorite ? tr("Favori") : tr("Ajouter aux favoris")}
           </button>
         )}
       </div>
@@ -163,7 +165,7 @@ export function StudioLora({
           className="lora-toggle"
           type="checkbox"
           role="switch"
-          aria-label={`Activer ${shortName(name)}`}
+          aria-label={tr("Activer {0}", [shortName(name)])}
           checked={strength !== 0}
           onChange={(e) =>
             onChange(e.target.checked ? previousStrength.current : 0)
@@ -171,7 +173,7 @@ export function StudioLora({
         />
         <button
           className="icon-action"
-          aria-label={`Retirer ${shortName(name)}`}
+          aria-label={tr("Retirer {0}", [shortName(name)])}
           onClick={onRemove}
         >
           <X size={15} />
@@ -179,7 +181,7 @@ export function StudioLora({
       </div>
       {!!info.triggers?.length && (
         <div className="lora-triggers">
-          <small>Déclencheur</small>
+          <small>{tr("Déclencheur")}</small>
           {info.triggers.map((tag) => (
             <button key={tag} onClick={() => onTrigger(tag)}>
               {tag} +
@@ -187,7 +189,7 @@ export function StudioLora({
           ))}
           <button
             className="icon-action"
-            aria-label="Copier les déclencheurs"
+            aria-label={tr("Copier les déclencheurs")}
             onClick={() => {
               setCopied(false);
               setCopyError(false);
@@ -199,15 +201,15 @@ export function StudioLora({
           >
             <Copy size={12} />
           </button>
-          {copied && <small role="status">Copié</small>}
-          {copyError && <small role="alert">Copie indisponible</small>}
+          {copied && <small role="status">{tr("Copié")}</small>}
+          {copyError && <small role="alert">{tr("Copie indisponible")}</small>}
         </div>
       )}
       <div className="lora-strength">
-        <span>Intensité</span>
+        <span>{tr("Intensité")}</span>
         <input
           type="range"
-          aria-label={`Intensité LoRA ${index + 1}`}
+          aria-label={tr("Intensité LoRA {0}", [index + 1])}
           min={-4}
           max={4}
           step={0.05}
@@ -216,7 +218,7 @@ export function StudioLora({
         />
         <input
           type="number"
-          aria-label={`Poids LoRA ${index + 1}`}
+          aria-label={tr("Poids LoRA {0}", [index + 1])}
           min={-4}
           max={4}
           step={0.05}

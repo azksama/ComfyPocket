@@ -1,6 +1,17 @@
-# Mochi 0.9.1
+# Mochi 0.10.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
+
+## Nouveautés 0.10.0
+
+- Génération depuis le menu rapide, avec défilement vers le résultat. Le menu peut être masqué dans les paramètres ; les actions proches de son bord sont décalées uniquement lorsqu’il est affiché.
+- Traduction ML Kit sur Android dans l’éditeur : douze langues, insertion au curseur ou à la fin du prompt, texte traduit modifiable et annulation en une étape. Le premier usage télécharge les modèles par Wi-Fi ; les données mobiles sont proposées en option. Après téléchargement, la traduction fonctionne hors ligne.
+- Interface français/anglais, choix mémorisé, avec Mochi à la baguette et Mochi au thé. Les prompts, tags, noms de modèles et notes restent inchangés.
+- Sélecteurs de modèles et LoRA pastel, accès à la fiche sous le cœur, boutons de fiche et formats personnalisés espacés, interrupteur LoRA corrigé.
+- Actions sur le résultat de l’Atelier : masquer de l’affichage, mettre en favori, déplacer dans la corbeille récupérable du PC.
+- Sélection multiple indiquée uniquement par la bordure ; barre d’actions compacte avec compteur aligné.
+
+Validation : tests unitaires et de parcours, compilation Android et vérification sur émulateur API 36. Traduction ML Kit réelle testée avec puis sans réseau. Pas de validation sur téléphone physique dans cette livraison. L’identifiant Android, la signature de mise à jour et les appairages sont conservés.
 
 ## Correctifs 0.9.1
 
