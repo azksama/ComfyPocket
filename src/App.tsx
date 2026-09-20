@@ -98,6 +98,9 @@ const uniqueImages = (items: GalleryItem[]) => [
 ];
 const emptyGallery: Gallery = { items: [], total: 0, warnings: [] };
 export default function App() {
+  const [leftHanded, setLeftHanded] = useState(
+    () => stored<boolean>("left-handed", false) === true,
+  );
   const { tab, setTab, setInitialTab, handlers, trackRef } =
     usePageNavigation();
   const [server, setServer] = useState(""),
@@ -676,6 +679,12 @@ export default function App() {
           onConnect={connect}
           onDisconnect={disconnect}
           onError={setError}
+          leftHanded={leftHanded}
+          onHandedness={(value) => {
+            setLeftHanded(value);
+            if (!writeStored("left-handed", value))
+              notify("Ce choix s’applique pour cette session ; l’enregistrement est indisponible.");
+          }}
           stats={stats}
           queue={queue}
           online={online}
@@ -701,7 +710,6 @@ export default function App() {
       )}
       {tab === "create" && server && (
         <div className="atelier-layout">
-          <StudioNav active={active} workflow={mode === "workflow"} />
           <button
             className="studio-pc"
             aria-label={online ? "PC connecté" : "PC indisponible"}
@@ -1185,7 +1193,10 @@ export default function App() {
     </>
   );
   return (
-    <div className="app">
+    <div className={`app ${leftHanded ? "left-handed" : ""}`}>
+      {tab === "create" && server && (
+        <StudioNav active workflow={mode === "workflow"} leftHanded={leftHanded} />
+      )}
       <a className="skip" href="#main">
         Aller au contenu
       </a>

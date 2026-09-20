@@ -4,6 +4,9 @@ import PromptEditor from "../src/PromptEditor";
 import "../src/styles.css";
 import "../src/experience.css";
 import "../src/refinements.css";
+import "../src/polish.css";
+import "../src/mochi.css";
+import "../src/mobile.css";
 
 function Harness() {
   const [values, setValues] = useState({ positive: "", negative: "" });

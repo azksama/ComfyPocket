@@ -24,6 +24,8 @@ async function adapter(page: Page, items: Profile[] = [], lock = false) {
     saves: 0,
     failSave: false,
     unlocked: !lock,
+    unlocks: 0,
+    cancelUnlock: false,
     delayStatus: false,
     releaseStatus: () => {},
   };
@@ -50,6 +52,11 @@ async function adapter(page: Page, items: Profile[] = [], lock = false) {
       }
     }
     if (command === "unlock") {
+      state.unlocks++;
+      if (state.cancelUnlock) {
+        await route.fulfill({ json: { error: "Authentification annulée" } });
+        return;
+      }
       state.unlocked = true;
       value = {
         supported: true,
@@ -188,7 +195,7 @@ test("an old locked status cannot relock the UI after authentication succeeds", 
   );
   await pending;
   await page
-    .getByRole("button", { name: "Déverrouiller", exact: true })
+    .getByRole("button", { name: "Le libérer", exact: true })
     .click();
   await expect(
     page.getByRole("dialog", { name: "Application verrouillée" }),
@@ -200,4 +207,24 @@ test("an old locked status cannot relock the UI after authentication succeeds", 
   await expect(
     page.getByRole("dialog", { name: "Application verrouillée" }),
   ).toHaveCount(0);
+});
+
+
+test("startup shields the app, then a canceled biometric prompt can be retried", async ({ page }) => {
+  const state = await adapter(page, [], true);
+  await page.addInitScript(() => localStorage.setItem("biometric-auto-prompt", "true"));
+  state.cancelUnlock = true;
+  await page.goto("/");
+  await expect(page.getByRole("dialog", { name: "Démarrage", exact: true })).toBeVisible();
+  expect(state.unlocks).toBe(0);
+  await expect(page.locator(".protected-app")).toHaveAttribute("inert", "");
+  await expect(page.getByRole("heading", { name: "Mochi est enfermé" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("annulée");
+  expect(state.unlocks).toBe(1);
+  await page.screenshot({ path: "../verification/v0.9/lock-screen.png" });
+  state.cancelUnlock = false;
+  await page.getByRole("button", { name: "Le libérer", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Mes ordinateurs", exact: true })).toBeVisible();
+  expect(state.unlocks).toBe(2);
+  await expect(page.locator(".startup-splash")).toHaveCount(0);
 });

@@ -88,7 +88,7 @@ export default function PromptEditor({
       position = measurer.current;
     if (!field || !position || !bubbleVisible) return;
     let top = position.measure(caret) + 8;
-    const available = field.clientHeight - 112;
+    const available = field.clientHeight - 72;
     if (top > available) {
       field.scrollTop += top - Math.max(38, available);
       top = position.measure(caret) + 8;
@@ -120,6 +120,10 @@ export default function PromptEditor({
       dialog?.style.setProperty(
         "--editor-height",
         `${viewport?.height ?? innerHeight}px`,
+      );
+      dialog?.classList.toggle(
+        "compact-editor",
+        (viewport?.height ?? innerHeight) < 560,
       );
       dialog?.style.setProperty(
         "--editor-top",
@@ -274,6 +278,7 @@ export default function PromptEditor({
       </div>
       <div
         className="editor-paper"
+        data-suggesting={bubbleVisible}
         role="tabpanel"
         id="prompt-panel"
         aria-labelledby={`tab-${side}`}
@@ -352,7 +357,10 @@ export default function PromptEditor({
           hidden={!bubbleVisible}
           className="suggestion-bubble"
           aria-busy={pending}
-          style={{ top: bubbleTop }}
+          style={{
+            top: bubbleTop,
+            maxHeight: `min(200px, calc(100% - ${bubbleTop}px))`,
+          }}
         >
           <div className="suggestion-heading">
             <span>

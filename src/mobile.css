@@ -1,0 +1,370 @@
+/* Native Android reserves system-bar and keyboard insets outside the WebView. */
+.studio-quick-nav.studio-quick-nav {
+  position: fixed;
+  top: 50%;
+  bottom: auto;
+  left: auto;
+  right: 3px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 38px;
+  height: auto;
+  justify-content: flex-start;
+  max-height: calc(100dvh - 2 * var(--dock-height) - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 22px;
+  background: #faf8fcf2;
+  z-index: 24;
+}
+.studio-quick-nav.on-left {
+  right: auto;
+  left: 3px;
+}
+.studio-quick-nav button {
+  flex: 0 0 32px;
+}
+.studio-quick-nav .quick-nav-tooltip {
+  display: none;
+}
+.app:has(.studio-quick-nav.on-right) .active-pane {
+  padding-right: max(var(--pane-inset), 48px);
+}
+.app:has(.studio-quick-nav.on-left) .active-pane {
+  padding-left: max(var(--pane-inset), 48px);
+}
+.handedness-setting.handedness-setting {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  gap: 16px;
+}
+.handedness-setting strong,
+.handedness-setting small {
+  display: block;
+}
+.handedness-setting small {
+  margin-top: 5px;
+  font-size: 11px;
+}
+.biometric-settings .lock-now {
+  margin-top: 22px;
+  margin-bottom: 8px;
+}
+.model-select > span > small {
+  color: #685e72;
+}
+.prompt-editor.prompt-editor {
+  padding: 12px 16px;
+  overscroll-behavior: none;
+}
+.prompt-editor .modal-head {
+  margin-bottom: 4px;
+}
+.prompt-editor .autocomplete-setting {
+  margin: 6px 0;
+  min-height: 30px;
+}
+.prompt-editor .editor-paper {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 112px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #fff;
+}
+.prompt-editor .editor-paper textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  line-height: 1.55;
+  font-size: 16px;
+  border-radius: 12px;
+  overflow: auto;
+}
+.prompt-editor .editor-paper[data-suggesting="true"] textarea {
+  padding-bottom: 88px;
+}
+.prompt-editor .editor-paper textarea:focus-visible {
+  outline: 2px solid #b09ace;
+  outline-offset: -2px;
+}
+.prompt-editor .editor-footer {
+  margin-top: 8px;
+  padding-top: 0;
+  background: var(--canvas);
+}
+.prompt-editor .editor-hint {
+  margin: 6px 0 0;
+}
+.prompt-editor .suggestion-bubble {
+  min-height: 0;
+  left: 10px;
+  right: 10px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.prompt-editor.compact-editor {
+  padding-block: 8px;
+}
+.prompt-editor.compact-editor .modal-head h2 {
+  font-size: 18px;
+}
+.prompt-editor.compact-editor .modal-head button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 6px;
+}
+.prompt-editor.compact-editor .autocomplete-setting {
+  min-height: 26px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+.prompt-editor.compact-editor .prompt-tools {
+  padding-bottom: 4px;
+  gap: 6px;
+}
+.prompt-editor.compact-editor .prompt-tools button {
+  min-height: 34px;
+  padding: 5px;
+  font-size: 11px;
+}
+.prompt-editor.compact-editor .prompt-tools svg {
+  width: 16px;
+  height: 16px;
+}
+.prompt-editor.compact-editor .editor-tabs button {
+  min-height: 36px;
+  padding: 5px;
+  font-size: 13px;
+  gap: 5px;
+}
+.prompt-editor.compact-editor .editor-footer button {
+  min-height: 38px;
+  height: 38px;
+  padding-block: 6px;
+}
+.prompt-editor.compact-editor .editor-footer {
+  margin-top: 6px;
+}
+.prompt-editor.compact-editor .suggestion-bubble {
+  padding: 6px;
+}
+.prompt-editor.compact-editor .suggestion-heading {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+.prompt-editor.compact-editor .tag-option {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+.prompt-editor.compact-editor .tag-option small {
+  display: none;
+}
+.prompt-editor.compact-editor .tag-suggestions {
+  gap: 4px;
+}
+@media (max-height: 370px) {
+  .prompt-editor.compact-editor {
+    overflow-y: auto;
+  }
+  .prompt-editor.compact-editor .editor-paper {
+    flex: 0 0 112px;
+  }
+  .prompt-editor.compact-editor .editor-hint {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .atelier-layout .render-panel {
+    grid-row: 1 / span 5;
+  }
+}
+.mochi-mascot {
+  position: relative;
+  width: min(240px, 64vw);
+  height: 190px;
+  margin: 36px auto 22px;
+  flex: none;
+}
+.mochi-body {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  transform-origin: center bottom;
+}
+.mochi-body img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.mochi-closed {
+  opacity: 0;
+}
+.mochi-shadow {
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  width: 80%;
+  height: 22px;
+  border-radius: 50%;
+  background: #af86c83b;
+  filter: blur(5px);
+}
+.lock-screen.lock-screen {
+  background: var(--canvas);
+}
+.lock-screen .mochi-mascot + h1 {
+  margin-top: 12px;
+  font-size: clamp(24px, 6vw, 32px);
+}
+.lock-screen > .primary {
+  margin: 16px 0;
+  min-width: 180px;
+}
+.startup-splash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.startup-splash h1 {
+  margin: 4px 0 20px;
+  color: var(--primary);
+  font-size: 38px;
+  letter-spacing: -1.5px;
+}
+.startup-progress {
+  width: 44px;
+  height: 4px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #dcd0e8;
+}
+.startup-progress::after {
+  content: "";
+  display: block;
+  height: 100%;
+  background: #7954a0;
+  transform-origin: left;
+  animation: mochi-progress 2.6s linear both;
+}
+.is-jumping .mochi-body {
+  animation: mochi-jump 2.6s ease-in-out both;
+}
+.is-jumping .mochi-shadow {
+  animation: mochi-shadow 2.6s ease-in-out both;
+}
+.is-jumping .mochi-open {
+  animation: mochi-eyes-open 2.6s step-end both;
+}
+.is-jumping .mochi-closed {
+  animation: mochi-eyes-closed 2.6s step-end both;
+}
+@keyframes mochi-jump {
+  0%,
+  10%,
+  85%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  22% {
+    transform: translateY(0) scale(1.09, 0.86);
+  }
+  34% {
+    transform: translateY(-42px) scale(0.95, 1.05);
+  }
+  44% {
+    transform: translateY(-56px) scale(1);
+  }
+  62% {
+    transform: translateY(0) scale(1.12, 0.83);
+  }
+  74% {
+    transform: translateY(-5px) scale(0.98, 1.02);
+  }
+}
+@keyframes mochi-shadow {
+  0%,
+  22%,
+  62%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  44% {
+    transform: scaleX(0.6);
+    opacity: 0.4;
+  }
+}
+@keyframes mochi-eyes-open {
+  0% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+  }
+  31% {
+    opacity: 1;
+  }
+  57% {
+    opacity: 0;
+  }
+  76%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes mochi-eyes-closed {
+  0% {
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  31% {
+    opacity: 0;
+  }
+  57% {
+    opacity: 1;
+  }
+  76%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes mochi-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-jumping .mochi-body,
+  .is-jumping .mochi-shadow,
+  .is-jumping .mochi-open,
+  .is-jumping .mochi-closed,
+  .startup-progress::after {
+    animation: none;
+  }
+}
+@media (max-height: 430px) {
+  .lock-screen .mochi-mascot {
+    width: 140px;
+    height: 110px;
+    margin: 8px auto;
+  }
+}

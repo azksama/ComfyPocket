@@ -19,5 +19,5 @@ for (const icon of manifest.filter(v => v.resource && v.size <= 192)) {
   results.push({ supplied: icon.file, size: icon.size, apkResource: match[0], exactSourceBytes: true, decodedPixelsPreserved: true });
 }
 if (results.length !== 10) throw Error("Expected all 10 density icons");
-await writeFile(path.join(app, "../verification/v0.8/apk-icons.json"), JSON.stringify({ apkSha256: digest(apk), icons: results }, null, 2));
+await writeFile(path.join(app, "../verification/v0.9/apk-icons.json"), JSON.stringify({ apkSha256: digest(apk), icons: results }, null, 2));
 console.log("Les 10 icônes Android fournies sont présentes dans l'APK, pixels identiques.");

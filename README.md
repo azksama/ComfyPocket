@@ -1,6 +1,17 @@
-# Mochi 0.8.0
+# Mochi 0.9.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
+
+## Nouveautés 0.9.0
+
+- Fond opaque sous les barres système Android, avec contenu et clavier dans une zone réservée.
+- Raccourcis de l’Atelier en colonne, centrés au bord droit. **Paramètres → Mode gaucher** les place à gauche et mémorise le choix.
+- Éditeur de prompts adapté au clavier ouvert : champ, suggestions et actions restent dans leurs zones respectives.
+- Espacement augmenté avant **Verrouiller maintenant**.
+- Animation de démarrage de 2,6 secondes : Mochi saute et ferme les yeux avant le saut et à l’atterrissage. La préférence système de réduction des animations est respectée.
+- Écran **Mochi est enfermé** avec mascotte triste. **Le libérer** relance l’authentification Android après une annulation. La protection native reste active pendant l’animation et le verrouillage.
+
+La mise à jour conserve l’identifiant Android, la signature, les connexions et les données de l’application. Aucun nouvel appairage n’est nécessaire.
 
 Depuis un clone Git, les lanceurs `Demarrer-ComfyPocket.cmd` et `Demarrer-ComfyPocket.ps1` sont disponibles directement à la racine du dépôt. Les fichiers d'appairage et les clés de signature Android sont locaux et ne sont pas versionnés. Les instructions d'installation ci-dessous décrivent également la livraison regroupée dans le dossier `outputs`.
 

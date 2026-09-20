@@ -20,9 +20,11 @@ const sections = [
 export default function StudioNav({
   active,
   workflow,
+  leftHanded,
 }: {
   active: boolean;
   workflow: boolean;
+  leftHanded: boolean;
 }) {
   const [current, setCurrent] = useState(sections[0].id);
   const ref = useRef<HTMLElement>(null);
@@ -32,7 +34,7 @@ export default function StudioNav({
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const edge = (ref.current?.getBoundingClientRect().bottom ?? 60) + 25;
+        const edge = 40;
         let next = sections[0].id;
         for (const { id } of sections) {
           const element = document.getElementById(id);
@@ -59,7 +61,7 @@ export default function StudioNav({
   return (
     <nav
       ref={ref}
-      className="studio-quick-nav"
+      className={`studio-quick-nav ${leftHanded ? "on-left" : "on-right"}`}
       aria-label="Sections de l’Atelier"
     >
       {sections
@@ -74,7 +76,7 @@ export default function StudioNav({
               const target = document.getElementById(id);
               if (!target) return;
               window.scrollTo({
-                top: window.scrollY + target.getBoundingClientRect().top - 76,
+                top: window.scrollY + target.getBoundingClientRect().top - 24,
                 behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
                   ? "instant"
                   : "smooth",

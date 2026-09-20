@@ -33,6 +33,8 @@ export interface ProfileInfo {
   active: boolean;
 }
 type Props = {
+  leftHanded: boolean;
+  onHandedness: (value: boolean) => void;
   server: string;
   busy: boolean;
   active: boolean;
@@ -47,6 +49,8 @@ type Props = {
 const blank: Pairing = { url: "", token: "", certificate: "" };
 
 export default function Connections({
+  leftHanded,
+  onHandedness,
   server,
   busy,
   active,
@@ -496,6 +500,19 @@ export default function Connections({
       <LockSettings />
       <section className="settings-menu">
         <h2>L’application</h2>
+        <label className="switch-row handedness-setting">
+          <span>
+            <strong>Mode gaucher</strong>
+            <small>Placer les raccourcis de l’Atelier à gauche</small>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Mode gaucher"
+            checked={leftHanded}
+            onChange={(e) => onHandedness(e.target.checked)}
+          />
+        </label>
         <div className="setting-row">
           <Palette />
           <span>

@@ -8,6 +8,7 @@ import {
 import { Fingerprint, LockKeyhole } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { native } from "./api";
+import { MochiMascot, StartupSplash } from "./MochiMascot";
 
 type LockState = {
   delaySeconds?: number;
@@ -47,6 +48,8 @@ function autoPromptEnabled() {
 export function AppLock({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LockState | null>(null);
   const [opened, setOpened] = useState(false);
+  const [launching, setLaunching] = useState(true);
+  const finishLaunch = useCallback(() => setLaunching(false), []);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -55,6 +58,7 @@ export function AppLock({ children }: { children: ReactNode }) {
     revision = useRef(0),
     mounted = useRef(true);
   const locked = !state || (state.enabled && !state.unlocked);
+  const shielded = locked || launching;
 
   const apply = useCallback((value: LockState) => {
     if (!mounted.current) return;
@@ -119,48 +123,52 @@ export function AppLock({ children }: { children: ReactNode }) {
     };
   }, [refresh, apply]);
   useEffect(() => {
-    if (locked) {
+    if (shielded) {
       if (!dialog.current?.open) dialog.current?.showModal();
     } else dialog.current?.close();
-    if (first.current && state) {
+    if (first.current && state && !launching) {
       first.current = false;
       if (state.enabled && !state.unlocked && autoPromptEnabled())
         void unlock();
     }
-  }, [locked, state, unlock]);
+  }, [shielded, launching, state, unlock]);
 
   return (
     <>
       <div
         className="protected-app"
-        inert={locked}
-        aria-hidden={locked}
-        style={{ visibility: locked ? "hidden" : undefined }}
+        inert={shielded}
+        aria-hidden={shielded}
+        style={{ visibility: shielded ? "hidden" : undefined }}
       >
         {opened ? children : null}
       </div>
-      {locked && (
+      {shielded && (
         <dialog
           ref={dialog}
           className="lock-screen"
-          aria-label="Application verrouillée"
+          aria-label={launching ? "Démarrage" : "Application verrouillée"}
           onCancel={(e) => e.preventDefault()}
         >
-          <span className="lock-emblem">
-            <Fingerprint size={52} />
-          </span>
-          <h1>Votre atelier privé.</h1>
-          <p>Déverrouillez Mochi pour retrouver vos créations.</p>
-          <button
-            className="primary"
-            disabled={busy || !state}
-            onClick={() => void unlock()}
-          >
-            <Fingerprint size={21} />
-            {busy ? "Authentification…" : "Déverrouiller"}
-          </button>
-          {error && <p role="alert">{error}</p>}
-          <small>Biométrie ou code de verrouillage Android</small>
+          {launching ? (
+            <StartupSplash onDone={finishLaunch} />
+          ) : (
+            <>
+              <MochiMascot />
+              <h1>Mochi est enfermé</h1>
+              <p>Libérez-le pour retrouver vos créations.</p>
+              <button
+                className="primary"
+                disabled={busy || !state}
+                onClick={() => void unlock()}
+              >
+                <Fingerprint size={21} />
+                {busy ? "Authentification…" : "Le libérer"}
+              </button>
+              {error && <p role="alert">{error}</p>}
+              <small>Biométrie ou code de verrouillage Android</small>
+            </>
+          )}
         </dialog>
       )}
     </>
@@ -325,7 +333,11 @@ export function LockSettings() {
         </p>
       )}
       {state.enabled && (
-        <button disabled={busy} onClick={() => void update("lock_session")}>
+        <button
+          className="lock-now"
+          disabled={busy}
+          onClick={() => void update("lock_session")}
+        >
           <LockKeyhole size={17} /> Verrouiller maintenant
         </button>
       )}

@@ -112,18 +112,23 @@ test("library search has a recoverable empty state and deleting a block can be u
 test("prompt controls remain reachable on a narrow keyboard-sized viewport", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 320, height: 420 });
+  await page.setViewportSize({ width: 320, height: 317 });
   await page.goto("/__prompt-editor");
   await page.getByLabel("Prompt positif", { exact: true }).fill("landsc");
   await expect(page.getByRole("option").first()).toContainText("landscape");
   const complete = await page
     .getByRole("button", { name: "Terminé", exact: true })
     .boundingBox();
-  expect(complete!.y + complete!.height).toBeLessThanOrEqual(420);
+  expect(complete!.y + complete!.height).toBeLessThanOrEqual(317);
   const field = await page
     .getByLabel("Prompt positif", { exact: true })
     .boundingBox();
   expect(field!.width).toBeLessThanOrEqual(320);
+  const paper = await page.locator(".editor-paper").boundingBox();
+  expect(field!.y + field!.height).toBeLessThanOrEqual(paper!.y + paper!.height + 1);
+  expect(paper!.y + paper!.height).toBeLessThan(complete!.y);
+  const bubble = await page.locator(".suggestion-bubble").boundingBox();
+  expect(bubble!.y + bubble!.height).toBeLessThanOrEqual(paper!.y + paper!.height + 1);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
     path: "../verification/refactor/prompt-editor-compact.png",

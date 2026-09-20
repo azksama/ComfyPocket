@@ -37,7 +37,7 @@ test("v5 prompt history blocks and conflict checker work together", async ({ pag
   await page.getByRole("dialog", { name: "Écrire votre image" }).getByRole("button", { name: "Historique", exact: true }).click();
   await page.getByRole("button", { name: "Restaurer", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
-  await page.screenshot({ path: "../verification/v0.8/prompt-tools.png" });
+  await page.screenshot({ path: "../verification/v0.9/prompt-tools.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("prompt-blocks-v1")!)[0].title)).toBe("Lumière");
 });
@@ -61,7 +61,7 @@ test("v5 preset image and local LoRA metadata", async ({ page }) => {
   await page.getByLabel("Mes notes").fill("Poids 0.7");
   await page.getByRole("button", { name: "Enregistrer les notes" }).click();
   await expect(page.getByText("Notes enregistrées sur cet appareil.")).toBeVisible();
-  await page.screenshot({ path: "../verification/v0.8/lora-details.png" });
+  await page.screenshot({ path: "../verification/v0.9/lora-details.png" });
   await page.getByRole("button", { name: "Ajouter ce LoRA" }).click();
   await page.getByRole("button", { name: "Votre idée", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
@@ -268,7 +268,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await expect(page.locator(".prompt-editor").getByRole("option").first()).toContainText("landscape");
   await expect(page.locator(".suggestion-bubble")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.8/autocompletion.png" });
+  await page.screenshot({ path: "../verification/v0.9/autocompletion.png" });
   expect((await page.locator(".suggestion-bubble").boundingBox())!.y).toBeGreaterThan((await positive.boundingBox())!.y);
   await page.locator(".prompt-editor").getByRole("option").first().click();
   await expect(positive).toHaveValue("landscape, ");
@@ -279,7 +279,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await page.getByRole("tab", { name: /Positif/ }).click();
   await expect(positive).toHaveValue("landscape, ");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.8/editeur.png" });
+  await page.screenshot({ path: "../verification/v0.9/editeur.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("landscape");
 });
@@ -379,7 +379,7 @@ test("Mochi dock, open studio sections and persistent gallery density", async ({
   await expect(page.locator(".studio-model")).toBeVisible();
   await expect(page.locator(".studio-prompts")).toBeVisible();
   await expect(page.getByLabel("Largeur", { exact: true })).toBeVisible();
-  await page.screenshot({ path: "../verification/v0.8/creer-cartes.png" });
+  await page.screenshot({ path: "../verification/v0.9/creer-cartes.png" });
   await nav.getByRole("button", { name: "Galerie", exact: true }).click();
   for (const n of [2, 3, 4]) {
     await page.getByRole("button", { name: `${n} colonnes`, exact: true }).click();
@@ -418,7 +418,7 @@ test("v4 equal dock insets, white cards, concise headings and live PC resources"
   await expect(dialog.getByText("32 Go", { exact: true })).toBeVisible();
   await expect(dialog.getByText("9 Go", { exact: true })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.8/etat-pc.png" });
+  await page.screenshot({ path: "../verification/v0.9/etat-pc.png" });
 });
 
 test("v4 autocomplete frame persists while typing and can be disabled", async ({ page }) => {
@@ -459,7 +459,7 @@ test("v4 presets occupy a page with a separate create dialog and spaced undo", a
   await page.getByRole("button", { name: "Annuler la suppression" }).click();
   await expect(page.getByRole("button", { name: "Charger Lumière du matin" })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.8/presets.png" });
+  await page.screenshot({ path: "../verification/v0.9/presets.png" });
 });
 
 test("v4 long press selects multiple images for favorite download and recoverable trash", async ({ page }) => {
@@ -476,7 +476,7 @@ test("v4 long press selects multiple images for favorite download and recoverabl
   await page.getByRole("button", { name: "Télécharger la sélection" }).click();
   await expect.poll(() => calls.filter(c => c.command === "save_image").length).toBe(2);
   await expect(page.getByRole("button", { name: "Supprimer la sélection" })).toBeEnabled();
-  await page.screenshot({ path: "../verification/v0.8/selection.png" });
+  await page.screenshot({ path: "../verification/v0.9/selection.png" });
   await page.getByRole("button", { name: "Supprimer la sélection" }).click();
   await expect(page.locator(".gallery-card")).toHaveCount(1);
   await expect(page.locator(".batch-toolbar")).toHaveCount(0);
@@ -494,7 +494,7 @@ test("v4 vertical gesture feedback and decoded neighbour survive image handoff",
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "favorite"); await expect(page.locator(".gesture-action")).toBeVisible();
   await page.mouse.move(130, 400, { steps: 6 });
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "trash");
-  await page.screenshot({ path: "../verification/v0.8/geste-corbeille.png" });
+  await page.screenshot({ path: "../verification/v0.9/geste-corbeille.png" });
   await page.mouse.up(); await page.waitForTimeout(250);
   await page.mouse.move(190, 500); await page.mouse.down(); await page.mouse.move(190, 320, { steps: 10 }); await page.mouse.up();
   await expect(page.locator(".viewer-caption")).toContainText("forest.png");
@@ -678,20 +678,20 @@ test("Mochi screens preserve the design across mobile and desktop", async ({ pag
   await page.locator(".advanced-inference").evaluate(el => (el as HTMLDetailsElement).open = false);
   await page.locator(".hires-options").evaluate(el => (el as HTMLDetailsElement).open = false);
   await page.evaluate(() => scrollTo(0, 0));
-  await page.screenshot({ path: "../verification/v0.8/mochi-atelier.png", fullPage: true });
+  await page.screenshot({ path: "../verification/v0.9/mochi-atelier.png", fullPage: true });
   for (const name of ["Galerie", "Glossaire", "Paramètres"]) {
     await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name, exact: true }).click();
     await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
     if (name === "Glossaire") await expect(page.locator(".theme-card").first()).toBeVisible();
     if (name === "Galerie") await expect(page.locator(".gallery-card").first()).toBeVisible();
     await page.evaluate(() => scrollTo(0, 0));
-    await page.screenshot({ path: `../verification/v0.8/mochi-${name}.png` });
+    await page.screenshot({ path: `../verification/v0.9/mochi-${name}.png` });
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name: "Atelier", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
   await page.evaluate(() => scrollTo(0, 0));
-  await page.screenshot({ path: "../verification/v0.8/mochi-desktop.png", fullPage: true });
+  await page.screenshot({ path: "../verification/v0.9/mochi-desktop.png", fullPage: true });
 });
 
 test("Mochi quick circles navigate every studio section and follow scrolling", async ({ page }) => {
@@ -704,12 +704,13 @@ test("Mochi quick circles navigate every studio section and follow scrolling", a
     await expect(page.locator(`#studio-${id}`)).toBeFocused();
     const section = await page.locator(`#studio-${id}`).boundingBox(), menu = await nav.boundingBox();
     expect(menu!.y).toBeGreaterThanOrEqual(0);
-    expect(section!.y).toBeGreaterThanOrEqual(menu!.y + menu!.height - 1);
+    expect(section!.y).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(menu!.y + menu!.height / 2 - page.viewportSize()!.height / 2)).toBeLessThan(2);
     await expect(nav.getByRole("button", { name: `Aller à ${label}`, exact: true })).toHaveAttribute("aria-current", "location");
   }
   await nav.getByRole("button", { name: "Aller à Modèle", exact: true }).click();
   const rects = await nav.getByRole("button").evaluateAll(elements => elements.map(e => e.getBoundingClientRect().toJSON()));
-  expect(new Set(rects.map(r => r.y)).size).toBe(1);
+  expect(new Set(rects.map(r => r.x)).size).toBe(1);
   expect(rects[0].width).toBe(32);
   await page.getByRole("button", { name: "Workflow API", exact: true }).click();
   await expect(nav.getByRole("button")).toHaveCount(2);
@@ -748,4 +749,24 @@ test("Mochi model favorite stays synchronized after returning from the picker", 
   await page.locator(".model-favorite").click();
   await page.locator(".model-select").click();
   await expect(page.getByRole("button", { name: "Mettre en favori dreamshaper 8", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
+
+test("left-handed navigation persists and stays clear of studio controls", async ({ page }) => {
+  await connect(page);
+  const nav = page.getByRole("navigation", { name: "Sections de l’Atelier" });
+  const before = await nav.boundingBox();
+  expect(page.viewportSize()!.width - before!.x - before!.width).toBe(3);
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(nav).toHaveCount(0);
+  await page.getByRole("switch", { name: "Mode gaucher", exact: true }).check();
+  await page.reload();
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  const after = await nav.boundingBox();
+  expect(after!.x).toBe(3);
+  expect(Math.abs(after!.y + after!.height / 2 - page.viewportSize()!.height / 2)).toBeLessThan(2);
+  await nav.getByRole("button", { name: "Aller à Prompts", exact: true }).click();
+  await page.getByRole("button", { name: "Votre idée", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Écrire votre image" })).toBeVisible();
+  await page.screenshot({ path: "../verification/v0.9/left-handed-editor.png" });
 });
