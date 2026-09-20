@@ -62,7 +62,7 @@ export async function packageSource({
 } = {}) {
   root = path.resolve(root);
   output = path.resolve(
-    output ?? path.join(root, "../ComfyPocket-sources.zip"),
+    output ?? path.join(root, "../Mochi-sources.zip"),
   );
   stagingDirectory = path.resolve(
     stagingDirectory ?? path.join(root, "../../work"),
@@ -98,7 +98,7 @@ export async function packageSource({
       !(await lstat(file)).isSymbolicLink(),
   });
   await mkdir(path.dirname(output), { recursive: true });
-  const archive = path.join(stagingRoot, "ComfyPocket-sources.zip");
+  const archive = path.join(stagingRoot, "Mochi-sources.zip");
   execFileSync(
     "tar",
     ["-a", "-c", "-f", archive, "-C", stagingRoot, "ComfyPocket"],

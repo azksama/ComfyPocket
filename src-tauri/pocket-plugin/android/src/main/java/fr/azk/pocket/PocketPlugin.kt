@@ -79,7 +79,7 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
     override fun onAuthenticationError(code: Int, message: CharSequence) { authenticating = false; invoke.reject(message.toString()) }
    })
    try {
-    prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(if (change == false) "Désactiver le verrouillage" else "Déverrouiller Comfy Pocket").setSubtitle("Biométrie ou code de votre téléphone").setAllowedAuthenticators(authenticators).build())
+    prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle(if (change == false) "Désactiver le verrouillage" else "Déverrouiller Mochi").setSubtitle("Biométrie ou code de votre téléphone").setAllowedAuthenticators(authenticators).build())
    } catch (e: Exception) { authenticating = false; invoke.reject(e.message ?: "Authentification indisponible") }
   }
  }
@@ -104,7 +104,7 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
     val values = ContentValues().apply {
      put(MediaStore.Images.Media.DISPLAY_NAME, args.filename)
      put(MediaStore.Images.Media.MIME_TYPE, args.mime)
-     put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ComfyPocket")
+     put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Mochi")
      put(MediaStore.Images.Media.IS_PENDING, 1)
     }
     uri = activity.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)

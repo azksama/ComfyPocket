@@ -150,7 +150,7 @@ export function AppLock({ children }: { children: ReactNode }) {
             <Fingerprint size={52} />
           </span>
           <h1>Votre atelier privé.</h1>
-          <p>Déverrouillez Comfy Pocket pour retrouver vos créations.</p>
+          <p>Déverrouillez Mochi pour retrouver vos créations.</p>
           <button
             className="primary"
             disabled={busy || !state}
@@ -225,7 +225,7 @@ export function LockSettings() {
   return (
     <section className="panel biometric-settings">
       <div className="section-heading">
-        <h2>Accès à l’application</h2>
+        <h2>Sécurité & confidentialité</h2>
         <Fingerprint size={23} />
       </div>
       <label className="switch-row">

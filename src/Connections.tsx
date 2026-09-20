@@ -151,12 +151,10 @@ export default function Connections({
 
   return (
     <div className="connections">
-      <LockSettings />
       <section className="panel" aria-busy={loading || working}>
         <div className="section-heading">
           <div>
-            <span className="eyebrow">VOS ORDINATEURS</span>
-            <h2>Connexions</h2>
+            <h2>Mes ordinateurs</h2>
           </div>
           <button
             aria-label="Ajouter une connexion"
@@ -412,6 +410,7 @@ export default function Connections({
           </form>
         </section>
       )}
+      <LockSettings />
     </div>
   );
 }

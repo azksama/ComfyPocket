@@ -37,7 +37,7 @@ test("v5 prompt history blocks and conflict checker work together", async ({ pag
   await page.getByRole("button", { name: "Historique", exact: true }).click();
   await page.getByRole("button", { name: "Restaurer", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
-  await page.screenshot({ path: "../verification/v0.6/prompt-tools.png" });
+  await page.screenshot({ path: "../verification/v0.7/prompt-tools.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("prompt-blocks-v1")!)[0].title)).toBe("Lumière");
 });
@@ -61,7 +61,7 @@ test("v5 preset image and local LoRA metadata", async ({ page }) => {
   await page.getByLabel("Mes notes").fill("Poids 0.7");
   await page.getByRole("button", { name: "Enregistrer les notes" }).click();
   await expect(page.getByText("Notes enregistrées sur cet appareil.")).toBeVisible();
-  await page.screenshot({ path: "../verification/v0.6/lora-details.png" });
+  await page.screenshot({ path: "../verification/v0.7/lora-details.png" });
   await page.getByRole("button", { name: "Ajouter ce LoRA" }).click();
   await page.getByRole("button", { name: "Votre idée", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
@@ -221,7 +221,7 @@ test("multiple editable connections survive disconnect and switching", async ({ 
   await pairingForm(page, "WireGuard", "https://10.0.0.2:8189");
   await page.getByRole("button", { name: "Connecter mon PC" }).click();
   await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
   await expect(page.locator(".profile-card")).toHaveCount(2);
   await page.getByRole("button", { name: "Modifier WireGuard" }).click();
@@ -260,7 +260,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await expect(page.locator(".prompt-editor").getByRole("option").first()).toContainText("landscape");
   await expect(page.locator(".suggestion-bubble")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.6/autocompletion.png" });
+  await page.screenshot({ path: "../verification/v0.7/autocompletion.png" });
   expect((await page.locator(".suggestion-bubble").boundingBox())!.y).toBeGreaterThan((await positive.boundingBox())!.y);
   await page.locator(".prompt-editor").getByRole("option").first().click();
   await expect(positive).toHaveValue("landscape, ");
@@ -271,7 +271,7 @@ test("prompt editor inserts offline suggestions in a bubble and preserves both t
   await page.getByRole("tab", { name: /Positif/ }).click();
   await expect(positive).toHaveValue("landscape, ");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.6/editeur.png" });
+  await page.screenshot({ path: "../verification/v0.7/editeur.png" });
   await page.getByRole("button", { name: "Terminé", exact: true }).click();
   await expect(page.getByRole("button", { name: "Votre idée", exact: true })).toContainText("landscape");
 });
@@ -365,8 +365,8 @@ test("icon dock, collapsed studio cards and persistent gallery density", async (
   await connect(page); await page.reload();
   await expect(page.locator(".settings-grid")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
-  expect(await nav.locator("button").evaluateAll(buttons => buttons.map(b => b.getAttribute("aria-label")))).toEqual(["Créer", "Galerie", "Glossaire", "Paramètres"]);
-  expect(await nav.innerText()).toBe("");
+  expect(await nav.locator("button").evaluateAll(buttons => buttons.map(b => b.getAttribute("aria-label")))).toEqual(["Atelier", "Galerie", "Glossaire", "Paramètres"]);
+  expect(await nav.locator("button span").allTextContents()).toEqual(["Atelier", "Galerie", "Glossaire", "Paramètres"]);
   const cards = page.locator(".collapsible-card");
   await expect(cards).toHaveCount(4);
   for (const card of await cards.all()) {
@@ -376,7 +376,7 @@ test("icon dock, collapsed studio cards and persistent gallery density", async (
     await button.click(); await expect(card.locator(".card-content")).toBeVisible();
     await button.click(); await expect(card.locator(".card-content")).not.toBeVisible();
   }
-  await page.screenshot({ path: "../verification/v0.6/creer-cartes.png" });
+  await page.screenshot({ path: "../verification/v0.7/creer-cartes.png" });
   await nav.getByRole("button", { name: "Galerie", exact: true }).click();
   for (const n of [2, 3, 4]) {
     await page.getByLabel("Nombre de colonnes").selectOption(String(n));
@@ -391,14 +391,15 @@ test("icon dock, collapsed studio cards and persistent gallery density", async (
 
 test("v4 equal dock insets, white cards, concise headings and live PC resources", async ({ page }) => {
   await connect(page);
-  await expect(page.getByRole("heading", { name: "Atelier", exact: true })).toBeVisible();
-  expect(await page.locator(".page-heading p").count()).toBe(0);
+  await expect(page.getByRole("heading", { name: "Votre imagination,", exact: true })).toBeVisible();
+  await expect(page.locator(".active-pane .page-heading p")).toHaveText("La puissance de votre PC. La liberté du mobile.");
   const inset = await page.locator(".sidebar").evaluate(el => {
     const rect = el.getBoundingClientRect(), buttons = el.querySelectorAll("nav button"), first = buttons[0].getBoundingClientRect(), last = buttons[3].getBoundingClientRect();
     return { left: first.left - rect.left, right: rect.right - last.right, top: first.top - rect.top };
   });
-  expect(Math.abs(inset.left - inset.top)).toBeLessThan(1);
-  expect(Math.abs(inset.right - inset.top)).toBeLessThan(1);
+  expect(Math.abs(inset.left - inset.right)).toBeLessThan(1);
+  expect(inset.left).toBeGreaterThanOrEqual(10);
+  expect(inset.top).toBeGreaterThanOrEqual(10);
   const card = page.getByRole("button", { name: /01.*Votre création/ });
   await card.scrollIntoViewIfNeeded(); await card.hover(); await page.mouse.down();
   expect(await card.evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
@@ -415,7 +416,7 @@ test("v4 equal dock insets, white cards, concise headings and live PC resources"
   await expect(dialog.getByText("32 Go", { exact: true })).toBeVisible();
   await expect(dialog.getByText("9 Go", { exact: true })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.6/etat-pc.png" });
+  await page.screenshot({ path: "../verification/v0.7/etat-pc.png" });
 });
 
 test("v4 autocomplete frame persists while typing and can be disabled", async ({ page }) => {
@@ -456,7 +457,7 @@ test("v4 presets occupy a page with a separate create dialog and spaced undo", a
   await page.getByRole("button", { name: "Annuler la suppression" }).click();
   await expect(page.getByRole("button", { name: "Charger Lumière du matin" })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: "../verification/v0.6/presets.png" });
+  await page.screenshot({ path: "../verification/v0.7/presets.png" });
 });
 
 test("v4 long press selects multiple images for favorite download and recoverable trash", async ({ page }) => {
@@ -473,7 +474,7 @@ test("v4 long press selects multiple images for favorite download and recoverabl
   await page.getByRole("button", { name: "Télécharger la sélection" }).click();
   await expect.poll(() => calls.filter(c => c.command === "save_image").length).toBe(2);
   await expect(page.getByRole("button", { name: "Supprimer la sélection" })).toBeEnabled();
-  await page.screenshot({ path: "../verification/v0.6/selection.png" });
+  await page.screenshot({ path: "../verification/v0.7/selection.png" });
   await page.getByRole("button", { name: "Supprimer la sélection" }).click();
   await expect(page.locator(".gallery-card")).toHaveCount(1);
   await expect(page.locator(".batch-toolbar")).toHaveCount(0);
@@ -491,7 +492,7 @@ test("v4 vertical gesture feedback and decoded neighbour survive image handoff",
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "favorite"); await expect(page.locator(".gesture-action")).toBeVisible();
   await page.mouse.move(130, 400, { steps: 6 });
   await expect(page.locator(".gesture-action")).toHaveAttribute("data-action", "trash");
-  await page.screenshot({ path: "../verification/v0.6/geste-corbeille.png" });
+  await page.screenshot({ path: "../verification/v0.7/geste-corbeille.png" });
   await page.mouse.up(); await page.waitForTimeout(250);
   await page.mouse.move(190, 500); await page.mouse.down(); await page.mouse.move(190, 320, { steps: 10 }); await page.mouse.up();
   await expect(page.locator(".viewer-caption")).toContainText("forest.png");
@@ -520,7 +521,7 @@ test("v4 page slides preserve form nodes and keep neighbours outside the settled
   await page.getByLabel("Steps", { exact: true }).evaluate(el => (el as HTMLElement).dataset.preserved = "yes");
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const name of ["Galerie", "Glossaire", "Paramètres", "Créer"]) {
+    for (const name of ["Galerie", "Glossaire", "Paramètres", "Atelier"]) {
       const tab = page.getByRole("button", { name, exact: true }); await tab.click();
       await expect(tab).toHaveAttribute("aria-current", "page");
       const outside = await page.evaluate(() => {
@@ -590,8 +591,8 @@ test("v4 viewer loads and decodes the next page before handing off the image", a
 test("v4 returning to the gallery discovers images created since the previous visit", async ({ page }) => {
   await connect(page); await page.getByRole("button", { name: "Galerie", exact: true }).click();
   await expect(page.getByRole("button", { name: "Agrandir lake.png", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Créer", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Créer", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
   await page.route("**/__native", async route => {
     if (route.request().postDataJSON().args?.path?.startsWith("/bridge/gallery")) {
       await route.fulfill({ json: { value: { items: [{ root: 0, relative: "new.png", name: "new.png", folder: "ComfyUI", favorite: false, modified: Date.now(), size: 123 }], total: 1, warnings: [] } } }); return;
@@ -658,4 +659,27 @@ test("v6 settings survive an immediate reload before debounce expires", async ({
   await expect(page.getByRole("button", { name: "PC connecté" })).toBeVisible();
   await openCards(page);
   await expect(page.getByLabel("Steps", { exact: true })).toHaveValue("43");
+});
+
+
+test("Mochi screens preserve the design across mobile and desktop", async ({ page }) => {
+  await connect(page);
+  await page.setViewportSize({ width: 440, height: 956 });
+  if (await page.getByRole("button", { name: "Fermer la notification", exact: true }).count()) await page.getByRole("button", { name: "Fermer la notification", exact: true }).click();
+  await openCards(page);
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: "../verification/v0.7/mochi-atelier.png", fullPage: true });
+  for (const name of ["Galerie", "Glossaire", "Paramètres"]) {
+    await page.getByRole("navigation").getByRole("button", { name, exact: true }).click();
+    await expect(page.getByRole("navigation").getByRole("button", { name, exact: true })).toHaveAttribute("aria-current", "page");
+    if (name === "Glossaire") await expect(page.locator(".theme-card").first()).toBeVisible();
+    if (name === "Galerie") await expect(page.locator(".gallery-card").first()).toBeVisible();
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.screenshot({ path: `../verification/v0.7/mochi-${name}.png` });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("navigation").getByRole("button", { name: "Atelier", exact: true }).click();
+  await expect(page.getByRole("navigation").getByRole("button", { name: "Atelier", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({ path: "../verification/v0.7/mochi-desktop.png", fullPage: true });
 });

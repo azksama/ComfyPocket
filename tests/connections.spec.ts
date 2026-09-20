@@ -195,7 +195,7 @@ test("an old locked status cannot relock the UI after authentication succeeds", 
   ).toHaveCount(0);
   state.releaseStatus();
   await expect(
-    page.getByRole("heading", { name: "Connexions", exact: true }),
+    page.getByRole("heading", { name: "Mes ordinateurs", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("dialog", { name: "Application verrouillée" }),

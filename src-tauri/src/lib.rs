@@ -317,7 +317,7 @@ pub fn run() {
             delete_profile
         ])
         .run(tauri::generate_context!())
-        .expect("Erreur au démarrage de Comfy Pocket");
+        .expect("Erreur au démarrage de Mochi");
 }
 
 #[tauri::command]
@@ -377,7 +377,7 @@ async fn save_image(
         .map_err(|e| e.to_string())?;
         let _ = tokio::fs::remove_file(path).await;
         result.map_err(|e| e.to_string())?;
-        Ok("Image enregistrée dans Photos / ComfyPocket".into())
+        Ok("Image enregistrée dans Photos / Mochi".into())
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -386,7 +386,7 @@ async fn save_image(
             .path()
             .download_dir()
             .map_err(|e| e.to_string())?
-            .join("ComfyPocket");
+            .join("Mochi");
         tokio::fs::create_dir_all(&dir)
             .await
             .map_err(|e| e.to_string())?;
@@ -394,7 +394,7 @@ async fn save_image(
             .await
             .map_err(|e| e.to_string())?;
         Ok(format!(
-            "Image enregistrée dans Téléchargements/ComfyPocket/{name}"
+            "Image enregistrée dans Téléchargements/Mochi/{name}"
         ))
     }
 }

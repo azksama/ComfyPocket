@@ -58,6 +58,8 @@ import Presets from "./Presets";
 import { usePageNavigation, pages, type Page } from "./PageNavigation";
 import ConnectionStatus from "./ConnectionStatus";
 import GalleryGrid from "./GalleryGrid";
+import mochiIcon from "../assets/brand/mochi.webp";
+import Welcome from "./Welcome";
 import Toast from "./Toast";
 
 import {
@@ -615,15 +617,28 @@ export default function App() {
   const renderPage = (tab: Page, active: boolean) => (
     <>
       <div className="page-heading">
-        <h1>
-          {tab === "create"
-            ? "Atelier"
-            : tab === "gallery"
-              ? "Galerie"
-              : tab === "glossary"
-                ? "Glossaire"
-                : "Paramètres"}
-        </h1>
+        <div>
+          <h1>
+            {
+              {
+                create: "Votre imagination,",
+                gallery: "Vos petits mondes",
+                glossary: "Le mot juste.",
+                connect: "À votre rythme.",
+              }[tab]
+            }
+          </h1>
+          <p>
+            {
+              {
+                create: "La puissance de votre PC. La liberté du mobile.",
+                gallery: "Vos créations, autant d’idées à retrouver.",
+                glossary: "Un glossaire Danbooru pour guider vos idées.",
+                connect: "Votre ordinateur, vos préférences, votre espace.",
+              }[tab]
+            }
+          </p>
+        </div>
         {tab === "gallery" && (
           <button
             aria-label="Actualiser la galerie"
@@ -657,18 +672,10 @@ export default function App() {
         />
       )}
       {(tab === "create" || tab === "gallery") && !server && (
-        <section className="panel empty-state">
-          <span className="empty-orbit">
-            <Monitor size={36} />
-          </span>
-          <h2>Votre atelier vous attend</h2>
-          <p className="muted">
-            Connectez un PC pour retrouver ses modèles et ses images.
-          </p>
-          <button className="primary" onClick={() => setTab("connect")}>
-            Choisir une connexion <ArrowUpRight size={18} />
-          </button>
-        </section>
+        <Welcome
+          onConnect={() => setTab("connect")}
+          onExplore={() => setTab("glossary")}
+        />
       )}
       {tab === "create" && server && (
         <>
@@ -1131,14 +1138,14 @@ export default function App() {
             <Sparkles size={25} />
           </span>
           <span>
-            comfy <b>pocket</b>
-            <small>VOTRE STUDIO, PARTOUT</small>
+            Mochi
+            <small>VOTRE ATELIER CRÉATIF</small>
           </span>
         </a>
         <nav aria-label="Navigation principale">
           {(
             [
-              { id: "create", label: "Créer", icon: Sparkles },
+              { id: "create", label: "Atelier", icon: Sparkles },
               { id: "gallery", label: "Galerie", icon: Images },
               { id: "glossary", label: "Glossaire", icon: BookOpen },
               { id: "connect", label: "Paramètres", icon: SettingsIcon },
@@ -1153,6 +1160,7 @@ export default function App() {
               aria-current={tab === t.id ? "page" : undefined}
             >
               <t.icon size={22} strokeWidth={1.7} />
+              <span>{t.label}</span>
             </button>
           ))}
         </nav>
@@ -1167,14 +1175,9 @@ export default function App() {
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <span className="eyebrow">
-            {tab === "create"
-              ? "L’ATELIER"
-              : tab === "gallery"
-                ? "VOTRE COLLECTION"
-                : tab === "glossary"
-                  ? "LES MOTS DE VOS IMAGES"
-                  : "VOTRE ESPACE PRIVÉ"}
+          <span className="mochi-wordmark">
+            <img src={mochiIcon} alt="" />
+            MOCHI <small>/ COMFYUI</small>
           </span>
           <button
             className={online ? "status connected" : "status"}

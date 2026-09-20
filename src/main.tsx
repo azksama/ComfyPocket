@@ -6,6 +6,7 @@ import "./styles.css";
 import "./experience.css";
 import "./refinements.css";
 import "./polish.css";
+import "./mochi.css";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AppLock>

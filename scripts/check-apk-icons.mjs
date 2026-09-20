@@ -4,7 +4,7 @@ import { unzipSync } from "fflate";
 import sharp from "sharp";
 import path from "node:path";
 const app = path.resolve(import.meta.dirname, "..");
-const apk = await readFile(path.join(app, "../ComfyPocket-arm64.apk"));
+const apk = await readFile(path.join(app, "../Mochi-arm64.apk"));
 const pngs = unzipSync(apk, { filter: file => file.name.endsWith(".png") });
 const digest = data => createHash("sha256").update(data).digest("hex");
 async function pixels(data) { const image = sharp(data); const m = await image.metadata(); return `${m.width}x${m.height}:` + digest(await image.ensureAlpha().raw().toBuffer()); }
@@ -19,5 +19,5 @@ for (const icon of manifest.filter(v => v.resource && v.size <= 192)) {
   results.push({ supplied: icon.file, size: icon.size, apkResource: match[0], exactSourceBytes: true, decodedPixelsPreserved: true });
 }
 if (results.length !== 10) throw Error("Expected all 10 density icons");
-await writeFile(path.join(app, "../verification/v0.4/apk-icons.json"), JSON.stringify({ apkSha256: digest(apk), icons: results }, null, 2));
+await writeFile(path.join(app, "../verification/v0.7/apk-icons.json"), JSON.stringify({ apkSha256: digest(apk), icons: results }, null, 2));
 console.log("Les 10 icônes Android fournies sont présentes dans l'APK, pixels identiques.");

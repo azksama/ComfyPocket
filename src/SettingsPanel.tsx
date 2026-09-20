@@ -1,40 +1,561 @@
 import { appendBlock } from "./promptLibrary";
 import { useState } from "react";
-import { Plus, X, ArrowLeftRight, Dices, ChevronDown, Copy, Maximize2 } from "lucide-react";
+import {
+  Plus,
+  X,
+  ArrowLeftRight,
+  Dices,
+  ChevronDown,
+  Copy,
+  Maximize2,
+} from "lucide-react";
 import { choices, type ObjectInfo } from "./api";
 import { type Settings } from "./workflow";
 import { ModelPicker, Picture, modelPath, shortName } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
 import PromptEditor from "./PromptEditor";
-export function NumberField({ label, value, onChange, min, max, step = 1 }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step?: number }) {
-  return <label>{label}<input type="number" inputMode={step < 1 ? "decimal" : "numeric"} value={Number.isFinite(value) ? value : ""} min={min} max={max} step={step} onChange={e => onChange(e.target.value === "" ? NaN : Number(e.target.value))} /></label>;
+export function NumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        type="number"
+        inputMode={step < 1 ? "decimal" : "numeric"}
+        value={Number.isFinite(value) ? value : ""}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) =>
+          onChange(e.target.value === "" ? NaN : Number(e.target.value))
+        }
+      />
+    </label>
+  );
 }
-export function SelectField({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
-  const list = options.some(o => o.value === value) ? options : [{ value, label: `${value || "Aucun"} · indisponible` }, ...options];
-  return <label>{label}<select aria-label={label} value={value} onChange={e => onChange(e.target.value)}>{list.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>;
+export function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const list = options.some((o) => o.value === value)
+    ? options
+    : [{ value, label: `${value || "Aucun"} · indisponible` }, ...options];
+  return (
+    <label>
+      {label}
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {list.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
-export const samplerLabel = (s: string) => ({ euler_ancestral: "Euler Ancestral", euler: "Euler", dpmpp_2m: "DPM++ 2M", dpmpp_2m_sde: "DPM++ 2M SDE", dpmpp_sde: "DPM++ SDE", dpm_2: "DPM2", uni_pc: "UniPC" }[s] ?? s.replace(/_/g, " "));
-export default function SettingsPanel({ settings: s, onChange, info, lastSeed }: { settings: Settings; onChange: (s: Settings) => void; info: ObjectInfo; lastSeed: string }) {
+export const samplerLabel = (s: string) =>
+  ({
+    euler_ancestral: "Euler Ancestral",
+    euler: "Euler",
+    dpmpp_2m: "DPM++ 2M",
+    dpmpp_2m_sde: "DPM++ 2M SDE",
+    dpmpp_sde: "DPM++ SDE",
+    dpm_2: "DPM2",
+    uni_pc: "UniPC",
+  })[s] ?? s.replace(/_/g, " ");
+export default function SettingsPanel({
+  settings: s,
+  onChange,
+  info,
+  lastSeed,
+}: {
+  settings: Settings;
+  onChange: (s: Settings) => void;
+  info: ObjectInfo;
+  lastSeed: string;
+}) {
   const [editor, setEditor] = useState<"positive" | "negative" | null>(null);
   const [picker, setPicker] = useState<"checkpoints" | "loras" | null>(null);
-  const [presets, setPresets] = useState<{ width: number; height: number }[]>(() => { try { return JSON.parse(localStorage.getItem("size-presets") ?? "[]"); } catch { return []; } });
-  const change = <K extends keyof Settings>(key: K, value: Settings[K]) => onChange({ ...s, [key]: value });
-  const models = choices(info, "CheckpointLoaderSimple", "ckpt_name"), loras = choices(info, "LoraLoader", "lora_name");
-  const options = (node: string, field: string, label = (v: string) => v) => choices(info, node, field).map(value => ({ value, label: label(value) }));
-  const upscalers = options("UpscaleModelLoader", "model_name", shortName).map(v => ({ ...v, value: "model:" + v.value, label: v.label + " · modèle" }));
+  const [presets, setPresets] = useState<{ width: number; height: number }[]>(
+    () => {
+      try {
+        return JSON.parse(localStorage.getItem("size-presets") ?? "[]");
+      } catch {
+        return [];
+      }
+    },
+  );
+  const change = <K extends keyof Settings>(key: K, value: Settings[K]) =>
+    onChange({ ...s, [key]: value });
+  const models = choices(info, "CheckpointLoaderSimple", "ckpt_name"),
+    loras = choices(info, "LoraLoader", "lora_name");
+  const options = (node: string, field: string, label = (v: string) => v) =>
+    choices(info, node, field).map((value) => ({ value, label: label(value) }));
+  const upscalers = options("UpscaleModelLoader", "model_name", shortName).map(
+    (v) => ({ ...v, value: "model:" + v.value, label: v.label + " · modèle" }),
+  );
   const addPreset = () => {
-    if (![s.width, s.height].every(n => Number.isInteger(n) && n >= 64 && n <= 4096 && n % 8 === 0)) return;
-    const next = [...presets.filter(p => p.width !== s.width || p.height !== s.height), { width: s.width, height: s.height }].slice(-10);
-    setPresets(next); localStorage.setItem("size-presets", JSON.stringify(next));
+    if (
+      ![s.width, s.height].every(
+        (n) => Number.isInteger(n) && n >= 64 && n <= 4096 && n % 8 === 0,
+      )
+    )
+      return;
+    const next = [
+      ...presets.filter((p) => p.width !== s.width || p.height !== s.height),
+      { width: s.width, height: s.height },
+    ].slice(-10);
+    setPresets(next);
+    localStorage.setItem("size-presets", JSON.stringify(next));
   };
-  return <><CollapsibleCard title="Votre création" eyebrow="01 / L’ESSENTIEL"><label className="field-title">Modèle</label><button className="model-select" onClick={() => setPicker("checkpoints")}><Picture path={modelPath("checkpoints", s.model)} alt="" thumbnail /><span><strong>{s.model ? shortName(s.model) : "Choisir un modèle"}</strong><small>{models.length} modèles sur le PC</small></span><ChevronDown size={19} /></button><p className="hint">Workflow automatique pour les checkpoints SD 1.x, SD 2 et SDXL. Les autres architectures utilisent le workflow API.</p>
-    <div className="field-grid"><SelectField label="Sampler" value={s.sampler} options={options("KSampler", "sampler_name", samplerLabel)} onChange={v => change("sampler", v)} /><SelectField label="Scheduler" value={s.scheduler} options={options("KSampler", "scheduler", v => v[0].toUpperCase() + v.slice(1))} onChange={v => change("scheduler", v)} /><NumberField label="Steps" value={s.steps} min={1} max={150} onChange={v => change("steps", v)} /><NumberField label="CFG Scale" value={s.cfg} min={0} max={30} step={0.1} onChange={v => change("cfg", v)} /></div>
-  <details><summary>Addons · VAE et Clip skip</summary><div className="field-grid"><SelectField label="VAE" value={s.vae} options={[{ value: "", label: "Inclus dans le modèle" }, ...options("VAELoader", "vae_name", shortName)]} onChange={v => change("vae", v)} /><NumberField label="Clip skip" value={s.clipSkip} min={1} max={24} onChange={v => change("clipSkip", v)} /></div></details>
-  <div className="section-heading"><h3>Extra networks</h3><button onClick={() => setPicker("loras")}><Plus size={16} /> LoRA / LyCORIS</button></div>{!s.loras.length && <p className="hint">Ajoutez un style ou un concept avec les modèles de votre PC.</p>}{s.loras.map((l, i) => <div className="lora-row" key={`${l.name}-${i}`}><Picture path={modelPath("loras", l.name)} alt="" thumbnail /><span><strong>{shortName(l.name)}</strong><NumberField label={`Poids LoRA ${i + 1}`} value={l.strength} min={-4} max={4} step={0.05} onChange={v => change("loras", s.loras.map((old, n) => n === i ? { ...old, strength: v } : old))} /></span><button aria-label={`Retirer ${shortName(l.name)}`} onClick={() => change("loras", s.loras.filter((_, n) => i !== n))}><X size={17} /></button></div>)}<div className="prompt-entry"><span className="field-title">Votre idée</span><button aria-label="Votre idée" className="prompt-launch" onClick={() => setEditor("positive")}><span>{s.positive || "Une scène, une lumière, une émotion…"}</span><Maximize2 size={17} /></button></div><div className="prompt-entry negative-entry"><span className="field-title">Prompt négatif</span><button aria-label="Prompt négatif" className="prompt-launch" onClick={() => setEditor("negative")}><span>{s.negative || "Ce que vous préférez éviter…"}</span><Maximize2 size={17} /></button></div></CollapsibleCard><CollapsibleCard title="À votre mesure" eyebrow="02 / LE FORMAT"><div className="size-fields"><NumberField label="Largeur" value={s.width} min={64} max={4096} step={8} onChange={v => change("width", v)} /><button aria-label="Inverser largeur et hauteur" onClick={() => onChange({ ...s, width: s.height, height: s.width })}><ArrowLeftRight size={19} /></button><NumberField label="Hauteur" value={s.height} min={64} max={4096} step={8} onChange={v => change("height", v)} /></div><p className="hint">Pixels · multiples de 8 · dimensions libres de 64 à 4 096</p><div className="size-presets">{[{ width: 1024, height: 1024, label: "Carré" }, { width: 832, height: 1216, label: "Portrait" }, { width: 1216, height: 832, label: "Paysage" }, { width: 512, height: 512, label: "SD 1.5" }].map(p => <button key={p.label} className={s.width === p.width && s.height === p.height ? "selected" : ""} onClick={() => onChange({ ...s, width: p.width, height: p.height })}><span className="ratio-shape" style={{ width: 23 * Math.min(1, p.width / p.height), height: 23 * Math.min(1, p.height / p.width) }} /><strong>{p.label}</strong><small>{p.width} × {p.height}</small></button>)}</div><details><summary>Mes formats personnalisés</summary><div className="row">{presets.map(p => <div className="preset-chip" key={`${p.width}x${p.height}`}><button onClick={() => onChange({ ...s, ...p })}>{p.width} × {p.height}</button><button aria-label={`Supprimer le format ${p.width} par ${p.height}`} onClick={() => { const next = presets.filter(v => v !== p); setPresets(next); localStorage.setItem("size-presets", JSON.stringify(next)); }}><X size={14} /></button></div>)}</div><button onClick={addPreset}><Plus size={16} /> Mémoriser ce format</button></details>
-    <div className="seed-field"><label>Seed<input inputMode="numeric" value={s.seed} placeholder="Aléatoire à chaque génération" onChange={e => change("seed", e.target.value)} /></label><button aria-label="Seed aléatoire" onClick={() => change("seed", "")}><Dices size={20} /></button></div>{lastSeed && <button className="text-button" onClick={() => change("seed", lastSeed)}><Copy size={14} /> Reprendre la dernière seed : {lastSeed}</button>}<div className="field-grid"><NumberField label="Batch size · images par lot" value={s.batch} min={1} max={8} onChange={v => change("batch", v)} /><NumberField label="Batches · nombre de lots" value={s.batches} min={1} max={20} onChange={v => change("batches", v)} /></div><p className="hint">{s.batch * s.batches || 0} images demandées. Une seed fixe augmente de 1 entre les lots.</p>
-  </CollapsibleCard><CollapsibleCard title="Aller plus loin" eyebrow="03 / LES FINITIONS">
-    <div className="addon"><label className="switch-row"><span><strong>Hires Fix</strong><small>Agrandir puis affiner les détails</small></span><input role="switch" aria-label="Activer Hires Fix" type="checkbox" checked={s.hires.enabled} onChange={e => change("hires", { ...s.hires, enabled: e.target.checked })} /></label>{s.hires.enabled && <div className="addon-fields"><SelectField label="Upscaler Hires Fix" value={s.hires.method} options={[...options("LatentUpscale", "upscale_method", v => v === "nearest-exact" ? "Nearest Exact · latent" : v + " · latent"), ...upscalers]} onChange={v => change("hires", { ...s.hires, method: v })} /><div className="field-grid"><NumberField label="Facteur Hires Fix" value={s.hires.scale} min={1} max={4} step={0.05} onChange={v => change("hires", { ...s.hires, scale: v })} /><NumberField label="Steps Hires Fix" value={s.hires.steps} min={1} max={150} onChange={v => change("hires", { ...s.hires, steps: v })} /><NumberField label="Denoising strength" value={s.hires.denoise} min={0} max={1} step={0.01} onChange={v => change("hires", { ...s.hires, denoise: v })} /></div><p className="hint">Les LoRA, le VAE et le Clip skip choisis s’appliquent aux deux passes.</p></div>}</div>
-    <div className="addon"><label className="switch-row"><span><strong>Upscaler</strong><small>Agrandissement de l’image finale</small></span><input role="switch" aria-label="Activer Upscaler" type="checkbox" checked={s.upscale.enabled} onChange={e => change("upscale", { ...s.upscale, enabled: e.target.checked })} /></label>{s.upscale.enabled && <div className="addon-fields field-grid"><SelectField label="Upscaler final" value={s.upscale.method} options={[...options("ImageScaleBy", "upscale_method", v => v === "nearest-exact" ? "Nearest Exact" : v), ...upscalers]} onChange={v => change("upscale", { ...s.upscale, method: v })} /><NumberField label="Facteur Upscaler" value={s.upscale.scale} min={1} max={4} step={0.05} onChange={v => change("upscale", { ...s.upscale, scale: v })} /></div>}</div>
-    {(s.hires.enabled || s.upscale.enabled) && <p className="hint">Sortie estimée : {Math.round((s.hires.enabled ? Math.round(s.width * s.hires.scale / 8) * 8 : s.width) * (s.upscale.enabled ? s.upscale.scale : 1))} × {Math.round((s.hires.enabled ? Math.round(s.height * s.hires.scale / 8) * 8 : s.height) * (s.upscale.enabled ? s.upscale.scale : 1))} px. Les grands formats consomment davantage de VRAM.</p>}
-  </CollapsibleCard>{editor && <PromptEditor initialTab={editor} values={{ positive: s.positive, negative: s.negative }} onChange={v => onChange({ ...s, ...v })} onClose={() => setEditor(null)} />}{picker && <ModelPicker onTriggers={words => change("positive", appendBlock(s.positive, words.join(", ")))} title={picker === "checkpoints" ? "Choisir un modèle" : "Ajouter un LoRA / LyCORIS"} kind={picker} names={picker === "checkpoints" ? models : loras} value={picker === "checkpoints" ? s.model : ""} onClose={() => setPicker(null)} onSelect={name => picker === "checkpoints" ? change("model", name) : change("loras", [...s.loras, { name, strength: 1 }])} />}</>;
+  return (
+    <>
+      <CollapsibleCard title="Votre création" eyebrow="01 / L’ESSENTIEL">
+        <label className="field-title">Modèle</label>
+        <button
+          className="model-select"
+          onClick={() => setPicker("checkpoints")}
+        >
+          <Picture path={modelPath("checkpoints", s.model)} alt="" thumbnail />
+          <span>
+            <strong>
+              {s.model ? shortName(s.model) : "Choisir un modèle"}
+            </strong>
+            <small>{models.length} modèles sur le PC</small>
+          </span>
+          <ChevronDown size={19} />
+        </button>
+        <p className="hint">
+          Workflow automatique pour les checkpoints SD 1.x, SD 2 et SDXL. Les
+          autres architectures utilisent le workflow API.
+        </p>
+        <div className="section-heading">
+          <h3>LoRAs actifs · {s.loras.length}</h3>
+          <button onClick={() => setPicker("loras")}>
+            <Plus size={16} /> LoRA / LyCORIS
+          </button>
+        </div>
+        {!s.loras.length && (
+          <p className="hint">
+            Ajoutez un style ou un concept avec les modèles de votre PC.
+          </p>
+        )}
+        {s.loras.map((l, i) => (
+          <div className="lora-row" key={`${l.name}-${i}`}>
+            <Picture path={modelPath("loras", l.name)} alt="" thumbnail />
+            <span>
+              <strong>{shortName(l.name)}</strong>
+              <NumberField
+                label={`Poids LoRA ${i + 1}`}
+                value={l.strength}
+                min={-4}
+                max={4}
+                step={0.05}
+                onChange={(v) =>
+                  change(
+                    "loras",
+                    s.loras.map((old, n) =>
+                      n === i ? { ...old, strength: v } : old,
+                    ),
+                  )
+                }
+              />
+            </span>
+            <button
+              aria-label={`Retirer ${shortName(l.name)}`}
+              onClick={() =>
+                change(
+                  "loras",
+                  s.loras.filter((_, n) => i !== n),
+                )
+              }
+            >
+              <X size={17} />
+            </button>
+          </div>
+        ))}
+        <h3 className="prompt-section-title">Les mots font l’image</h3>
+        <div className="prompt-entry">
+          <span className="field-title">Votre idée</span>
+          <button
+            aria-label="Votre idée"
+            className="prompt-launch"
+            onClick={() => setEditor("positive")}
+          >
+            <span>{s.positive || "Une scène, une lumière, une émotion…"}</span>
+            <Maximize2 size={17} />
+          </button>
+        </div>
+        <div className="prompt-entry negative-entry">
+          <span className="field-title">Prompt négatif</span>
+          <button
+            aria-label="Prompt négatif"
+            className="prompt-launch"
+            onClick={() => setEditor("negative")}
+          >
+            <span>{s.negative || "Ce que vous préférez éviter…"}</span>
+            <Maximize2 size={17} />
+          </button>
+        </div>
+      </CollapsibleCard>
+      <CollapsibleCard title="À votre mesure" eyebrow="02 / LE FORMAT">
+        <div className="field-grid">
+          <SelectField
+            label="Sampler"
+            value={s.sampler}
+            options={options("KSampler", "sampler_name", samplerLabel)}
+            onChange={(v) => change("sampler", v)}
+          />
+          <SelectField
+            label="Scheduler"
+            value={s.scheduler}
+            options={options(
+              "KSampler",
+              "scheduler",
+              (v) => v[0].toUpperCase() + v.slice(1),
+            )}
+            onChange={(v) => change("scheduler", v)}
+          />
+          <NumberField
+            label="Steps"
+            value={s.steps}
+            min={1}
+            max={150}
+            onChange={(v) => change("steps", v)}
+          />
+          <NumberField
+            label="CFG Scale"
+            value={s.cfg}
+            min={0}
+            max={30}
+            step={0.1}
+            onChange={(v) => change("cfg", v)}
+          />
+        </div>
+        <details>
+          <summary>Addons · VAE et Clip skip</summary>
+          <div className="field-grid">
+            <SelectField
+              label="VAE"
+              value={s.vae}
+              options={[
+                { value: "", label: "Inclus dans le modèle" },
+                ...options("VAELoader", "vae_name", shortName),
+              ]}
+              onChange={(v) => change("vae", v)}
+            />
+            <NumberField
+              label="Clip skip"
+              value={s.clipSkip}
+              min={1}
+              max={24}
+              onChange={(v) => change("clipSkip", v)}
+            />
+          </div>
+        </details>
+        <div className="size-fields">
+          <NumberField
+            label="Largeur"
+            value={s.width}
+            min={64}
+            max={4096}
+            step={8}
+            onChange={(v) => change("width", v)}
+          />
+          <button
+            aria-label="Inverser largeur et hauteur"
+            onClick={() => onChange({ ...s, width: s.height, height: s.width })}
+          >
+            <ArrowLeftRight size={19} />
+          </button>
+          <NumberField
+            label="Hauteur"
+            value={s.height}
+            min={64}
+            max={4096}
+            step={8}
+            onChange={(v) => change("height", v)}
+          />
+        </div>
+        <p className="hint">
+          Pixels · multiples de 8 · dimensions libres de 64 à 4 096
+        </p>
+        <div className="size-presets">
+          {[
+            { width: 1024, height: 1024, label: "Carré" },
+            { width: 832, height: 1216, label: "Portrait" },
+            { width: 1216, height: 832, label: "Paysage" },
+            { width: 512, height: 512, label: "SD 1.5" },
+          ].map((p) => (
+            <button
+              key={p.label}
+              className={
+                s.width === p.width && s.height === p.height ? "selected" : ""
+              }
+              onClick={() =>
+                onChange({ ...s, width: p.width, height: p.height })
+              }
+            >
+              <span
+                className="ratio-shape"
+                style={{
+                  width: 23 * Math.min(1, p.width / p.height),
+                  height: 23 * Math.min(1, p.height / p.width),
+                }}
+              />
+              <strong>{p.label}</strong>
+              <small>
+                {p.width} × {p.height}
+              </small>
+            </button>
+          ))}
+        </div>
+        <details>
+          <summary>Mes formats personnalisés</summary>
+          <div className="row">
+            {presets.map((p) => (
+              <div className="preset-chip" key={`${p.width}x${p.height}`}>
+                <button onClick={() => onChange({ ...s, ...p })}>
+                  {p.width} × {p.height}
+                </button>
+                <button
+                  aria-label={`Supprimer le format ${p.width} par ${p.height}`}
+                  onClick={() => {
+                    const next = presets.filter((v) => v !== p);
+                    setPresets(next);
+                    localStorage.setItem("size-presets", JSON.stringify(next));
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button onClick={addPreset}>
+            <Plus size={16} /> Mémoriser ce format
+          </button>
+        </details>
+        <div className="seed-field">
+          <label>
+            Seed
+            <input
+              inputMode="numeric"
+              value={s.seed}
+              placeholder="Aléatoire à chaque génération"
+              onChange={(e) => change("seed", e.target.value)}
+            />
+          </label>
+          <button
+            aria-label="Seed aléatoire"
+            onClick={() => change("seed", "")}
+          >
+            <Dices size={20} />
+          </button>
+        </div>
+        {lastSeed && (
+          <button
+            className="text-button"
+            onClick={() => change("seed", lastSeed)}
+          >
+            <Copy size={14} /> Reprendre la dernière seed : {lastSeed}
+          </button>
+        )}
+        <div className="field-grid">
+          <NumberField
+            label="Batch size · images par lot"
+            value={s.batch}
+            min={1}
+            max={8}
+            onChange={(v) => change("batch", v)}
+          />
+          <NumberField
+            label="Batches · nombre de lots"
+            value={s.batches}
+            min={1}
+            max={20}
+            onChange={(v) => change("batches", v)}
+          />
+        </div>
+        <p className="hint">
+          {s.batch * s.batches || 0} images demandées. Une seed fixe augmente de
+          1 entre les lots.
+        </p>
+      </CollapsibleCard>
+      <CollapsibleCard title="Aller plus loin" eyebrow="03 / LES FINITIONS">
+        <div className="addon">
+          <label className="switch-row">
+            <span>
+              <strong>Hires Fix</strong>
+              <small>Agrandir puis affiner les détails</small>
+            </span>
+            <input
+              role="switch"
+              aria-label="Activer Hires Fix"
+              type="checkbox"
+              checked={s.hires.enabled}
+              onChange={(e) =>
+                change("hires", { ...s.hires, enabled: e.target.checked })
+              }
+            />
+          </label>
+          {s.hires.enabled && (
+            <div className="addon-fields">
+              <SelectField
+                label="Upscaler Hires Fix"
+                value={s.hires.method}
+                options={[
+                  ...options("LatentUpscale", "upscale_method", (v) =>
+                    v === "nearest-exact"
+                      ? "Nearest Exact · latent"
+                      : v + " · latent",
+                  ),
+                  ...upscalers,
+                ]}
+                onChange={(v) => change("hires", { ...s.hires, method: v })}
+              />
+              <div className="field-grid">
+                <NumberField
+                  label="Facteur Hires Fix"
+                  value={s.hires.scale}
+                  min={1}
+                  max={4}
+                  step={0.05}
+                  onChange={(v) => change("hires", { ...s.hires, scale: v })}
+                />
+                <NumberField
+                  label="Steps Hires Fix"
+                  value={s.hires.steps}
+                  min={1}
+                  max={150}
+                  onChange={(v) => change("hires", { ...s.hires, steps: v })}
+                />
+                <NumberField
+                  label="Denoising strength"
+                  value={s.hires.denoise}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={(v) => change("hires", { ...s.hires, denoise: v })}
+                />
+              </div>
+              <p className="hint">
+                Les LoRA, le VAE et le Clip skip choisis s’appliquent aux deux
+                passes.
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="addon">
+          <label className="switch-row">
+            <span>
+              <strong>Upscaler</strong>
+              <small>Agrandissement de l’image finale</small>
+            </span>
+            <input
+              role="switch"
+              aria-label="Activer Upscaler"
+              type="checkbox"
+              checked={s.upscale.enabled}
+              onChange={(e) =>
+                change("upscale", { ...s.upscale, enabled: e.target.checked })
+              }
+            />
+          </label>
+          {s.upscale.enabled && (
+            <div className="addon-fields field-grid">
+              <SelectField
+                label="Upscaler final"
+                value={s.upscale.method}
+                options={[
+                  ...options("ImageScaleBy", "upscale_method", (v) =>
+                    v === "nearest-exact" ? "Nearest Exact" : v,
+                  ),
+                  ...upscalers,
+                ]}
+                onChange={(v) => change("upscale", { ...s.upscale, method: v })}
+              />
+              <NumberField
+                label="Facteur Upscaler"
+                value={s.upscale.scale}
+                min={1}
+                max={4}
+                step={0.05}
+                onChange={(v) => change("upscale", { ...s.upscale, scale: v })}
+              />
+            </div>
+          )}
+        </div>
+        {(s.hires.enabled || s.upscale.enabled) && (
+          <p className="hint">
+            Sortie estimée :{" "}
+            {Math.round(
+              (s.hires.enabled
+                ? Math.round((s.width * s.hires.scale) / 8) * 8
+                : s.width) * (s.upscale.enabled ? s.upscale.scale : 1),
+            )}{" "}
+            ×{" "}
+            {Math.round(
+              (s.hires.enabled
+                ? Math.round((s.height * s.hires.scale) / 8) * 8
+                : s.height) * (s.upscale.enabled ? s.upscale.scale : 1),
+            )}{" "}
+            px. Les grands formats consomment davantage de VRAM.
+          </p>
+        )}
+      </CollapsibleCard>
+      {editor && (
+        <PromptEditor
+          initialTab={editor}
+          values={{ positive: s.positive, negative: s.negative }}
+          onChange={(v) => onChange({ ...s, ...v })}
+          onClose={() => setEditor(null)}
+        />
+      )}
+      {picker && (
+        <ModelPicker
+          onTriggers={(words) =>
+            change("positive", appendBlock(s.positive, words.join(", ")))
+          }
+          title={
+            picker === "checkpoints"
+              ? "Choisir un modèle"
+              : "Ajouter un LoRA / LyCORIS"
+          }
+          kind={picker}
+          names={picker === "checkpoints" ? models : loras}
+          value={picker === "checkpoints" ? s.model : ""}
+          onClose={() => setPicker(null)}
+          onSelect={(name) =>
+            picker === "checkpoints"
+              ? change("model", name)
+              : change("loras", [...s.loras, { name, strength: 1 }])
+          }
+        />
+      )}
+    </>
+  );
 }

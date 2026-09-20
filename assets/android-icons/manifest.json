@@ -1,68 +1,68 @@
 [
   {
-    "file": "ic_launcher.png",
+    "file": "mdpi/ic_launcher.png",
     "size": 48,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png",
-    "sha256": "4c08f2a319d103958aff149b80c15768f61e016470a502e6e27432e850ab5b4b"
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+    "sha256": "825d46458839d1ff86c896db90e3a481c379ce8fbb033ed203908f6ab46e59fb"
   },
   {
-    "file": "ic_launcher (1).png",
-    "size": 72,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png",
-    "sha256": "3103cd03ec3f8cd85e0651fe12219bd9da4564b055f9a51b68cee01db1f765e8"
-  },
-  {
-    "file": "ic_launcher (3).png",
-    "size": 96,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png",
-    "sha256": "f637773682e8f4038766d68aaf878eebe12d2b17636acd3107065a9cd395930f"
-  },
-  {
-    "file": "ic_launcher (5).png",
-    "size": 144,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png",
-    "sha256": "3e841385fe43ebffe509cf06422bb0c54a6757d2e7482aec55fc86719ee85ba4"
-  },
-  {
-    "file": "ic_launcher (7).png",
-    "size": 192,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png",
-    "sha256": "e67e24c6de3aa800dd0856a494fb0d13c0978466145fb3d355d866d53a5506a7"
-  },
-  {
-    "file": "ic_launcher_round.png",
+    "file": "mdpi/ic_launcher_round.png",
     "size": 48,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.png",
-    "sha256": "0d014c847d639cb5d584c6639b7f26d3d2fbd4c0324d9c3e4173b10981da3569"
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+    "sha256": "d2465086da50fbdeb50c22820ec3093ca8c34c462599693a18d5077f562d5862"
   },
   {
-    "file": "ic_launcher_round (2).png",
-    "size": 72,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.png",
-    "sha256": "2030d0e080977995eed78aa41bc21874ca554577a3514aa0007594d271a365c3"
+    "file": "hdpi/ic_launcher.png",
+    "size": 49,
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+    "sha256": "ee5ff51b40821a490a99d94ff9fa6156ffc5580601f689ed6dccc0d7aeb5c6cc"
   },
   {
-    "file": "ic_launcher_round (4).png",
+    "file": "hdpi/ic_launcher_round.png",
+    "size": 49,
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+    "sha256": "a980a76d22d94ae7e1450c405725a70090f8a7ac2a3260c45e0cc082d5582856"
+  },
+  {
+    "file": "xhdpi/ic_launcher.png",
     "size": 96,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.png",
-    "sha256": "e4c6e6d77b7d91a5c54ad7ac90f42795401ee92325d299ae21d7fdd97dd7468a"
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+    "sha256": "c7c317e4b4ea6464a2ec2eccebc3bffda7424485529c89b02d7ee582088a3051"
   },
   {
-    "file": "ic_launcher_round (6).png",
+    "file": "xhdpi/ic_launcher_round.png",
+    "size": 96,
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+    "sha256": "078e3b49f706fe24abfbe885776e57618ee00fee54b614656861705a46c52853"
+  },
+  {
+    "file": "xxhdpi/ic_launcher.png",
     "size": 144,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.png",
-    "sha256": "c93abfb0d55cc0159660fe7ebd171b4592bc99c18da8bcaf4a268b7d63523ca6"
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+    "sha256": "bff6ab38b7bd896c43bd44ff5991cad83d231edb752f8ab86ea0b3eb5b70fb8a"
   },
   {
-    "file": "ic_launcher_round (8).png",
+    "file": "xxhdpi/ic_launcher_round.png",
+    "size": 144,
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+    "sha256": "2e04948535ded3a5c52a767b767d05e9c72f26bfe86308c6e2a051a699c5e8eb"
+  },
+  {
+    "file": "xxxhdpi/ic_launcher.png",
     "size": 192,
-    "resource": "src-tauri\\gen\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.png",
-    "sha256": "7055c339c7058144f87dd2f482993179e38b61f8974a5665b817ca8187a06ac1"
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "sha256": "8e0852a90809f3f0f1e1700b3fea4df298195c3926f0cb66413a8dfa5da68013"
+  },
+  {
+    "file": "xxxhdpi/ic_launcher_round.png",
+    "size": 192,
+    "resource": "src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "sha256": "8b2a202b69a88903ec96f8d5e5396326fa74e49f8279289bfdb3169bd682f093"
   },
   {
     "file": "play_store_512.png",
     "size": 512,
-    "resource": "assets\\android-icons\\play_store_512.png",
-    "sha256": "ef1a081043193e64d6ff622b5619453db2fd40523dfee4e93ee4a41554d06458"
+    "resource": "assets/android-icons/play_store_512.png",
+    "sha256": "23f961f194c8c5df41ad8ff5b980f792f4c6d3a09a078dc14138e92f52dee45d"
   }
 ]

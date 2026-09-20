@@ -34,7 +34,7 @@ $flavor=if($Target -eq 'aarch64'){'arm64'}else{'x86_64'}
 $apkName=if($Release){"app-$flavor-release-unsigned.apk"}else{"app-$flavor-debug.apk"}
 $apk=Join-Path $repo "src-tauri\gen\android\app\build\outputs\apk\$flavor\$profile\$apkName"
 $suffix=if($Release){''}else{'-debug'}
-$published=Join-Path (Split-Path $repo -Parent) "ComfyPocket-$flavor$suffix.apk"
+$published=Join-Path (Split-Path $repo -Parent) "Mochi-$flavor$suffix.apk"
 if($Release){
  if(-not $env:COMFY_KEYSTORE -or -not $env:COMFY_STORE_PASSWORD){throw 'Définissez COMFY_KEYSTORE et COMFY_STORE_PASSWORD pour signer la version release.'}
  $tools=Get-ChildItem (Join-Path $env:ANDROID_HOME 'build-tools') -Directory | Sort-Object Name -Descending | Select-Object -First 1

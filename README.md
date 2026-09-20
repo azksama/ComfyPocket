@@ -1,12 +1,12 @@
-# Comfy Pocket 0.6.1
+# Mochi 0.7.0
 
-Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface claire bleu/lilas, adaptée aux téléphones et aux grands écrans.
+Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
 
 Depuis un clone Git, les lanceurs `Demarrer-ComfyPocket.cmd` et `Demarrer-ComfyPocket.ps1` sont disponibles directement à la racine du dépôt. Les fichiers d'appairage et les clés de signature Android sont locaux et ne sont pas versionnés. Les instructions d'installation ci-dessous décrivent également la livraison regroupée dans le dossier `outputs`.
 
 ## Installation et mise à jour
 
-1. Installer **ComfyPocket-arm64.apk** sur Android 10 ou ultérieur. Il est signé avec la même clé que la version 0.1 : installer par-dessus conserve les données.
+1. Installer **Mochi-arm64.apk** sur Android 10 ou ultérieur. Il est signé avec la même clé que la version 0.1 : installer par-dessus conserve les données.
 2. Garder le dossier **ComfyPocket**, **Demarrer-ComfyPocket.ps1** et **Demarrer-ComfyPocket.cmd** ensemble. Après démarrage du PC, double-cliquer sur **Demarrer-ComfyPocket.cmd** et attendre **PRET** (ComfyUI peut prendre jusqu'à trois minutes à s'initialiser). Le lanceur vérifie le certificat, l'authentification HTTPS et la disponibilité du moteur avant de confirmer la connexion. **La fenêtre peut ensuite être fermée : les deux services continuent en arrière-plan.** Un second lancement réutilise les services ; les démarrages simultanés sont protégés contre les doublons. Les journaux se trouvent dans `%LOCALAPPDATA%\ComfyPocketPC`.
 3. Dans l'onglet **Paramètres** (roue dentée tout à droite), importer **Appairage-PC-local-v0.3.json** pour le Wi-Fi local ou **Appairage-PC-public.json** pour l'adresse publique, nommer le profil et toucher **Connecter mon PC**.
 4. Les profils fonctionnels de la version 0.3 restent valides en 0.6, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
@@ -139,7 +139,7 @@ Images des dossiers ComfyUI et Stability Matrix, dédoublonnées, recherchables 
 - Appui long sur une vignette : sélectionner plusieurs images pour les mettre en favori, les télécharger ou les déplacer dans la corbeille. Le bouton **Sélectionner** offre aussi cette action au clavier. Les téléchargements sont traités un par un ; en cas d'échec partiel, seules les images en échec restent sélectionnées pour réessayer.
 - Quatre boutons circulaires à droite : favori, téléchargement, paramètres, corbeille. Fermeture en haut, sans boutons précédent/suivant ni indications de gestes. Flèches du clavier et Échap disponibles.
 - Écarter deux doigts pour zoomer, puis déplacer l’image. Double toucher pour revenir à la vue entière quand elle est zoomée. Les gestes de suppression sont désactivés pendant le zoom. Transitions horizontales/verticales et préchargement des voisines.
-- **Enregistrer** copie l’original dans Photos / ComfyPocket via Android MediaStore.
+- **Enregistrer** copie l’original dans Photos / Mochi via Android MediaStore.
 - Favoris conservés sur le PC, partagés entre les profils qui s’y connectent.
 - **Corbeille** et **Annuler la suppression** permettent une restauration. Aucun effacement définitif automatique. Une restauration refuse d’écraser un fichier existant.
 
