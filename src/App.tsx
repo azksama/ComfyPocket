@@ -52,6 +52,7 @@ import { Picture, clearImageCache, type ViewItem } from "./components";
 import CollapsibleCard from "./CollapsibleCard";
 import SettingsPanel from "./SettingsPanel";
 import StudioNav from "./StudioNav";
+import mochiHeader from "../assets/brand/expressions/open.webp";
 import Connections from "./Connections";
 const Glossary = lazy(() => import("./Glossary"));
 const Viewer = lazy(() => import("./Viewer"));
@@ -1260,7 +1261,7 @@ export default function App() {
             aria-label="Ouvrir l’Atelier"
             onClick={() => setTab("create")}
           >
-            <Sparkles size={18} />
+            <img src={mochiHeader} alt="" width={32} height={24} />
           </button>
         </header>
         <main id="main" className="page-window" {...handlers}>

@@ -30,11 +30,21 @@
 .studio-quick-nav .quick-nav-tooltip {
   display: none;
 }
-.app:has(.studio-quick-nav.on-right) .active-pane {
-  padding-right: max(var(--pane-inset), 48px);
+.header-spark {
+  width: 36px;
+  height: 32px;
+  padding: 2px;
 }
-.app:has(.studio-quick-nav.on-left) .active-pane {
-  padding-left: max(var(--pane-inset), 48px);
+.header-spark img {
+  width: 32px;
+  height: 24px;
+  object-fit: contain;
+}
+.profile-list {
+  gap: 18px;
+}
+.profile-card.selected {
+  margin-bottom: 0;
 }
 .handedness-setting.handedness-setting {
   padding: 12px 0;

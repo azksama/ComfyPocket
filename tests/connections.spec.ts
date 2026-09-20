@@ -174,6 +174,9 @@ test("switching profiles at the same address refreshes the active badge", async 
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
   await expect(page.locator(".profile-card.selected")).toContainText("Second");
   await expect(page.locator(".profile-card.selected")).toHaveCount(1);
+  const first = await page.locator('.profile-card').first().boundingBox();
+  const second = await page.locator('.profile-card').nth(1).boundingBox();
+  expect(second!.y - first!.y - first!.height).toBeGreaterThanOrEqual(18);
 });
 
 test("an old locked status cannot relock the UI after authentication succeeds", async ({
@@ -221,7 +224,7 @@ test("startup shields the app, then a canceled biometric prompt can be retried",
   await expect(page.getByRole("heading", { name: "Mochi est enfermé" })).toBeVisible();
   await expect(page.getByRole("alert")).toContainText("annulée");
   expect(state.unlocks).toBe(1);
-  await page.screenshot({ path: "../verification/v0.9/lock-screen.png" });
+  await page.screenshot({ path: "../verification/v0.9.1/lock-screen.png" });
   state.cancelUnlock = false;
   await page.getByRole("button", { name: "Le libérer", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Mes ordinateurs", exact: true })).toBeVisible();

@@ -1,6 +1,14 @@
-# Mochi 0.9.0
+# Mochi 0.9.1
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
+
+## Correctifs 0.9.1
+
+- Le fond de la barre de gestes Android prolonge la couleur du menu inférieur.
+- Les raccourcis flottants de l’Atelier se superposent au contenu, sans réserver une colonne, en mode droitier comme gaucher.
+- Un petit Mochi remplace l’étoile de l’en-tête sur les quatre pages.
+- Les profils de connexion sont séparés par 18 px.
+- Les transitions et gestes interrompus sont remis dans un état stable au retour au premier plan. La couche de transformation est libérée au repos, sans recharger la page ni recréer les champs.
 
 ## Nouveautés 0.9.0
 
