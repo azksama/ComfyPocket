@@ -45,3 +45,5 @@ ComfyPocketPC/
 *.gguf
 *.pt
 *.pth
+launcher/src-tauri/runtime/
+launcher/src-tauri/gen/

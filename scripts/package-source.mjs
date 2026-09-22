@@ -7,6 +7,7 @@ const excluded = new Set([
   "node_modules",
   "target",
   "dist",
+  "runtime",
   ".gradle",
   ".cxx",
   ".kotlin",

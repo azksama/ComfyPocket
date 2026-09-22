@@ -12,6 +12,19 @@ function Test-ComfyPocketProcess {
  return $true
 }
 
+function Test-ComfyEngineProcess {
+ param($Process, $Parent, [string]$ComfyDirectory)
+ if(-not $Process -or -not $Process.ExecutablePath){return $false}
+ $python=[IO.Path]::GetFullPath((Join-Path $ComfyDirectory 'venv\Scripts\python.exe'))
+ $tokens=@([regex]::Matches($Process.CommandLine, '"[^"]*"|\S+') | ForEach-Object {$_.Value.Trim('"')})
+ if($tokens.Count -lt 2 -or ($tokens[1] -ne 'main.py' -and $tokens[1] -ine (Join-Path $ComfyDirectory 'main.py'))){return $false}
+ if([IO.Path]::GetFullPath($Process.ExecutablePath) -ieq $python){return $true}
+ # Windows venv python forwards execution to the base interpreter in a child process.
+ if(-not $Parent -or -not $Parent.ExecutablePath -or $Process.ParentProcessId -ne $Parent.ProcessId -or [IO.Path]::GetFullPath($Parent.ExecutablePath) -ine $python){return $false}
+ $parentTokens=@([regex]::Matches($Parent.CommandLine, '"[^"]*"|\S+') | ForEach-Object {$_.Value.Trim('"')})
+ return ($parentTokens.Count -eq $tokens.Count -and (($parentTokens | Select-Object -Skip 1) -join "`n") -ceq (($tokens | Select-Object -Skip 1) -join "`n"))
+}
+
 function Restart-StaleComfyPocket {
  param([string]$ScriptPath, [string]$ConfigDirectory, [int]$Port)
  $listeners=@(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)

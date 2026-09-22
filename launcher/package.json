@@ -1,0 +1,11 @@
+{
+  "name": "mochi-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1430",
+    "build": "tsc --noEmit && vite build",
+    "tauri": "tauri"
+  }
+}
