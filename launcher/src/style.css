@@ -832,3 +832,6 @@ body,
 .address-list .actions {
   flex-wrap: wrap;
 }
+
+.settings-apply { display: grid; gap: 14px; margin: 20px 0 32px; padding: 20px; background: #ece4f5; border-radius: 20px; }
+.settings-apply p { margin: 0; }

@@ -20,6 +20,11 @@ $node=if($NodeExecutable){$NodeExecutable}else{(Get-Command node -ErrorAction St
 $comfy=if($ComfyDirectory){$ComfyDirectory}else{Join-Path $StabilityRoot 'Data\Packages\ComfyUI'}
 $models=if($ModelsDirectory){$ModelsDirectory}else{Join-Path $StabilityRoot 'Data\Models'}
 if($ReserveVram -lt 0 -or $ReserveVram -gt 32){throw 'Reserve VRAM invalide.'}
+# The classic launcher also reuses the persistent model paths saved by Studio.
+if(-not $ExtraModelPaths){
+ $savedPaths=Join-Path $ConfigDirectory 'studio-model-paths.yaml'
+ if(Test-Path -LiteralPath $savedPaths){$ExtraModelPaths=$savedPaths}
+}
 $health=Join-Path $repo 'bridge\health.mjs'
 if(-not(Test-Path (Join-Path $comfy 'main.py'))){throw "Installation ComfyUI introuvable : $comfy"}
 $mutex=New-Object System.Threading.Mutex($false,"Local\ComfyPocket-Launcher-$Port")

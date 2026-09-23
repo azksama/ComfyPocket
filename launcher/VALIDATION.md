@@ -38,3 +38,13 @@ Limites : le contrôle mobile est celui du frontend dans Chromium, avec transpor
 L’adresse publique existante est exposée dans l’accueil et dans l’onboarding, avec export local/public, en réutilisant les appairages du PC. Le contrôle natif de 0.2.0 confirmait déjà les deux adresses ; le problème concernait leur visibilité hors de la page Connexion.
 
 La page principale défile dans un conteneur situé sous la barre de fenêtre de 42 pixels. Contrôles à 860 × 640 : haut du conteneur à 42 px, aucun défilement du document, retour en haut après navigation ; trois pages sans violation axe WCAG 2 A/AA détectée. Export public présent dans l’étape de configuration. Aucune modification de certificat, d’appairage ou du réseau ; aucune vérification d’accès depuis Internet.
+## Studio 0.2.2
+
+- L’onboarding automatique n’apparaît qu’à la première ouverture ; il reste accessible dans les paramètres.
+- L’ajout et le retrait de dossiers sont enregistrés immédiatement. « Appliquer et redémarrer le moteur » recharge les chemins dans ComfyUI, sans interrompre une file de génération active.
+- Le lanceur classique réutilise le fichier persistant des dossiers supplémentaires.
+- Option « Partager sur IP publique », adresse conservée et migration de l’appairage public existant. Le certificat doit couvrir l’adresse ; aucune rotation automatique d’identité.
+- Icône Windows arrondie et expressions de Mochi selon l’état du moteur.
+
+Validation : build TypeScript/Vite, 5 tests Rust, 40 tests Vitest et 25 tests Node/PowerShell. La joignabilité depuis Internet dépend toujours de la redirection du port et du pare-feu ; le bouton de partage ne configure pas le routeur.
+Vérification Windows installée : sauvegarde puis fermeture/réouverture du lanceur, onboarding non répété, adresse publique conservée, dossier de test conservé puis retiré. Redémarrage réel via le bouton d’application ; services prêts, deux URL présentes, trois fichiers du dossier utilisateur listés par CheckpointLoaderSimple. Certificat et clé privés inchangés (SHA-256 comparés). Pas de nouvelle génération ni de test du téléphone/Internet dans cette validation.

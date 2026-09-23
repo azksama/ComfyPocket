@@ -34,6 +34,8 @@ struct Settings {
     disable_dynamic_vram: bool,
     listen_lan: bool,
     port: u16,
+    share_public: bool,
+    public_host: String,
     auto_start: bool,
     start_with_windows: bool,
     close_to_tray: bool,
@@ -54,6 +56,8 @@ impl Default for Settings {
             disable_dynamic_vram: true,
             listen_lan: true,
             port: 8189,
+            share_public: false,
+            public_host: String::new(),
             auto_start: false,
             start_with_windows: false,
             close_to_tray: true,
@@ -93,7 +97,8 @@ fn powershell() -> Command {
     c
 }
 fn read_json(p: impl AsRef<Path>) -> Result<Value, String> {
-    serde_json::from_slice(&fs::read(p).map_err(error)?).map_err(error)
+    let bytes = fs::read(p).map_err(error)?;
+    serde_json::from_slice(bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes)).map_err(error)
 }
 fn write_json(p: &Path, v: &impl Serialize) -> Result<(), String> {
     let tmp = p.with_extension("pending");
@@ -236,6 +241,9 @@ fn status(st: &Studio) -> Value {
         ("pairing.json", "locale"),
         ("pairing-public.json", "publique"),
     ] {
+        if kind == "publique" && !st.settings.lock().unwrap().share_public {
+            continue;
+        }
         if let Ok(v) = read_json(st.dir.join(file)) {
             if let Some(url) = v["url"].as_str() {
                 urls.push(json!({"kind":kind,"url":url}));
@@ -290,19 +298,60 @@ fn autostart(enabled: bool) -> Result<(), String> {
     }
 }
 #[tauri::command]
-fn save_settings(settings: Settings, st: tauri::State<Studio>) -> Result<(), String> {
+fn save_settings(mut settings: Settings, st: tauri::State<Studio>) -> Result<(), String> {
     if st.busy.load(Ordering::SeqCst) || updates::in_progress() {
         return Err("Attendez la fin de l’opération en cours.".into());
     }
     validate(&settings)?;
     let old = st.settings.lock().unwrap().clone();
+    settings.onboarding_done = old.onboarding_done;
+    settings.onboarding_step = old.onboarding_step;
+    public_pairing(&st, &settings)?;
     autostart(settings.start_with_windows)?;
     if let Err(e) = write_json(&st.dir.join("studio.json"), &settings) {
         let _ = autostart(old.start_with_windows);
         return Err(e);
     }
+    let paths: std::collections::BTreeMap<_, _> = settings
+        .model_paths
+        .iter()
+        .map(|(k, v)| (k, v.join("\n")))
+        .collect();
+    write_json(
+        &st.dir.join("studio-model-paths.yaml"),
+        &json!({"mochi_studio": paths}),
+    )?;
     *st.settings.lock().unwrap() = settings;
     Ok(())
+}
+fn public_pairing(st: &Studio, s: &Settings) -> Result<(), String> {
+    if !s.share_public {
+        return Ok(());
+    }
+    if !s.listen_lan {
+        return Err("Activez la connexion du téléphone pour partager sur Internet.".into());
+    }
+    let host = s.public_host.trim();
+    let url = reqwest::Url::parse(&format!("https://{host}:{}", s.port)).map_err(error)?;
+    if host.is_empty()
+        || url.host_str() != Some(host)
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.path() != "/"
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err("Indiquez uniquement une adresse IP publique ou un nom de domaine.".into());
+    }
+    let output = command(st.runtime.join("node.exe")).args(["--input-type=module", "-e",
+        "import{X509Certificate}from'node:crypto';import{readFileSync}from'node:fs';import{isIP}from'node:net';const c=new X509Certificate(readFileSync(process.argv[1]));const h=process.argv[2];if(!(isIP(h)?c.checkIP(h):c.checkHost(h)))process.exit(2);"
+    ]).arg(st.dir.join("cert.pem")).arg(host).output().map_err(error)?;
+    if !output.status.success() {
+        return Err("Cette adresse n’est pas couverte par votre certificat. L’identité actuelle a été conservée.".into());
+    }
+    let mut pair = read_json(st.dir.join("pairing.json"))?;
+    pair["url"] = json!(url.as_str().trim_end_matches('/'));
+    write_json(&st.dir.join("pairing-public.json"), &pair)
 }
 fn sync_config(st: &Studio, s: &Settings) -> Result<(), String> {
     let paths: std::collections::BTreeMap<_, _> = s
@@ -337,6 +386,7 @@ fn sync_config(st: &Studio, s: &Settings) -> Result<(), String> {
             return Err("L’appairage n’a pas pu être initialisé. Une identité partielle existante est conservée : vérifiez le dossier de configuration.".into());
         }
     }
+    public_pairing(st, s)?;
     let mut cfg = read_json(&p)?;
     let old = cfg.clone();
     cfg["host"] = json!(if s.listen_lan { "0.0.0.0" } else { "127.0.0.1" });
@@ -444,12 +494,19 @@ async fn engine_control(action: String, app: tauri::AppHandle) -> Result<(), Str
     if updates::in_progress() {
         return Err("Une mise à jour est en cours.".into());
     }
-    if !["start", "stop"].contains(&action.as_str()) {
+    if !["start", "stop", "restart"].contains(&action.as_str()) {
         return Err("Action inconnue".into());
     }
-    tauri::async_runtime::spawn_blocking(move || control(&app, &action))
-        .await
-        .map_err(error)?
+    tauri::async_runtime::spawn_blocking(move || {
+        if action == "restart" {
+            control(&app, "stop")?;
+            control(&app, "start")
+        } else {
+            control(&app, &action)
+        }
+    })
+    .await
+    .map_err(error)?
 }
 fn redact(mut text: String, dir: &Path) -> String {
     if let Ok(cfg) = read_json(dir.join("config.json")) {
@@ -557,7 +614,7 @@ fn onboarding_progress(step: u8, done: bool, st: tauri::State<Studio>) -> Result
     let mut s = st.settings.lock().unwrap();
     let mut next = s.clone();
     next.onboarding_step = step.min(4);
-    next.onboarding_done = done;
+    next.onboarding_done = done || s.onboarding_done;
     write_json(&st.dir.join("studio.json"), &next)?;
     *s = next;
     Ok(())
@@ -574,10 +631,29 @@ fn main() {
             let dir = PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA absent")?)
                 .join("ComfyPocketPC");
             fs::create_dir_all(&dir)?;
-            let mut s: Settings = read_json(dir.join("studio.json"))
-                .ok()
-                .and_then(|v| serde_json::from_value(v).ok())
-                .unwrap_or_default();
+            let saved = if dir.join("studio.json").exists() {
+                Some(read_json(dir.join("studio.json"))?)
+            } else {
+                None
+            };
+            let mut s: Settings = match &saved {
+                Some(v) => serde_json::from_value(v.clone())?,
+                None => Settings::default(),
+            };
+            if saved.as_ref().and_then(|v| v.get("sharePublic")).is_none() {
+                if let Ok(pair) = read_json(dir.join("pairing-public.json")) {
+                    if let Some(url) = pair["url"]
+                        .as_str()
+                        .and_then(|u| reqwest::Url::parse(u).ok())
+                    {
+                        s.public_host = url.host_str().unwrap_or_default().into();
+                        s.share_public = !s.public_host.is_empty();
+                    }
+                }
+            }
+            if saved.is_some() && saved.as_ref().and_then(|v| v.get("sharePublic")).is_none() {
+                write_json(&dir.join("studio.json"), &s)?;
+            }
             if !dir.join("studio.json").exists() {
                 if let Ok(cfg) = read_json(dir.join("config.json")) {
                     s.port = cfg["port"].as_u64().unwrap_or(8189) as u16;
@@ -689,6 +765,29 @@ mod tests {
         s.port = 8189;
         s.preview = "injection".into();
         assert!(validate(&s).is_err());
+    }
+    #[test]
+    fn settings_survive_atomic_replacement_and_bom() {
+        let dir = std::env::temp_dir().join(format!("mochi-persistence-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("studio.json");
+        let mut s = Settings::default();
+        write_json(&file, &s).unwrap();
+        s.onboarding_done = true;
+        s.share_public = true;
+        s.public_host = "example.org".into();
+        s.model_paths
+            .insert("loras".into(), vec!["C:\\Models\\LoRAs".into()]);
+        write_json(&file, &s).unwrap();
+        let mut bytes = vec![0xef, 0xbb, 0xbf];
+        bytes.extend(fs::read(&file).unwrap());
+        fs::write(&file, bytes).unwrap();
+        let restored: Settings = serde_json::from_value(read_json(&file).unwrap()).unwrap();
+        assert!(restored.onboarding_done && restored.share_public);
+        assert_eq!(restored.public_host, "example.org");
+        assert_eq!(restored.model_paths, s.model_paths);
+        fs::remove_file(file).unwrap();
+        fs::remove_dir(dir).unwrap();
     }
     #[test]
     fn default_preserves_quality() {

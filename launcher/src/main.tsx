@@ -37,6 +37,8 @@ type Settings = {
   attention: string;
   disableDynamicVram: boolean;
   listenLan: boolean;
+  sharePublic: boolean;
+  publicHost: string;
   port: number;
   autoStart: boolean;
   startWithWindows: boolean;
@@ -200,9 +202,12 @@ function App() {
   useEffect(() => {
     mounted.current = true;
     invoke<Settings>("get_settings")
-      .then((s) => {
+      .then(async (s) => {
         setSettings(s);
         setSetup(!isPreview && !s.onboardingDone);
+        if (!isPreview && !s.onboardingDone) {
+          await invoke("onboarding_progress", { step: s.onboardingStep, done: true });
+        }
       })
       .catch((e) => setNotice({ error: true, text: String(e) }));
     void refresh();
@@ -253,7 +258,7 @@ function App() {
     }
   }
   const working = busy || status.busy;
-  async function run(action: "start" | "stop") {
+  async function run(action: "start" | "stop" | "restart") {
     setConfirmStop(false);
     setBusy(true);
     setNotice(null);
@@ -262,7 +267,7 @@ function App() {
       setNotice({
         error: false,
         text:
-          action === "start"
+          action !== "stop"
             ? "Le studio est prêt. Vous pouvez vous connecter depuis Mochi."
             : "Le moteur est arrêté.",
       });
@@ -273,11 +278,13 @@ function App() {
       await refresh();
     }
   }
-  async function save() {
-    if (!settings) return;
+  async function save(next = settings) {
+    if (!next) return;
     setBusy(true);
     try {
-      await invoke("save_settings", { settings });
+      await invoke("save_settings", { settings: next });
+      setSettings(next);
+      await refresh();
       setDirty(false);
       setNotice({
         error: false,
@@ -293,6 +300,9 @@ function App() {
   function change<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((s) => (s ? { ...s, [key]: value } : s));
     setDirty(true);
+  }
+  async function persist<K extends keyof Settings>(key: K, value: Settings[K]) {
+    if (settings) await save({ ...settings, [key]: value });
   }
   async function folder(key: "comfyDirectory" | "modelsDirectory") {
     try {
@@ -337,7 +347,7 @@ function App() {
               className={page === p.id ? "active" : ""}
               onClick={() => {
                 setPage(p.id);
-                setSetup(false);
+                if (setup && settings) void setupStep(settings.onboardingStep, true);
               }}
               aria-current={page === p.id ? "page" : undefined}
             >
@@ -358,7 +368,7 @@ function App() {
           <Setup
             step={settings.onboardingStep}
             onStep={(step) => void setupStep(step)}
-            onLater={() => setSetup(false)}
+            onLater={() => void setupStep(settings.onboardingStep, true)}
           >
             {settings.onboardingStep === 0 && (
               <>
@@ -410,10 +420,17 @@ function App() {
                 ))}
                 <ModelPaths
                   value={settings.modelPaths || {}}
-                  onChange={(v) => change("modelPaths", v)}
+                  onChange={(v) => void persist("modelPaths", v)}
                   disabled={working}
                   onError={(e) => setNotice({ error: true, text: String(e) })}
                 />
+                <div className="settings-apply">
+                  <p>Les dossiers sont enregistrés immédiatement. Redémarrez le moteur pour les charger dans ComfyUI.</p>
+                  <button disabled={working || dirty} onClick={() => void run("restart")}>
+                    <RefreshCw size={18} /> Appliquer et redémarrer le moteur
+                  </button>
+                  <small>Le redémarrage est refusé si une génération est en cours ou en attente.</small>
+                </div>
                 <button
                   className="primary"
                   disabled={working}
@@ -639,8 +656,8 @@ function App() {
                   </div>
                   <img
                     className="hero-mochi"
-                    src="/mochi.webp"
-                    alt="Mochi, votre compagnon créatif"
+                    src={!working && status.phase ? "/mochi-sad.webp" : !working && !status.ready ? "/mochi-sleeping.webp" : "/mochi.webp"}
+                    alt={!working && status.phase ? "Mochi est triste : problème au démarrage" : !working && !status.ready ? "Mochi dort" : "Mochi est réveillé"}
                   />
                 </section>
                 <ConnectionAddresses
@@ -843,10 +860,17 @@ function App() {
                 </section>
                 <ModelPaths
                   value={settings.modelPaths || {}}
-                  onChange={(v) => change("modelPaths", v)}
+                  onChange={(v) => void persist("modelPaths", v)}
                   disabled={working}
                   onError={(e) => setNotice({ error: true, text: String(e) })}
                 />
+                <div className="settings-apply">
+                  <p>Les dossiers sont enregistrés immédiatement. Redémarrez le moteur pour les charger dans ComfyUI.</p>
+                  <button disabled={working || dirty} onClick={() => void run("restart")}>
+                    <RefreshCw size={18} /> Appliquer et redémarrer le moteur
+                  </button>
+                  <small>Le redémarrage est refusé si une génération est en cours ou en attente.</small>
+                </div>
                 <section className="settings-section">
                   <h2>Inférence</h2>
                   <div className="form-grid">
@@ -907,6 +931,19 @@ function App() {
                     title="Autoriser la connexion du téléphone"
                     description="Écoute sur le réseau local. La connexion reste authentifiée et chiffrée."
                   />
+                  <Toggle
+                    checked={settings.sharePublic}
+                    onChange={(v) => void persist("sharePublic", v)}
+                    disabled={working || !settings.publicHost.trim()}
+                    title="Partager sur IP publique"
+                    description="Conserve l’adresse Internet et l’appairage après redémarrage. Redirigez le port du compagnon sur votre routeur."
+                  />
+                  <label className="field">
+                    Adresse IP publique ou domaine
+                    <input value={settings.publicHost} placeholder="exemple.domaine.fr"
+                      onChange={(e) => change("publicHost", e.target.value)} disabled={working} />
+                    <small>Enregistrez l’adresse avant d’activer le partage. Le certificat existant doit la couvrir.</small>
+                  </label>
                   <label className="field short">
                     Port du compagnon
                     <input

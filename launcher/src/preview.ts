@@ -7,6 +7,8 @@ export const previewSettings = {
   attention: "pytorch",
   disableDynamicVram: true,
   listenLan: true,
+  sharePublic: true,
+  publicHost: "82.67.151.59",
   port: 8189,
   autoStart: false,
   modelPaths: {},
