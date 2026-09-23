@@ -1,0 +1,127 @@
+.first-run {
+  max-width: 650px;
+  width: 100%;
+  margin: 0 auto;
+  padding: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 24px) 24px
+    calc(env(safe-area-inset-bottom, 0px) + 28px);
+  min-height: 100dvh;
+}
+.first-run-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.first-run-top > span {
+  font-weight: 800;
+  letter-spacing: 5px;
+  color: #7655ac;
+}
+.first-run-mochi {
+  display: block;
+  width: 140px;
+  height: 115px;
+  object-fit: contain;
+  margin: 10px auto 25px;
+  mix-blend-mode: multiply;
+}
+.first-run h1 {
+  font-size: clamp(27px, 6vw, 38px);
+  line-height: 1.18;
+  margin: 12px 0 18px;
+  outline: none;
+}
+.first-run p {
+  line-height: 1.65;
+}
+.first-run-dots {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 26px;
+}
+.first-run-dots span {
+  width: 24px;
+  height: 5px;
+  border-radius: 5px;
+  background: #e2d7ee;
+}
+.first-run-dots .current {
+  background: #7655ac;
+  width: 42px;
+}
+.first-run-note {
+  padding: 20px;
+  margin: 24px 0;
+  background: #ede4f6;
+  border-radius: 22px;
+  line-height: 1.65;
+}
+.first-run-list {
+  padding-left: 23px;
+  line-height: 1.7;
+}
+.first-run-list li {
+  padding: 8px 0 8px 5px;
+}
+.first-run-actions {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 28px;
+}
+.first-run-actions .primary {
+  margin-left: auto;
+}
+.first-run .switch-row {
+  gap: 20px;
+  padding: 22px 0;
+}
+.first-run-feature {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin: 24px 0;
+}
+.first-run-feature > svg {
+  flex-shrink: 0;
+  margin-top: 5px;
+  color: #7655ac;
+}
+.first-run-feature h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.first-run-feature p {
+  margin: 8px 0 0;
+}
+.setup-mobile-resume {
+  width: 100%;
+  margin: 10px 0 20px;
+}
+@media (max-height: 650px) {
+  .first-run-mochi {
+    height: 65px;
+    margin: 0 auto 12px;
+  }
+}
+.first-run .language-setting {
+  display: flex;
+  width: 100%;
+  padding: 18px;
+  gap: 16px;
+  text-align: left;
+}
+.first-run .language-setting > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.first-run .language-setting small {
+  font-size: 13px;
+  color: #695f72;
+}
+.first-run .language-setting strong {
+  font-size: 14px;
+}

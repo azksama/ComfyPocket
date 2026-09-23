@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test.beforeEach(async ({page}) => { await page.addInitScript(() => localStorage.setItem("onboarding-done", "true")); });
+
 type Profile = {
   id: string;
   name: string;

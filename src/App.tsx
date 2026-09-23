@@ -64,6 +64,7 @@ import ConnectionStatus from "./ConnectionStatus";
 import GalleryGrid from "./GalleryGrid";
 
 import Welcome from "./Welcome";
+import Onboarding from "./Onboarding";
 import Toast from "./Toast";
 
 import {
@@ -101,6 +102,24 @@ const uniqueImages = (items: GalleryItem[]) => [
 const emptyGallery: Gallery = { items: [], total: 0, warnings: [] };
 export default function App() {
   useLocale();
+  const [setupStep, setSetupStep] = useState(() =>
+    Math.max(0, Math.min(4, Number(stored("onboarding-step", 0)) || 0)),
+  );
+  const [setupDone, setSetupDone] = useState(
+    () => stored<boolean>("onboarding-done", false) === true,
+  );
+  const [setupOpen, setSetupOpen] = useState(
+    () => stored<boolean>("onboarding-done", false) !== true,
+  );
+  useEffect(() => {
+    const reopen = () => {
+      setSetupStep(0);
+      writeStored("onboarding-step", 0);
+      setSetupOpen(true);
+    };
+    window.addEventListener("mochi-setup", reopen);
+    return () => window.removeEventListener("mochi-setup", reopen);
+  }, []);
   const followResult = useRef(false);
   useEffect(() => {
     const stop = () => {
@@ -777,6 +796,14 @@ export default function App() {
           <Glossary onNotice={notify} onAdd={addTags} />
         </Suspense>
       )}
+      {tab === "connect" && !setupDone && (
+        <button
+          className="setup-mobile-resume"
+          onClick={() => setSetupOpen(true)}
+        >
+          {locale() === "en" ? "Resume setup" : "Reprendre la configuration"}
+        </button>
+      )}
       {tab === "connect" && (
         <Connections
           active={active}
@@ -1391,6 +1418,43 @@ export default function App() {
       )}
     </>
   );
+  if (setupOpen)
+    return (
+      <Onboarding
+        step={setupStep}
+        onStep={(n) => {
+          setSetupStep(n);
+          writeStored("onboarding-step", n);
+        }}
+        onLater={() => setSetupOpen(false)}
+        onFinish={() => {
+          if (!writeStored("onboarding-done", true))
+            notify(
+              tr(
+                "Ce choix s’applique pour cette session ; l’enregistrement est indisponible.",
+              ),
+            );
+          setSetupDone(true);
+          setSetupOpen(false);
+          setTab(server ? "create" : "connect");
+        }}
+        onConnect={() => {
+          setSetupOpen(false);
+          setTab("connect");
+        }}
+        online={online}
+        leftHanded={leftHanded}
+        onHandedness={(v) => {
+          setLeftHanded(v);
+          writeStored("left-handed", v);
+        }}
+        quickMenu={quickMenu}
+        onQuickMenu={(v) => {
+          setQuickMenu(v);
+          writeStored("quick-menu", v);
+        }}
+      />
+    );
   return (
     <div className={`app ${leftHanded ? "left-handed" : ""}`}>
       {tab === "create" && server && quickMenu && (

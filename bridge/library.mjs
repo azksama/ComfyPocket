@@ -110,11 +110,11 @@ export function library(config, safeFile) {
     }),
     async modelInfo(kind, name) {
       const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"] }[kind];
-      if (!folders || !config.modelsRoot || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Modèle inconnu", 404);
+      if (!folders || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Modèle inconnu", 404);
       if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
       const clean = value => typeof value === "string" ? value.replace(/<[^>]*>/g, " ").slice(0, 6000).trim() : "";
-      for (const folder of folders) {
-        const base = path.join(config.modelsRoot, folder);
+      const roots = [...(config.modelsRoot ? folders.map(folder => path.join(config.modelsRoot, folder)) : []), ...(config.modelPaths?.[kind === "upscalers" ? "upscale_models" : kind] ?? [])];
+      for (const base of roots) {
         for (const stem of [name.replace(/\.[^.]+$/, ""), name]) for (const suffix of [".cm-info.json", ".civitai.info", ".json"]) {
           let file;
           try { const resolvedBase = await realpath(base); file = inside(resolvedBase, await realpath(path.join(resolvedBase, stem + suffix))); if (!(await stat(file)).isFile()) throw fail("Métadonnées invalides", 403); }
@@ -130,10 +130,10 @@ export function library(config, safeFile) {
     },
     async preview(kind, name) {
       const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"], vae: ["VAE"], upscalers: ["ESRGAN", "RealESRGAN", "SwinIR"] }[kind];
-      if (!folders || !config.modelsRoot || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Illustration indisponible", 404);
+      if (!folders || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Illustration indisponible", 404);
       if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
-      for (const folder of folders) {
-        const base = path.join(config.modelsRoot, folder);
+      const roots = [...(config.modelsRoot ? folders.map(folder => path.join(config.modelsRoot, folder)) : []), ...(config.modelPaths?.[kind === "upscalers" ? "upscale_models" : kind] ?? [])];
+      for (const base of roots) {
         for (const stem of [name.replace(/\.[^.]+$/, ""), name]) {
           for (const ext of ["jpeg", "jpg", "png", "webp"]) {
             try { return await safeFile(base, stem + ".preview." + ext); }

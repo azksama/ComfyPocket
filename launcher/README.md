@@ -4,7 +4,7 @@ Lanceur Windows en Rust + Tauri pour l’installation ComfyUI utilisée par Moch
 
 ## Utilisation
 
-Installez `Mochi Studio_0.1.0_x64-setup.exe`, puis ouvrez **Mochi Studio**.
+Installez `Mochi-Studio-0.2.0-Windows-x64.exe`, puis ouvrez **Mochi Studio**.
 Le lanceur reprend `%LOCALAPPDATA%\ComfyPocketPC` : certificat, appairages et configuration existants.
 Dans **Paramètres**, sélectionnez votre dossier ComfyUI (avec `main.py` et `venv\Scripts\python.exe`) et votre bibliothèque de modèles. Cliquez sur **Démarrer le moteur**.
 
@@ -43,3 +43,15 @@ Le runtime généré est ignoré par Git et par l’archive des sources. `Cargo.
 Les rendus `design/clmx1.png` et `design/zV3N2.png` proviennent de pen.dev. Les données de maquette (`?design=1`) sont disponibles uniquement dans le serveur de développement, jamais dans la compilation de production.
 
 Vérifications : `cargo test --manifest-path launcher/src-tauri/Cargo.toml`, `node --test scripts/launcher.test.mjs scripts/studio.test.mjs`, `npm run build --prefix launcher`.
+
+## Nouveautés 0.2.0
+
+La fenêtre utilise les couleurs Mochi, une barre de titre personnalisée et des scrollbars pastel. La fermeture peut masquer le lanceur près de l’horloge ou le quitter ; les services continuent dans les deux cas.
+
+Le parcours de configuration reprend l’étape interrompue et se relance depuis Paramètres. Il accompagne le choix des dossiers, le démarrage automatique, l’accès réseau et l’export d’appairage. ComfyUI doit déjà être installé ; le lanceur ne télécharge ni Python ni les modèles.
+
+Les dossiers supplémentaires acceptent plusieurs emplacements par catégorie : checkpoints, LoRA, VAE, ControlNet, upscale, embeddings, encodeurs de texte et modèles de diffusion. Ils sont transmis via `studio-model-paths.yaml` et `--extra-model-paths-config`, sans modifier les fichiers de configuration de ComfyUI. La bibliothèque du compagnon utilise également ces emplacements pour les aperçus et fiches. Redémarrez les services après modification.
+
+La recherche de mises à jour interroge les releases publiques de `azksama/ComfyPocket` et sélectionne uniquement les tags stables `studio-v*`. Le téléchargement attend un installateur `Mochi-Studio-VERSION-Windows-x64.exe`, vérifie sa taille et l’empreinte SHA-256 retournée par GitHub, puis lance NSIS. Aucune clé GitHub n’est requise. L’installation refuse les générations en cours et ne touche pas à l’appairage. Un moteur prêt avant la mise à jour est relancé ensuite. Les échecs NSIS sont enregistrés dans `%LOCALAPPDATA%\ComfyPocketPC\updates\install-error.log`.
+
+La réduction des animations, la recherche automatique des mises à jour, le comportement de fermeture et les options de démarrage restent modifiables dans Paramètres. Les mises à jour demandent toujours un clic sur Télécharger et installer.

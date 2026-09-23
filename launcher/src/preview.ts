@@ -9,6 +9,12 @@ export const previewSettings = {
   listenLan: true,
   port: 8189,
   autoStart: false,
+  modelPaths: {},
+  closeToTray: true,
+  reducedMotion: false,
+  checkUpdates: false,
+  onboardingStep: 0,
+  onboardingDone: true,
   startWithWindows: false,
 };
 export const previewStatus = {

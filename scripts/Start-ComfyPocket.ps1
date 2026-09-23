@@ -6,6 +6,7 @@
  [string]$ComfyDirectory='',
  [string]$ModelsDirectory='',
  [string]$NodeExecutable='',
+ [string]$ExtraModelPaths='',
  [double]$ReserveVram=0.9,
  [ValidateSet('auto','none','latent2rgb','taesd')][string]$Preview='auto',
  [ValidateSet('pytorch','auto')][string]$Attention='pytorch',
@@ -37,7 +38,7 @@ try {
  }
  & $node $health $ConfigDirectory --identity-only --quiet
  if($LASTEXITCODE -ne 0){& $node $health $ConfigDirectory --identity-only;throw 'Identite du compagnon invalide. Aucun certificat ni appairage ne sera regenere.'}
- $config=Get-Content (Join-Path $ConfigDirectory 'config.json') -Raw | ConvertFrom-Json
+ $config=Get-Content -Encoding UTF8 (Join-Path $ConfigDirectory 'config.json') -Raw | ConvertFrom-Json
  $ready=$false
  try {Invoke-RestMethod "$($config.comfyUrl)/system_stats" -TimeoutSec 3 | Out-Null;$ready=$true}catch{}
  if(-not $ready){
@@ -50,6 +51,10 @@ try {
    $comfyArgs=@('main.py','--listen','127.0.0.1','--port','8188','--preview-method',$Preview,'--reserve-vram',$ReserveVram.ToString([Globalization.CultureInfo]::InvariantCulture))
    if($Attention -eq 'pytorch'){$comfyArgs+='--use-pytorch-cross-attention'}
    if($DisableDynamicVram -and (Select-String -LiteralPath (Join-Path $comfy 'comfy\cli_args.py') -SimpleMatch '"--disable-dynamic-vram"' -Quiet)){$comfyArgs+='--disable-dynamic-vram'}
+   if($ExtraModelPaths){
+    if(-not(Test-Path -LiteralPath $ExtraModelPaths) -or $ExtraModelPaths.Contains('"')){throw 'Configuration des dossiers invalide.'}
+    $comfyArgs+=@('--extra-model-paths-config',('"'+$ExtraModelPaths+'"'))
+   }
    $comfyProcess=Start-Process -FilePath $python -ArgumentList $comfyArgs -WorkingDirectory $comfy -WindowStyle Hidden -RedirectStandardOutput (Join-Path $ConfigDirectory 'comfy.stdout.log') -RedirectStandardError (Join-Path $ConfigDirectory 'comfy.stderr.log') -PassThru
   }
   Write-Host 'Initialisation de ComfyUI... Patientez jusqu au message PRET (jusqu a 3 minutes).'

@@ -1,18 +1,18 @@
-param(
+﻿param(
  [ValidateSet('start','stop')][string]$Action,
  [Parameter(Mandatory)][string]$SettingsFile,
  [Parameter(Mandatory)][string]$ConfigDirectory,
  [string]$LegacyScriptPath=''
 )
 $ErrorActionPreference='Stop'
-$settings=Get-Content -LiteralPath $SettingsFile -Raw | ConvertFrom-Json
+$settings=Get-Content -Encoding UTF8 -LiteralPath $SettingsFile -Raw | ConvertFrom-Json
 $repo=Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'CompanionProcess.ps1')
 if($Action -eq 'start'){
- & (Join-Path $PSScriptRoot 'Start-ComfyPocket.ps1') -ComfyDirectory $settings.comfyDirectory -ModelsDirectory $settings.modelsDirectory -ConfigDirectory $ConfigDirectory -NodeExecutable (Join-Path $repo 'node.exe') -ReserveVram $settings.reserveVram -Preview $settings.preview -Attention $settings.attention -DisableDynamicVram $settings.disableDynamicVram -LegacyScriptPath $LegacyScriptPath
+ & (Join-Path $PSScriptRoot 'Start-ComfyPocket.ps1') -ComfyDirectory $settings.comfyDirectory -ModelsDirectory $settings.modelsDirectory -ConfigDirectory $ConfigDirectory -NodeExecutable (Join-Path $repo 'node.exe') -ReserveVram $settings.reserveVram -Preview $settings.preview -Attention $settings.attention -DisableDynamicVram $settings.disableDynamicVram -ExtraModelPaths (Join-Path $ConfigDirectory "studio-model-paths.yaml") -LegacyScriptPath $LegacyScriptPath
  exit
 }
-$config=Get-Content (Join-Path $ConfigDirectory 'config.json') -Raw | ConvertFrom-Json
+$config=Get-Content -Encoding UTF8 (Join-Path $ConfigDirectory 'config.json') -Raw | ConvertFrom-Json
 # Refuse to interrupt queued or running generations, including jobs sent by the phone.
 try {
  $queue=Invoke-RestMethod "$($config.comfyUrl)/queue" -TimeoutSec 4

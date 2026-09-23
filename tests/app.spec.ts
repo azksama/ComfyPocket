@@ -164,6 +164,7 @@ test("v5 preset image and local LoRA metadata", async ({ page }) => {
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue(/film_grain, $/);
 });
 test.beforeEach(async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("onboarding-done", "true"));
   const imageFixture = testInfo.title.includes("Mochi screens") ? "data:image/png;base64," + readFileSync("tests/fixtures/mochi-design.png").toString("base64") : png;
   let profiles: any[] = [], active = "", submissions: any[] = [];
   let items = ["lake.png", "forest.png", "mountain.png"].map((name, i) => ({ root: 0, relative: name, name, folder: "ComfyUI", modified: Date.now() - i, size: 123, favorite: false }));

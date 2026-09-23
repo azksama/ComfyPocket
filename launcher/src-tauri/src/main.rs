@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod updates;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -35,6 +36,12 @@ struct Settings {
     port: u16,
     auto_start: bool,
     start_with_windows: bool,
+    close_to_tray: bool,
+    reduced_motion: bool,
+    check_updates: bool,
+    onboarding_step: u8,
+    onboarding_done: bool,
+    model_paths: std::collections::BTreeMap<String, Vec<String>>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -49,6 +56,12 @@ impl Default for Settings {
             port: 8189,
             auto_start: false,
             start_with_windows: false,
+            close_to_tray: true,
+            reduced_motion: false,
+            check_updates: true,
+            onboarding_step: 0,
+            onboarding_done: false,
+            model_paths: Default::default(),
         }
     }
 }
@@ -105,6 +118,31 @@ fn validate(s: &Settings) -> Result<(), String> {
         }
         if path.contains(['\r', '\n', '"']) {
             return Err("Chemin invalide.".into());
+        }
+    }
+    for (kind, paths) in &s.model_paths {
+        if ![
+            "checkpoints",
+            "loras",
+            "vae",
+            "controlnet",
+            "upscale_models",
+            "embeddings",
+            "text_encoders",
+            "diffusion_models",
+        ]
+        .contains(&kind.as_str())
+            || paths.len() > 20
+        {
+            return Err("Catégorie ou nombre de dossiers invalide.".into());
+        }
+        for path in paths {
+            if !Path::new(path).is_absolute()
+                || !Path::new(path).is_dir()
+                || path.contains(['\r', '\n', '"'])
+            {
+                return Err(format!("Dossier de modèles invalide : {path}"));
+            }
         }
     }
     for file in ["main.py", "venv/Scripts/python.exe"] {
@@ -253,7 +291,7 @@ fn autostart(enabled: bool) -> Result<(), String> {
 }
 #[tauri::command]
 fn save_settings(settings: Settings, st: tauri::State<Studio>) -> Result<(), String> {
-    if st.busy.load(Ordering::SeqCst) {
+    if st.busy.load(Ordering::SeqCst) || updates::in_progress() {
         return Err("Attendez la fin de l’opération en cours.".into());
     }
     validate(&settings)?;
@@ -267,6 +305,15 @@ fn save_settings(settings: Settings, st: tauri::State<Studio>) -> Result<(), Str
     Ok(())
 }
 fn sync_config(st: &Studio, s: &Settings) -> Result<(), String> {
+    let paths: std::collections::BTreeMap<_, _> = s
+        .model_paths
+        .iter()
+        .map(|(k, v)| (k, v.join("\n")))
+        .collect();
+    write_json(
+        &st.dir.join("studio-model-paths.yaml"),
+        &json!({"mochi_studio": paths}),
+    )?;
     let p = st.dir.join("config.json");
     if !p.exists() {
         let output = command(st.runtime.join("node.exe"))
@@ -289,13 +336,13 @@ fn sync_config(st: &Studio, s: &Settings) -> Result<(), String> {
         if !output.status.success() {
             return Err("L’appairage n’a pas pu être initialisé. Une identité partielle existante est conservée : vérifiez le dossier de configuration.".into());
         }
-        return Ok(());
     }
     let mut cfg = read_json(&p)?;
     let old = cfg.clone();
     cfg["host"] = json!(if s.listen_lan { "0.0.0.0" } else { "127.0.0.1" });
     cfg["port"] = json!(s.port);
     cfg["modelsRoot"] = json!(s.models_directory);
+    cfg["modelPaths"] = json!(s.model_paths);
     if let Some(roots) = cfg["roots"].as_array_mut() {
         if let Some(root) = roots.first_mut() {
             root["path"] = json!(Path::new(&s.comfy_directory).join("output"));
@@ -347,8 +394,8 @@ fn control(app: &tauri::AppHandle, action: &str) -> Result<(), String> {
     .into();
     let result: Result<(), String> = (|| {
         let s = st.settings.lock().unwrap().clone();
-        validate(&s)?;
         if action == "start" {
+            validate(&s)?;
             sync_config(&st, &s)?;
         }
         let log = fs::File::create(st.dir.join("studio.log")).map_err(error)?;
@@ -394,6 +441,9 @@ fn control(app: &tauri::AppHandle, action: &str) -> Result<(), String> {
 }
 #[tauri::command]
 async fn engine_control(action: String, app: tauri::AppHandle) -> Result<(), String> {
+    if updates::in_progress() {
+        return Err("Une mise à jour est en cours.".into());
+    }
     if !["start", "stop"].contains(&action.as_str()) {
         return Err("Action inconnue".into());
     }
@@ -485,6 +535,33 @@ async fn export_pairing(kind: String, app: tauri::AppHandle) -> Result<bool, Str
         fs::copy(src,dest).map_err(error)?;Ok(true)
     }).await.map_err(error)?
 }
+#[tauri::command]
+fn window_action(window: tauri::WebviewWindow, action: String) -> Result<(), String> {
+    match action.as_str() {
+        "minimize" => window.minimize(),
+        "maximize" => {
+            if window.is_maximized().map_err(error)? {
+                window.unmaximize()
+            } else {
+                window.maximize()
+            }
+        }
+        "close" => window.close(),
+        "drag" => window.start_dragging(),
+        _ => return Err("Action inconnue".into()),
+    }
+    .map_err(error)
+}
+#[tauri::command]
+fn onboarding_progress(step: u8, done: bool, st: tauri::State<Studio>) -> Result<(), String> {
+    let mut s = st.settings.lock().unwrap();
+    let mut next = s.clone();
+    next.onboarding_step = step.min(4);
+    next.onboarding_done = done;
+    write_json(&st.dir.join("studio.json"), &next)?;
+    *s = next;
+    Ok(())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -523,7 +600,7 @@ fn main() {
                     .trim_start_matches("\\\\?\\")
                     .to_string(),
             );
-            let auto = s.auto_start;
+            let auto = s.auto_start || std::env::args().any(|a| a == "--start-engine");
             app.manage(Studio {
                 dir,
                 runtime,
@@ -571,11 +648,19 @@ fn main() {
         })
         .on_window_event(|w, e| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = e {
-                api.prevent_close();
-                let _ = w.hide();
+                if w.state::<Studio>().settings.lock().unwrap().close_to_tray {
+                    api.prevent_close();
+                    let _ = w.hide();
+                } else {
+                    w.app_handle().exit(0);
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
+            window_action,
+            onboarding_progress,
+            updates::check_update,
+            updates::install_update,
             get_status,
             get_settings,
             save_settings,

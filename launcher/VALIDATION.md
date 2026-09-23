@@ -15,3 +15,19 @@ Vérifié le 22 septembre 2026 sur l’installation Stability Matrix du PC (RTX 
 - Rendus d’accueil et de paramètres créés et exportés depuis pen.dev.
 
 Limites : pas de redémarrage physique de Windows pendant cette validation, pas de test depuis le téléphone ni depuis un réseau mobile. Le réglage du pare-feu nécessite l’élévation Windows. L’installateur n’est pas signé avec un certificat éditeur commercial.
+
+
+## Version 0.2.0 — 23 septembre 2026
+
+- Installateur NSIS final construit, installé et ouvert ; barre native supprimée, contrôles personnalisés testés (maximiser/restaurer), scrollbar et mascotte inspectées.
+- Quatre vues Desktop sans violation axe WCAG 2 A/AA détectée.
+- Parcours Desktop : dossiers validés, préférences enregistrées, étape de connexion atteinte, progression conservée. Parcours réinitialisé à l’accueil pour la livraison.
+- Dossiers multiples et chemins avec espaces lus par le véritable parseur `utils.extra_config` de l’installation ComfyUI, dans un registre isolé. Test Node des métadonnées et aperçus des dossiers LoRA supplémentaires, avec refus de traversée.
+- Vérification GitHub sans authentification contre le dépôt devenu public. Sélection des releases Studio testée séparément d’Android et des préversions ; refus des métadonnées sans empreinte.
+- Cycle de mise à jour exercé avec un binaire de test annoncé 0.0.9 : détection de studio-v0.1.0, téléchargement public depuis GitHub, SHA-256 vérifié, arrêt des services, fermeture, installation NSIS et réouverture réelle de 0.1.0. La version finale 0.2.0 a ensuite été installée et son démarrage automatique des services vérifié.
+- Certificat, clé privée et deux appairages inchangés octet pour octet après ce cycle.
+- État final : ComfyUI sur 127.0.0.1:8188, compagnon HTTPS sur 0.0.0.0:8189, contrôle authentifié réussi. Les règles Windows existantes autorisent le Node installé de Mochi Studio.
+- 40 tests Vitest, 25 tests Node/PowerShell, 4 tests Rust ; 48 scénarios navigateur existants et 2 scénarios onboarding supplémentaires réussis.
+- Android 0.11.0 : APK ARM64 release construit et signé avec la clé existante ; parcours web mobile vérifié à 390 pixels, sans débordement horizontal ni violation axe détectée sur ses cinq étapes.
+
+Limites : le contrôle mobile est celui du frontend dans Chromium, avec transport de connexion simulé et biométrie non prise en charge. Aucun téléphone n’est connecté ; ARTEMIS est bloqué par l’absence de clé fournisseur. Aucun test biométrique natif ou redémarrage physique de Windows pour cette livraison. Le lancement installé, le téléchargement et l’installation Windows sont réels. L’installateur reste sans certificat éditeur commercial.

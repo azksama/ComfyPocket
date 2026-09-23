@@ -584,6 +584,12 @@ export default function Connections({
           </span>
         </div>
       </section>
+      <button
+        className="setup-mobile-resume"
+        onClick={() => window.dispatchEvent(new Event("mochi-setup"))}
+      >
+        {locale() === "en" ? "Restart setup" : "Refaire la configuration"}
+      </button>
       <div className="settings-version">
         <span>Mochi</span>
         <span>Version {version}</span>

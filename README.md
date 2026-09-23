@@ -209,3 +209,9 @@ Le compagnon écoute en HTTPS, exige une clé d’accès et rejette les origines
 Les preuves de livraison et les captures sont dans verification/v0.8 à côté du projet. La validation comprend 38 tests de logique, 22 tests du compagnon et des scripts, et 40 scénarios d’interface. Ces derniers utilisent un transport simulé et des images de référence. La connexion HTTPS native et la conservation des données lors de la mise à jour sont vérifiées séparément sur émulateur Android. Aucun nouveau benchmark GPU ni test sur téléphone physique n’a été effectué pour cette refonte.
 
 Les photographies de l’accueil proviennent de la maquette fournie : Ava Tyler (paysage) et Simon Berger (fleurs), via Unsplash. Elles sont embarquées pour rester disponibles hors ligne.
+
+## Premiers pas — Mochi 0.11.0
+
+Android propose un parcours en cinq étapes : langue, connexion au PC, menu rapide et mode gaucher, confidentialité, puis découverte de l’atelier, de la galerie et du glossaire. La progression et les préférences sont conservées. « Plus tard » laisse le parcours inachevé ; « Refaire la configuration » reste disponible dans Paramètres. La biométrie utilise le verrouillage Android existant, sans réinitialiser les connexions ni les prompts.
+
+Le dépôt est public. Les appairages, clés TLS et clés de signature Android restent privés et ne font pas partie des sources ou des releases.
