@@ -4,7 +4,7 @@ Lanceur Windows en Rust + Tauri pour l’installation ComfyUI utilisée par Moch
 
 ## Utilisation
 
-Installez `Mochi-Studio-0.2.0-Windows-x64.exe`, puis ouvrez **Mochi Studio**.
+Installez `Mochi-Studio-0.2.1-Windows-x64.exe`, puis ouvrez **Mochi Studio**.
 Le lanceur reprend `%LOCALAPPDATA%\ComfyPocketPC` : certificat, appairages et configuration existants.
 Dans **Paramètres**, sélectionnez votre dossier ComfyUI (avec `main.py` et `venv\Scripts\python.exe`) et votre bibliothèque de modèles. Cliquez sur **Démarrer le moteur**.
 
@@ -55,3 +55,5 @@ Les dossiers supplémentaires acceptent plusieurs emplacements par catégorie : 
 La recherche de mises à jour interroge les releases publiques de `azksama/ComfyPocket` et sélectionne uniquement les tags stables `studio-v*`. Le téléchargement attend un installateur `Mochi-Studio-VERSION-Windows-x64.exe`, vérifie sa taille et l’empreinte SHA-256 retournée par GitHub, puis lance NSIS. Aucune clé GitHub n’est requise. L’installation refuse les générations en cours et ne touche pas à l’appairage. Un moteur prêt avant la mise à jour est relancé ensuite. Les échecs NSIS sont enregistrés dans `%LOCALAPPDATA%\ComfyPocketPC\updates\install-error.log`.
 
 La réduction des animations, la recherche automatique des mises à jour, le comportement de fermeture et les options de démarrage restent modifiables dans Paramètres. Les mises à jour demandent toujours un clic sur Télécharger et installer.
+
+En 0.2.1, les adresses locale et publique et leurs exports sont accessibles depuis l’accueil, la page Connexion et l’onboarding. Le contenu défile sous la barre de fenêtre fixe.

@@ -31,3 +31,10 @@ Limites : pas de redémarrage physique de Windows pendant cette validation, pas 
 - Android 0.11.0 : APK ARM64 release construit et signé avec la clé existante ; parcours web mobile vérifié à 390 pixels, sans débordement horizontal ni violation axe détectée sur ses cinq étapes.
 
 Limites : le contrôle mobile est celui du frontend dans Chromium, avec transport de connexion simulé et biométrie non prise en charge. Aucun téléphone n’est connecté ; ARTEMIS est bloqué par l’absence de clé fournisseur. Aucun test biométrique natif ou redémarrage physique de Windows pour cette livraison. Le lancement installé, le téléchargement et l’installation Windows sont réels. L’installateur reste sans certificat éditeur commercial.
+
+
+## Version 0.2.1
+
+L’adresse publique existante est exposée dans l’accueil et dans l’onboarding, avec export local/public, en réutilisant les appairages du PC. Le contrôle natif de 0.2.0 confirmait déjà les deux adresses ; le problème concernait leur visibilité hors de la page Connexion.
+
+La page principale défile dans un conteneur situé sous la barre de fenêtre de 42 pixels. Contrôles à 860 × 640 : haut du conteneur à 42 px, aucun défilement du document, retour en haut après navigation ; trois pages sans violation axe WCAG 2 A/AA détectée. Export public présent dans l’étape de configuration. Aucune modification de certificat, d’appairage ou du réseau ; aucune vérification d’accès depuis Internet.

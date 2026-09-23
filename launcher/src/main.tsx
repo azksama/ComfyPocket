@@ -17,11 +17,15 @@ import {
   Cpu,
   ArrowUpRight,
   ShieldCheck,
-  Copy,
   LoaderCircle,
 } from "lucide-react";
 import "./style.css";
-import { WindowBar, ModelPaths, Updates } from "./StudioExtras";
+import {
+  WindowBar,
+  ModelPaths,
+  Updates,
+  ConnectionAddresses,
+} from "./StudioExtras";
 import Setup from "./Setup";
 import { version } from "../package.json";
 
@@ -144,6 +148,10 @@ function App() {
     [confirmStop, setConfirmStop] = useState(false);
   const [setup, setSetup] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [page, setup, settings?.onboardingStep]);
   const mounted = useRef(true),
     polling = useRef(false);
   useEffect(() => {
@@ -345,7 +353,7 @@ function App() {
           <span className="version">Mochi Studio · {version}</span>
         </div>
       </aside>
-      <main>
+      <main ref={mainRef}>
         {setup && settings ? (
           <Setup
             step={settings.onboardingStep}
@@ -483,13 +491,12 @@ function App() {
                   >
                     Autoriser le pare-feu
                   </button>
-                  <button
-                    disabled={!status.ready}
-                    onClick={() => void exportPair("locale")}
-                  >
-                    Exporter l’appairage local
-                  </button>
                 </div>
+                <ConnectionAddresses
+                  urls={status.urls}
+                  onExport={(kind) => void exportPair(kind)}
+                  onNotice={setNotice}
+                />
                 <p className="muted">
                   Gardez le fichier d’appairage privé. À distance, utilisez une
                   connexion publique configurée sur votre routeur.
@@ -636,6 +643,11 @@ function App() {
                     alt="Mochi, votre compagnon créatif"
                   />
                 </section>
+                <ConnectionAddresses
+                  urls={status.urls}
+                  onExport={(kind) => void exportPair(kind)}
+                  onNotice={setNotice}
+                />
                 <div className="metrics">
                   <div>
                     <small>CARTE GRAPHIQUE</small>
@@ -730,57 +742,11 @@ function App() {
                   Le lien entre votre ordinateur et Mochi. Votre appairage reste
                   conservé entre les démarrages.
                 </p>
-                <section className="services">
-                  <h2>Rejoindre le studio</h2>
-                  {status.urls.length ? (
-                    status.urls.map((u) => (
-                      <div className="connection" key={u.kind}>
-                        <div>
-                          <span className="eyebrow">
-                            CONNEXION {u.kind.toUpperCase()}
-                          </span>
-                          <strong>{u.url}</strong>
-                          <small>
-                            {u.kind === "locale"
-                              ? "Sur le même réseau Wi-Fi que votre PC."
-                              : "Depuis l’extérieur, avec la redirection de port configurée sur votre routeur."}
-                          </small>
-                        </div>
-                        <div className="actions">
-                          <button
-                            title="Copier l’adresse"
-                            aria-label={`Copier l’adresse ${u.kind}`}
-                            onClick={() =>
-                              void navigator.clipboard
-                                .writeText(u.url)
-                                .then(() =>
-                                  setNotice({
-                                    error: false,
-                                    text: "Adresse copiée.",
-                                  }),
-                                )
-                                .catch(() =>
-                                  setNotice({
-                                    error: true,
-                                    text: "Copie indisponible.",
-                                  }),
-                                )
-                            }
-                          >
-                            <Copy size={18} />
-                          </button>
-                          <button onClick={() => void exportPair(u.kind)}>
-                            <Download size={17} /> Appairage
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p>
-                      Aucun appairage trouvé dans la configuration de ce PC.
-                    </p>
-                  )}
-                </section>
+                <ConnectionAddresses
+                  urls={status.urls}
+                  onExport={(kind) => void exportPair(kind)}
+                  onNotice={setNotice}
+                />
                 <div className="tip">
                   <ShieldCheck />
                   <div>

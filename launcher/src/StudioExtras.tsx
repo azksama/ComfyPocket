@@ -228,3 +228,67 @@ export function Updates({
     </section>
   );
 }
+
+export function ConnectionAddresses({
+  urls,
+  onExport,
+  onNotice,
+}: {
+  urls: { kind: string; url: string }[];
+  onExport: (kind: string) => void;
+  onNotice: (notice: { error: boolean; text: string }) => void;
+}) {
+  return (
+    <section
+      className="services address-list"
+      aria-label="Adresses de connexion"
+    >
+      <h2>Connecter Mochi à ce PC</h2>
+      {urls.length ? (
+        urls.map((u) => (
+          <div className="connection" key={u.kind}>
+            <div>
+              <span className="eyebrow">
+                {u.kind === "publique"
+                  ? "CONNEXION PUBLIQUE"
+                  : "CONNEXION LOCALE"}
+              </span>
+              <strong>{u.url}</strong>
+              <small>
+                {u.kind === "locale"
+                  ? "Sur le même réseau Wi-Fi que votre PC."
+                  : "Depuis l’extérieur, avec la redirection de port configurée sur votre routeur."}
+              </small>
+            </div>
+            <div className="actions">
+              <button
+                aria-label={`Copier l’adresse ${u.kind}`}
+                onClick={() =>
+                  void navigator.clipboard
+                    .writeText(u.url)
+                    .then(() =>
+                      onNotice({ error: false, text: "Adresse copiée." }),
+                    )
+                    .catch(() =>
+                      onNotice({ error: true, text: "Copie indisponible." }),
+                    )
+                }
+              >
+                Copier
+              </button>
+              <button onClick={() => onExport(u.kind)}>
+                <Download size={17} />
+                {u.kind === "publique" ? "Appairage public" : "Appairage local"}
+              </button>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p>Aucun appairage trouvé dans la configuration de ce PC.</p>
+      )}
+      {!urls.some((u) => u.kind === "publique") && (
+        <p className="muted">Aucun appairage public configuré sur ce PC.</p>
+      )}
+    </section>
+  );
+}
