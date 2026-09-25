@@ -93,7 +93,7 @@ export async function remoteStream(
         lookup: safeLookup,
         signal,
         headers: {
-          "User-Agent": "Mochi/0.12.0",
+          "User-Agent": "Mochi/0.12.1",
           "Accept-Encoding": "identity",
           ...(authenticated && token
             ? { Authorization: `Bearer ${token}` }

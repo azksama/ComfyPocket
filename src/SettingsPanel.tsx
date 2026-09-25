@@ -1,3 +1,4 @@
+import { modelChoices } from "./api";
 import { t as tr } from "./i18n";
 import { appendBlock, checkPrompts } from "./promptLibrary";
 import { useState, useMemo } from "react";
@@ -135,7 +136,7 @@ export default function SettingsPanel({
   );
   const change = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...s, [key]: value });
-  const models = choices(info, "CheckpointLoaderSimple", "ckpt_name"),
+  const models = modelChoices(info),
     loras = choices(info, "LoraLoader", "lora_name");
   const options = (node: string, field: string, label = (v: string) => v) =>
     choices(info, node, field).map((value) => ({ value, label: label(value) }));

@@ -60,6 +60,25 @@ const validHash = (h) =>
   typeof h === "string" && /^[a-f0-9]{64}$/i.test(h)
     ? h.toLowerCase()
     : undefined;
+function previewUrl(value, provider) {
+  try { return providerUrl(value, provider, true).href; } catch { return undefined; }
+}
+function hfPreview(data, name, resolve) {
+  const stem = name.replace(/\.[^.]+$/, "");
+  const images = (data.siblings || []).map(f => f.rfilename).filter(n =>
+    typeof n === "string" && /\.(png|jpe?g|webp)$/i.test(n) && !n.split("/").includes(".."));
+  const exact = images.find(n => n.replace(/(?:\.preview)?\.[^.]+$/, "") === stem);
+  if (exact) return resolve(exact);
+  const thumbnail = data.cardData?.thumbnail;
+  if (typeof thumbnail === "string") {
+    const local = thumbnail.replace(/^\.\//, "");
+    if (images.includes(local)) return resolve(local);
+    const remote = previewUrl(thumbnail, "huggingface");
+    if (remote) return remote;
+  }
+  const named = images.find(n => /(^|\/)(preview|cover|example|montage|thumbnail|banner)\.(png|jpe?g|webp)$/i.test(n));
+  return named ? resolve(named) : images.length === 1 ? resolve(images[0]) : undefined;
+}
 export async function inspectModel(input, json = remoteJson) {
   if (typeof input?.url !== "string" || input.url.length > 4096)
     throw fail("Lien invalide.");
@@ -119,13 +138,14 @@ export async function inspectModel(input, json = remoteJson) {
           id: String(f.id),
           name: f.name,
           label: `${v.name} · ${f.name}`,
-          kind: guess(
+          kind: f.type === "Model" && /anima/i.test(v.baseModel || "") && (data.type || v.model?.type) === "Checkpoint" ? "diffusion_models" : guess(
             f.name,
             f.type === "VAE" ? "VAE" : data.type || v.model?.type,
           ),
           size: Math.round(Number(f.sizeKB) * 1024) || null,
           sha256: validHash(f.hashes?.SHA256),
           url: f.downloadUrl,
+          previewUrl: (v.images || []).filter(i => i.type !== "video" && !/\.(mp4|webm)(?:[?]|$)/i.test(i.url || "")).map(i => previewUrl(i.url, provider)).find(Boolean),
           baseModel: String(v.baseModel || "").slice(0, 100),
         });
       }
@@ -161,6 +181,7 @@ export async function inspectModel(input, json = remoteJson) {
     const commit = /^[a-f0-9]{40,64}$/i.test(data.sha || "")
       ? data.sha
       : revision;
+    const resolve = name => `https://huggingface.co/${segments(repo)}/resolve/${encodeURIComponent(commit)}/${segments(name)}`;
     for (const f of data.siblings || []) {
       const name = f.rfilename;
       if (
@@ -172,7 +193,7 @@ export async function inspectModel(input, json = remoteJson) {
       if (/-\d{5}-of-\d{5}\./.test(name)) continue;
       // Diffusers repositories need a full pipeline; only standalone weights are installed.
       if (
-        /(^|\/)(unet|transformer|vae|text_encoder[^/]*)\/.*\.(bin|safetensors)$/.test(
+        /(^|\/)(unet|transformer|vae|text_encoder[^/]*)\/(diffusion_pytorch_model|model|pytorch_model)(?:\.[^/]+)?\.(bin|safetensors)$/.test(
           name,
         )
       )
@@ -186,10 +207,11 @@ export async function inspectModel(input, json = remoteJson) {
         id: name,
         name: path.posix.basename(name),
         label: name,
-        kind: guess(name + " " + repo),
+        kind: name.startsWith("split_files/") && kinds.includes(name.split("/")[1]) ? name.split("/")[1] : guess(name + " " + repo),
         size: f.lfs?.size || f.size || null,
         sha256: validHash(f.lfs?.sha256),
-        url: `https://huggingface.co/${segments(repo)}/resolve/${encodeURIComponent(commit)}/${segments(name)}`,
+        url: resolve(name),
+        previewUrl: hfPreview(data, name, resolve),
         baseModel: "",
       });
     }

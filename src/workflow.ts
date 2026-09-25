@@ -1,3 +1,4 @@
+import { choices } from "./api";
 import { t as tr } from "./i18n";
 import type { Workflow, ObjectInfo } from "./api";
 import { parse as parseLossless } from "lossless-json";
@@ -48,7 +49,7 @@ export function losslessJson(text: string): any {
     return /^-?\d+$/.test(value) && !Number.isSafeInteger(n) ? value : n;
   });
 }
-export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number | string } {
+export function buildWorkflow(s: Settings, profile?: { architecture: string; diffusion?: boolean; embeddedVae?: boolean }, info: ObjectInfo = {}): { workflow: Workflow; seed: number | string } {
   if (!s.model) throw new Error(tr("Choisissez un modèle."));
   if (!s.positive.trim()) throw new Error(tr("Décrivez l’image souhaitée."));
   for (const v of [s.width, s.height])
@@ -65,6 +66,13 @@ export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number |
   const finalWidth = Math.round((s.hires.enabled ? highWidth : s.width) * finalScale);
   const finalHeight = Math.round((s.hires.enabled ? highHeight : s.height) * finalScale);
   if (s.width * scale > 16384 || s.height * scale > 16384 || finalWidth > 16384 || finalHeight > 16384) throw new Error(tr("Image finale limitée à 16 384 pixels par côté."));
+  const anima = profile?.architecture === "anima";
+  if (!anima && (profile?.architecture === "separate" || profile?.diffusion)) throw new Error(tr("Ce modèle utilise des composants séparés. Importez son workflow API compatible ; le mode automatique prend en charge les checkpoints complets et Anima."));
+  if (!anima && profile?.embeddedVae === false && !s.vae) throw new Error(tr("Ce checkpoint ne contient pas de VAE. Sélectionnez un VAE compatible dans les paramètres du modèle."));
+  const encoder = choices(info, "CLIPLoader", "clip_name").find(n => /(^|[\\/])qwen_3_06b_base\.safetensors$/i.test(n));
+  const vaeName = choices(info, "VAELoader", "vae_name").find(n => /(^|[\\/])qwen_image_vae\.safetensors$/i.test(n));
+  if (anima && (!encoder || !vaeName)) throw new Error(tr("Anima nécessite qwen_3_06b_base.safetensors (Encodeur de texte) et qwen_image_vae.safetensors (VAE). Importez les fichiers officiels depuis circlestone-labs/Anima sur Hugging Face."));
+  if (anima && s.vae && !/(^|[\\/])qwen_image_vae\.safetensors$/i.test(s.vae)) throw new Error(tr("Ce VAE n’est pas celui d’Anima. Choisissez Automatique ou qwen_image_vae.safetensors."));
   const seed = seedValue(s.seed);
   const w: Workflow = { "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: s.model } } };
   type Ref = [string, number];
@@ -73,13 +81,18 @@ export function buildWorkflow(s: Settings): { workflow: Workflow; seed: number |
   const add = (class_type: string, inputs: Record<string, unknown>): Ref => {
     const id = String(next++); w[id] = { class_type, inputs }; return [id, 0];
   };
+  if (anima) {
+    if (profile?.diffusion) w["1"] = { class_type: "UNETLoader", inputs: { unet_name: s.model, weight_dtype: "default" } };
+    clip = add("CLIPLoader", { clip_name: encoder, type: "stable_diffusion", device: "default" });
+    vae = add("VAELoader", { vae_name: s.vae || vaeName });
+  }
   s.loras.forEach(l => {
     if (!l.name || !range(l.strength, -4, 4)) throw new Error("LoRA invalide.");
     model = add("LoraLoader", { model, clip, lora_name: l.name, strength_model: l.strength, strength_clip: l.strength });
     clip = [model[0], 1];
   });
-  if (s.clipSkip > 1) clip = add("CLIPSetLastLayer", { clip, stop_at_clip_layer: -s.clipSkip });
-  if (s.vae) vae = add("VAELoader", { vae_name: s.vae });
+  if (!anima && s.clipSkip > 1) clip = add("CLIPSetLastLayer", { clip, stop_at_clip_layer: -s.clipSkip });
+  if (!anima && s.vae) vae = add("VAELoader", { vae_name: s.vae });
   w["2"] = { class_type: "CLIPTextEncode", inputs: { text: s.positive, clip } };
   w["3"] = { class_type: "CLIPTextEncode", inputs: { text: s.negative, clip } };
   w["4"] = { class_type: "EmptyLatentImage", inputs: { width: s.width, height: s.height, batch_size: s.batch } };

@@ -62,3 +62,32 @@ describe("ComfyUI workflows", () => {
     expect(w["7"].inputs.images).toEqual([get("ImageScale")[0][0], 0]);
   });
 });
+
+const animaInfo = {
+  CLIPLoader: { input: { required: { clip_name: [["qwen_3_06b_base.safetensors"]] } } },
+  VAELoader: { input: { required: { vae_name: [["qwen_image_vae.safetensors"]] } } },
+};
+it("Anima uses external Qwen encoder and VAE, without inherited SDXL clip skip", () => {
+  for (const diffusion of [false, true]) {
+    const { workflow: w } = buildWorkflow({ ...defaults, model: "renamed.safetensors", positive: "lake", clipSkip: 2 }, { architecture: "anima", diffusion }, animaInfo);
+    expect(w["1"].class_type).toBe(diffusion ? "UNETLoader" : "CheckpointLoaderSimple");
+    expect(w["2"].inputs.clip).toEqual(["20", 0]);
+    expect(w["6"].inputs.vae).toEqual(["21", 0]);
+    expect(w["20"].inputs.clip_name).toBe("qwen_3_06b_base.safetensors");
+    expect(w["21"].inputs.vae_name).toBe("qwen_image_vae.safetensors");
+    expect(Object.values(w).some(n => n.class_type === "CLIPSetLastLayer")).toBe(false);
+  }
+});
+it("Anima blocks missing dependencies and incompatible VAE before submitting a prompt", () => {
+  const s = { ...defaults, model: "anima.safetensors", positive: "lake" };
+  expect(() => buildWorkflow(s, { architecture: "anima" }, {})).toThrow("Anima nécessite");
+  expect(() => buildWorkflow({ ...s, vae: "sdxl.safetensors" }, { architecture: "anima" }, animaInfo)).toThrow("VAE");
+  expect(() => buildWorkflow(s, { architecture: "separate" })).toThrow("workflow API");
+});
+it("checkpoint without embedded VAE remains usable with an explicit VAE", () => {
+  const s = { ...defaults, model: "no-vae.safetensors", positive: "lake" };
+  expect(() => buildWorkflow(s, { architecture: "checkpoint", embeddedVae: false })).toThrow("ne contient pas de VAE");
+  const {workflow:w} = buildWorkflow({...s, vae:"sdxl_vae.safetensors"}, {architecture:"checkpoint", embeddedVae:false});
+  expect(w["20"].class_type).toBe("VAELoader");
+  expect(w["6"].inputs.vae).toEqual(["20",0]);
+});

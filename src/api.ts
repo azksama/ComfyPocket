@@ -107,3 +107,7 @@ export function choices(
   const value = definition?.[0] === "COMBO" ? options?.options : definition?.[0];
   return Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
 }
+
+export function modelChoices(info: ObjectInfo): string[] {
+  return [...new Set([...choices(info, "CheckpointLoaderSimple", "ckpt_name"), ...choices(info, "UNETLoader", "unet_name")])];
+}

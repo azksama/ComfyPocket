@@ -154,6 +154,7 @@ export function createBridge(config) {
           return json(res, 200, {
             version: 4,
             modelImports: true,
+            modelProfiles: true,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
         if (url.pathname === "/bridge/imports" && req.method === "GET") return json(res,200,await imports.list());
@@ -162,6 +163,8 @@ export function createBridge(config) {
           const action = url.pathname.split("/").pop();
           return json(res,200,await (action === "inspect" ? imports.inspect(input) : action === "start" ? imports.start(input) : imports.cancel(input.id)));
         }
+        if (req.method === "GET" && url.pathname === "/bridge/model-profile")
+          return json(res, 200, await lib.modelProfile(url.searchParams.get("kind"), url.searchParams.get("name")));
         if (req.method === "GET" && url.pathname === "/bridge/model-info")
           return json(
             res,

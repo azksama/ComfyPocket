@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -268,4 +269,40 @@ test("restart marks interrupted downloads and cleans their own partial files", a
   t.after(() => restored.close());
   assert.equal((await restored.list()).jobs[0].status, "error");
   assert.deepEqual(await readdir(f.models), []);
+});
+
+
+test("illustration failure does not roll back an installed model or expose its URL", async t => {
+  const f = await fixture(t, { inspect: async () => ({ provider: "huggingface", files: [{ ...file, previewUrl: "https://huggingface.co/private/image?token=preview-secret" }], token: "private-test-token" }) });
+  assert.ok(!JSON.stringify(f.plan).includes("preview-secret"));
+  const j = await f.manager.start({ planId: f.plan.id, fileId: "1", kind: "upscale_models" });
+  const result = await terminal(f.manager, j.id);
+  assert.equal(result.status, "completed"); assert.equal(result.illustration, "failed");
+  assert.deepEqual(await readdir(f.models), ["model.pth"]);
+  assert.equal((await f.manager.list()).revision, 1);
+  assert.ok(!(await readFile(path.join(f.dir, "model-imports.json"), "utf8")).includes("preview-secret"));
+});
+
+
+test("catalog revision waits until the illustration is installed", async t => {
+  let release, entered;
+  const gate = new Promise(r => { release = r; });
+  const started = new Promise(r => { entered = r; });
+  const png = await sharp({ create: { width: 16, height: 16, channels: 3, background: "#c9aadd" } }).png().toBuffer();
+  const f = await fixture(t, {
+    inspect: async () => ({ provider: "huggingface", files: [{ ...file, previewUrl: "https://huggingface.co/preview.png" }] }),
+    stream: async url => {
+      if (url.endsWith("preview.png")) { entered(); await gate; }
+      const r = Readable.from([url.endsWith("preview.png") ? png : payload]); r.headers = {}; return r;
+    },
+  });
+  const j = await f.manager.start({ planId: f.plan.id, fileId: "1", kind: "upscale_models" });
+  await started;
+  const snapshot = await f.manager.list();
+  assert.equal(snapshot.revision, 0); assert.equal(snapshot.jobs[0].status, "verifying");
+  release();
+  const result = await terminal(f.manager, j.id);
+  assert.equal(result.status, "completed"); assert.equal(result.illustration, "downloaded");
+  assert.equal((await f.manager.list()).revision, 1);
+  assert.deepEqual(await readdir(f.models), ["model.preview.webp", "model.pth"]);
 });

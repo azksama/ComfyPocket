@@ -19,6 +19,7 @@ type Job = {
   received: number;
   total: number | null;
   error?: string;
+  illustration?: string;
 };
 type Snapshot = { revision: number; jobs: Job[] };
 type Plan = {
@@ -378,6 +379,8 @@ export default function ModelImports({
                   </small>
                 </>
               )}
+              {job.status === "completed" && job.illustration === "downloaded" && <small>{t("Illustration installée")}</small>}
+              {job.status === "completed" && job.illustration === "failed" && <small>{t("Illustration indisponible ; le modèle reste utilisable.")}</small>}
               {job.error && <p className="import-error">{job.error}</p>}
             </article>
           ))}

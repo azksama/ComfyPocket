@@ -959,3 +959,30 @@ test("model import explains an old companion and does not offer a broken action"
   await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour importer des modèles.")).toBeVisible();
   await expect(page.getByRole("button",{name:"Analyser le lien"})).toHaveCount(0);
 });
+
+test("Anima automatic generation uses separate components and validates dependencies before queuing", async ({ page }) => {
+  let missing = false; const submissions: any[] = [];
+  const anima = structuredClone(info) as any;
+  anima.CheckpointLoaderSimple.input.required.ckpt_name[0] = ["renamed-anima.safetensors"];
+  anima.CLIPLoader = {input:{required:{clip_name:[["qwen_3_06b_base.safetensors"]]}}};
+  anima.VAELoader.input.required.vae_name[0] = ["qwen_image_vae.safetensors"];
+  await page.route("**/__native", async route => {
+    const d = route.request().postDataJSON(); let value: any;
+    if (d.args?.path === "/bridge/info") value = {version:4, modelProfiles:true, roots:[]};
+    else if (d.args?.path?.startsWith("/bridge/model-profile?")) value = {architecture:"anima"};
+    else if (d.args?.path === "/api/object_info") {value = structuredClone(anima); if (missing) value.CLIPLoader.input.required.clip_name[0] = [];}
+    else if (d.args?.path === "/api/prompt") {submissions.push(d.args.body); return route.fallback();}
+    else return route.fallback();
+    await route.fulfill({json:{value}});
+  });
+  await connect(page); await prompt(page, "a lavender mochi mascot");
+  await page.getByRole("button", {name:"Générer depuis le menu rapide"}).click();
+  await expect.poll(() => submissions.length).toBe(1);
+  expect(submissions[0].prompt["20"].inputs.clip_name).toBe("qwen_3_06b_base.safetensors");
+  expect(submissions[0].prompt["21"].inputs.vae_name).toBe("qwen_image_vae.safetensors");
+  missing = true; await page.reload();
+  await expect(page.getByRole("button", {name:"Votre idée", exact:true})).toContainText("lavender mochi");
+  await page.getByRole("button", {name:"Générer depuis le menu rapide"}).click();
+  await expect(page.getByText(/Anima nécessite qwen_3_06b_base/)).toBeVisible();
+  expect(submissions.length).toBe(1);
+});

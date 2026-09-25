@@ -15,3 +15,13 @@ Limites : fichiers de poids autonomes (`safetensors`, `ckpt`, `pt`, `pth`, `bin`
 Nécessite Android **0.12.0** et Mochi Studio **0.3.0**, ou le compagnon de cette même version. Aucun renouvellement de certificat n’est nécessaire.
 
 Références : [API Civitai](https://github.com/civitai/civitai/wiki/REST-API-Reference), [API Hugging Face](https://huggingface.co/docs/hub/api).
+
+## Illustrations et compatibilité (Android 0.12.1 / Studio 0.3.1)
+
+L’illustration de la version Civitai choisie est téléchargée automatiquement. Pour Hugging Face, Mochi privilégie l’image portant le même nom que le fichier, puis la miniature déclarée par le dépôt, une couverture reconnue ou l’unique image du dépôt. L’absence d’image ou son indisponibilité n’empêche pas l’installation du modèle.
+
+Le compagnon valide et réduit l’image en WebP, l’enregistre en `<modèle>.preview.webp` à côté des poids et termine ensuite la synchronisation. Les illustrations existantes sont conservées. Les téléchargements d’images sont limités à 12 Mo, 40 millions de pixels et 20 secondes ; seuls les domaines autorisés du fournisseur sont contactés. Les URL et clés ne sont pas enregistrées dans l’historique.
+
+Le mode automatique reconnaît Anima grâce aux clés du fichier SafeTensors, y compris pour un modèle renommé ou déjà installé parmi les checkpoints. Les modèles de diffusion apparaissent aussi dans le sélecteur. Les nouveaux imports Civitai identifiés comme checkpoints Anima sont proposés dans `diffusion_models`.
+
+Anima utilise `qwen_3_06b_base.safetensors` dans `text_encoders` et `qwen_image_vae.safetensors` dans `vae`, disponibles dans le dépôt officiel [circlestone-labs/Anima](https://huggingface.co/circlestone-labs/Anima/tree/main/split_files). Le CLIP Skip des checkpoints SDXL ne s’applique pas à ce workflow. Si une dépendance manque, Mochi l’indique avant d’envoyer la génération. Un VAE explicitement sélectionné mais incompatible est signalé, sans modifier les paramètres enregistrés. Les autres architectures à composants séparés nécessitent leur workflow API ; aucune compatibilité universelle n’est annoncée.

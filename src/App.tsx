@@ -1,3 +1,4 @@
+import { modelChoices } from "./api";
 import ModelImports, { useModelImports } from "./ModelImports";
 import { useLocale, t as tr, locale } from "./i18n";
 import {
@@ -228,7 +229,7 @@ export default function App() {
         throw new Error(
           tr("Mettez à jour le compagnon PC avec le lanceur de cette version."),
         );
-      const models = choices(i, "CheckpointLoaderSimple", "ckpt_name");
+      const models = modelChoices(i);
       const saved = normalizeSettings(
         stored("settings:" + url, stored("settings", defaults)),
       );
@@ -340,6 +341,14 @@ export default function App() {
       const batchCount = mode === "workflow" ? 1 : settings.batches;
       if (!Number.isInteger(batchCount) || batchCount < 1 || batchCount > 20)
         throw new Error(tr("Nombre de lots : 1 à 20."));
+      let profile: { architecture: string; diffusion?: boolean } | undefined;
+      if (mode !== "workflow") {
+        const bridge = await api<{ modelProfiles?: boolean }>("/bridge/info");
+        const diffusion = !choices(info, "CheckpointLoaderSimple", "ckpt_name").includes(settings.model);
+        if (bridge.modelProfiles) {
+          profile = { ...await api<{ architecture: string }>("/bridge/model-profile?" + new URLSearchParams({kind: diffusion ? "diffusion_models" : "checkpoints", name: settings.model})), diffusion };
+        } else if (diffusion) throw new Error(tr("Mettez à jour Mochi Studio pour utiliser les modèles de diffusion."));
+      }
       const builds: { workflow: Workflow; settings?: Settings }[] = [];
       for (let n = 0; n < batchCount; n++) {
         if (mode === "workflow") {
@@ -349,7 +358,7 @@ export default function App() {
           continue;
         }
         if (
-          !choices(info, "CheckpointLoaderSimple", "ckpt_name").includes(
+          !modelChoices(info).includes(
             settings.model,
           )
         )
@@ -367,7 +376,7 @@ export default function App() {
               )
             : "",
         };
-        const built = buildWorkflow(s);
+        const built = buildWorkflow(s, profile, info);
         s.seed = String(built.seed);
         builds.push({ workflow: built.workflow, settings: s });
       }
@@ -660,7 +669,7 @@ export default function App() {
   ) {
     if (version !== generation.current) return;
     const parsed = resolveImport(await importImage(bytesOf(url)), {
-      models: choices(info, "CheckpointLoaderSimple", "ckpt_name"),
+      models: modelChoices(info),
       loras: choices(info, "LoraLoader", "lora_name"),
       vaes: choices(info, "VAELoader", "vae_name"),
       samplers: choices(info, "KSampler", "sampler_name"),

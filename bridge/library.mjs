@@ -1,3 +1,4 @@
+import { modelRoots, modelProfile } from "./model-profile.mjs";
 import { readFile, writeFile, mkdir, realpath, lstat, rename, link, unlink, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -108,12 +109,24 @@ export function library(config, safeFile) {
       await unlink(stored); await unlink(recordPath);
       return { restored: true };
     }),
+    async modelProfile(kind, name) {
+      if (!["checkpoints", "diffusion_models"].includes(kind) || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Modèle inconnu", 404);
+      if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
+      for (const root of modelRoots(config, kind, kind === "checkpoints" ? ["StableDiffusion"] : ["DiffusionModels"])) {
+        let file;
+        try { const base = await realpath(root); file = inside(base, await realpath(path.join(base, name))); if (!(await stat(file)).isFile()) throw fail("Modèle interdit", 403); }
+        catch (e) { if (e.code === "ENOENT") continue; throw e; }
+        try { return await modelProfile(file); }
+        catch { throw fail("En-tête du modèle illisible. Vérifiez le fichier installé.", 422); }
+      }
+      throw fail("Modèle introuvable sur le PC.", 404);
+    },
     async modelInfo(kind, name) {
-      const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"] }[kind];
+      const folders = { checkpoints: ["StableDiffusion"], diffusion_models: ["DiffusionModels"], loras: ["Lora", "LyCORIS"] }[kind];
       if (!folders || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Modèle inconnu", 404);
       if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
       const clean = value => typeof value === "string" ? value.replace(/<[^>]*>/g, " ").slice(0, 6000).trim() : "";
-      const roots = [...(config.modelsRoot ? folders.map(folder => path.join(config.modelsRoot, folder)) : []), ...(config.modelPaths?.[kind === "upscalers" ? "upscale_models" : kind] ?? [])];
+      const roots = [...modelRoots(config, kind, folders), ...(kind === "checkpoints" ? modelRoots(config, "diffusion_models", ["DiffusionModels"]) : [])];
       for (const base of roots) {
         for (const stem of [name.replace(/\.[^.]+$/, ""), name]) for (const suffix of [".cm-info.json", ".civitai.info", ".json"]) {
           let file;
@@ -129,10 +142,10 @@ export function library(config, safeFile) {
       return { title: "", version: "", baseModel: "", description: "", triggers: [], tags: [] };
     },
     async preview(kind, name) {
-      const folders = { checkpoints: ["StableDiffusion"], loras: ["Lora", "LyCORIS"], vae: ["VAE"], upscalers: ["ESRGAN", "RealESRGAN", "SwinIR"] }[kind];
+      const folders = { checkpoints: ["StableDiffusion"], diffusion_models: ["DiffusionModels"], loras: ["Lora", "LyCORIS"], vae: ["VAE"], upscalers: ["ESRGAN", "RealESRGAN", "SwinIR"] }[kind];
       if (!folders || typeof name !== "string" || !/\.(safetensors|ckpt|pt|pth|bin|gguf)$/i.test(name)) throw fail("Illustration indisponible", 404);
       if (path.isAbsolute(name) || name.includes(":") || name.includes("\0") || name.split(/[\\/]/).includes("..")) throw fail("Modèle interdit", 403);
-      const roots = [...(config.modelsRoot ? folders.map(folder => path.join(config.modelsRoot, folder)) : []), ...(config.modelPaths?.[kind === "upscalers" ? "upscale_models" : kind] ?? [])];
+      const roots = [...modelRoots(config, kind, folders), ...(kind === "checkpoints" ? modelRoots(config, "diffusion_models", ["DiffusionModels"]) : [])];
       for (const base of roots) {
         for (const stem of [name.replace(/\.[^.]+$/, ""), name]) {
           for (const ext of ["jpeg", "jpg", "png", "webp"]) {

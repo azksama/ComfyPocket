@@ -548,5 +548,12 @@
   "Modèle / Checkpoint": "Model / Checkpoint",
   "Modèle de diffusion / UNet": "Diffusion model / UNet",
   "Encodeur de texte / CLIP": "Text encoder / CLIP",
-  "Fichier installé ; actualisation du catalogue en attente du moteur.": "File installed; waiting for the engine to refresh the catalog."
+  "Fichier installé ; actualisation du catalogue en attente du moteur.": "File installed; waiting for the engine to refresh the catalog.",
+  "Mettez à jour Mochi Studio pour utiliser les modèles de diffusion.": "Update Mochi Studio to use diffusion models.",
+  "Ce modèle utilise des composants séparés. Importez son workflow API compatible ; le mode automatique prend en charge les checkpoints complets et Anima.": "This model uses separate components. Import its compatible API workflow; automatic mode supports full checkpoints and Anima.",
+  "Anima nécessite qwen_3_06b_base.safetensors (Encodeur de texte) et qwen_image_vae.safetensors (VAE). Importez les fichiers officiels depuis circlestone-labs/Anima sur Hugging Face.": "Anima requires qwen_3_06b_base.safetensors (Text encoder) and qwen_image_vae.safetensors (VAE). Import the official files from circlestone-labs/Anima on Hugging Face.",
+  "Ce VAE n’est pas celui d’Anima. Choisissez Automatique ou qwen_image_vae.safetensors.": "This VAE is not compatible with Anima. Select Automatic or qwen_image_vae.safetensors.",
+  "Illustration installée": "Illustration installed",
+  "Illustration indisponible ; le modèle reste utilisable.": "Illustration unavailable; the model is still usable.",
+  "Ce checkpoint ne contient pas de VAE. Sélectionnez un VAE compatible dans les paramètres du modèle.": "This checkpoint does not contain a VAE. Select a compatible VAE in the model settings."
 }

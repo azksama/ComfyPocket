@@ -58,3 +58,16 @@ Validation fournisseur réelle : analyse de trois URL publiques (.com, .red, Hug
 ARTEMIS : diagnostic bloqué faute de clé LLM dans son environnement ; l’émulateur initialement connecté n’était plus présent lors du second diagnostic. Pas de validation de cette version sur téléphone physique. Les scénarios web utilisent des réponses de compagnon simulées ; le téléchargement réel utilise le module du compagnon et un dossier isolé de validation.
 
 Résultats finaux : 40 tests Vitest, 34 tests Node/PowerShell, 5 tests Rust Studio, 5 tests Rust Android/transport et le test TLS natif réel réussis. Les 52 scénarios Playwright passent, dont le suivi après fermeture de l’écran d’import, l’apparition automatique du LoRA et la conservation du prompt. APK ARM64 release signé (signature vérifiée), installeur Windows produit. Compagnon Windows installé : `/bridge/info` annonce `modelImports: true`, inspection Hugging Face via HTTPS authentifié réussie ; moteur et compagnon prêts. Certificat et clé identiques avant/après installation.
+
+## Studio 0.3.1 / Android 0.12.1
+
+- Illustrations Civitai de la version sélectionnée et miniatures Hugging Face récupérées sur le PC, validées et enregistrées avant actualisation du catalogue ; illustrations existantes conservées, échec d’image non bloquant.
+- Chemins ComfyUI standard pris en compte pour les vignettes et métadonnées, en plus des dossiers partagés et supplémentaires.
+- Diagnostic réel du défaut `NoneType.clone` : les modèles Anima installés n’embarquent ni encodeur de texte ni VAE. Identification par en-tête SafeTensors, workflow automatique avec Qwen 0.6B et VAE Qwen Image, prise en charge des dossiers de diffusion ; erreurs de dépendances présentées avant soumission.
+- Les encodeurs et VAE autonomes Hugging Face ne sont plus exclus par le filtre des composants Diffusers.
+
+Validation : 43 tests Vitest, 42 tests Node/PowerShell, quatre scénarios Playwright ciblés (génération, import et conservation du prompt, ancien compagnon, Anima et dépendances absentes). Les deux modèles réels `anima_aestheticV11.safetensors` et `oneObsessionAnima_v40.safetensors` ont produit une image chacun sur RTX 4070 SUPER, en 512 × 512 / 4 étapes, avec le constructeur de workflow de l’application. Il s’agit d’un test fonctionnel, pas d’un comparatif de qualité ou de performance. Leurs illustrations ont été récupérées réellement depuis Civitai. Les deux dépendances officielles Anima ont été installées depuis Hugging Face avec contrôle SHA-256.
+
+Pas de nouveau test sur téléphone physique ; les vérifications UI de cette version sont réalisées dans le navigateur. Les restrictions d’accès propres aux comptes Civitai/Hugging Face restent celles du fournisseur.
+
+Validation de la livraison installée : Studio 0.3.1 lancé, moteur et compagnon prêts. L’API HTTPS authentifiée détecte les deux modèles comme Anima, sert leurs illustrations JPEG et liste les deux dépendances. Certificat et clé privés identiques avant/après la mise à jour. Les cinq tests Rust Studio passent. Aucun réappairage nécessaire.

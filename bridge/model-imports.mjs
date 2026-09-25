@@ -15,6 +15,7 @@ import {
 import { randomUUID, createHash } from "node:crypto";
 import { inspectModel, kinds, modelFilename } from "./model-sources.mjs";
 import { remoteStream, importError as fail } from "./import-network.mjs";
+import { installPreview } from "./model-preview.mjs";
 const MAX_BYTES = 64 * 1024 ** 3;
 const active = (j) => ["queued", "downloading", "verifying"].includes(j.status);
 export function createModelImports(
@@ -181,6 +182,9 @@ export function createModelImports(
       await link(temporary, target);
       await unlink(temporary);
       temporary = null;
+      job.illustration = await installPreview(target, item.file.previewUrl, {
+        provider: item.provider, token: item.token, signal: item.controller.signal, stream,
+      }).catch(() => "failed");
       job.status = "completed";
       job.received = job.total = job.received;
       job.completed = Date.now();
@@ -244,7 +248,7 @@ export function createModelImports(
           id,
           provider: plan.provider,
           title: plan.title,
-          files: plan.files.map(({ url, sha256, ...file }) => file),
+          files: plan.files.map(({ url, previewUrl, sha256, ...file }) => file),
         };
       } finally {
         inspecting--;
