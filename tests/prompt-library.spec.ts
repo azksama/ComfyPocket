@@ -81,7 +81,7 @@ test("library search has a recoverable empty state and deleting a block can be u
     ),
   );
   await page.goto("/__prompt-editor");
-  await page.getByRole("button", { name: "Blocs", exact: true }).click();
+  await page.getByRole("button", { name: "Bibliothèque", exact: true }).click();
   const search = page.getByRole("searchbox", {
     name: "Rechercher dans les prompts",
   });
@@ -133,4 +133,25 @@ test("prompt controls remain reachable on a narrow keyboard-sized viewport", asy
   await page.screenshot({
     path: "../verification/refactor/prompt-editor-compact.png",
   });
+});
+
+test("English block controls preserve free text and restore a removed section", async ({page}) => {
+  await page.addInitScript(() => localStorage.setItem('mochi-language','en'));
+  await page.goto('/__prompt-editor');
+  await page.getByLabel('Positive prompt',{exact:true}).fill('quality,\n\n## Body\nred_dress,\n##');
+  await page.getByRole('button',{name:'Blocks',exact:true}).click();
+  const title = page.getByLabel('Block 2 name');
+  await expect(title).toHaveValue('Body');
+  const label = page.locator('.part-title').first();
+  const marker = await label.locator('span').boundingBox();
+  const field = await title.boundingBox();
+  expect(Math.abs(marker!.y + marker!.height/2 - field!.y - field!.height/2)).toBeLessThan(2);
+  await page.getByRole('button',{name:'Remove Body from the prompt',exact:true}).click();
+  await expect(page.locator('.prompt-part')).toHaveCount(1);
+  await page.getByRole('button',{name:'Undo last change',exact:true}).click();
+  await expect(page.locator('.prompt-part')).toHaveCount(2);
+  await page.getByRole('button',{name:'Text',exact:true}).click();
+  await expect(page.getByLabel('Positive prompt',{exact:true})).toHaveValue('quality,\n\n## Body\nred_dress,\n##');
+  await page.getByRole('button',{name:'Voice assistant',exact:true}).click();
+  await expect(page.getByText('Waiting for the model',{exact:true})).toBeVisible();
 });

@@ -1,3 +1,4 @@
+import { compilePrompt } from "./promptDocument";
 import { choices } from "./api";
 import { t as tr } from "./i18n";
 import type { Workflow, ObjectInfo } from "./api";
@@ -51,7 +52,7 @@ export function losslessJson(text: string): any {
 }
 export function buildWorkflow(s: Settings, profile?: { architecture: string; diffusion?: boolean; embeddedVae?: boolean }, info: ObjectInfo = {}): { workflow: Workflow; seed: number | string } {
   if (!s.model) throw new Error(tr("Choisissez un modèle."));
-  if (!s.positive.trim()) throw new Error(tr("Décrivez l’image souhaitée."));
+  if (!compilePrompt(s.positive).trim()) throw new Error(tr("Décrivez l’image souhaitée."));
   for (const v of [s.width, s.height])
     if (!Number.isInteger(v) || v < 64 || v > 4096 || v % 8) throw new Error("Dimensions : multiples de 8, entre 64 et 4096.");
   const integer = (v: number, min: number, max: number) => Number.isInteger(v) && v >= min && v <= max;
@@ -93,8 +94,8 @@ export function buildWorkflow(s: Settings, profile?: { architecture: string; dif
   });
   if (!anima && s.clipSkip > 1) clip = add("CLIPSetLastLayer", { clip, stop_at_clip_layer: -s.clipSkip });
   if (!anima && s.vae) vae = add("VAELoader", { vae_name: s.vae });
-  w["2"] = { class_type: "CLIPTextEncode", inputs: { text: s.positive, clip } };
-  w["3"] = { class_type: "CLIPTextEncode", inputs: { text: s.negative, clip } };
+  w["2"] = { class_type: "CLIPTextEncode", inputs: { text: compilePrompt(s.positive), clip } };
+  w["3"] = { class_type: "CLIPTextEncode", inputs: { text: compilePrompt(s.negative), clip } };
   w["4"] = { class_type: "EmptyLatentImage", inputs: { width: s.width, height: s.height, batch_size: s.batch } };
   const sampler = { model, positive: ["2", 0], negative: ["3", 0], seed, steps: s.steps, cfg: s.cfg, sampler_name: s.sampler, scheduler: s.scheduler, denoise: 1 };
   w["5"] = { class_type: "KSampler", inputs: { ...sampler, latent_image: ["4", 0] } };

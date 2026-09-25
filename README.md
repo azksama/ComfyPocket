@@ -1,6 +1,15 @@
-# Mochi 0.10.0
+# Mochi 0.13.0
 
 Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
+
+## Nouveautés 0.13.0
+
+- Prompts positifs et négatifs organisés en blocs nommés, déplaçables par poignée ou flèches, avec passages libres distincts et annulation.
+- La bibliothèque insère le titre du bloc avec son texte. Les commentaires `##` restent dans les données enregistrées et sont retirés des textes envoyés à ComfyUI en génération automatique.
+- Interface du futur assistant vocal : brouillon local français/anglais et parcours de revue des propositions préparé. La dictée et l’optimisation restent indisponibles tant que le modèle n’est pas connecté.
+- Éditeur adapté aux petits écrans avec clavier ouvert ; interface française et anglaise.
+
+[Mode d’emploi et contrat du futur modèle](PROMPT_BLOCKS.md). Cette mise à jour Android utilise le compagnon existant ; Mochi Studio 0.3.1 reste compatible. APK signé avec la clé existante. Validation navigateur et compilation Android effectuées ; aucun appareil Android connecté pour un contrôle physique dans cette livraison.
 
 ## Nouveautés 0.10.0
 

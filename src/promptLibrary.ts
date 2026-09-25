@@ -1,3 +1,4 @@
+import { compilePrompt } from "./promptDocument";
 import { t as tr } from "./i18n";
 export type Prompts = { positive: string; negative: string };
 export type PromptEntry = Prompts & { id: string; title: string; at: number };
@@ -153,7 +154,7 @@ const groups = [
 export function checkPrompts(prompts: Prompts): string[] {
   const tokens = (text: string) => [
     ...new Set(
-      text
+      compilePrompt(text)
         .split(/[,\n]/)
         .map(normalize)
         .filter((tag) => tag && !tag.startsWith("<")),

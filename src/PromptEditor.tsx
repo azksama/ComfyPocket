@@ -1,7 +1,11 @@
+import "./prompt-blocks.css";
+import PromptBoard from "./PromptBoard";
+import PromptAssistant from "./PromptAssistant";
+import { compilePrompt } from "./promptDocument";
 import { t as tr, locale } from "./i18n";
 import PromptTranslation, { insertTranslation } from "./PromptTranslation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, Undo2, Redo2, Sparkles, Languages } from "lucide-react";
+import { Check, Undo2, Redo2, Sparkles, Languages, Mic } from "lucide-react";
 import { Modal } from "./components";
 import { insertTag, tagRange, type Tag } from "./tags";
 import PromptTools from "./PromptTools";
@@ -49,16 +53,25 @@ function MatchingTag({ name, query }: { name: string; query: string }) {
 export default function PromptEditor({
   initialTab,
   initialTool,
+  fragmentTitle,
   values,
   onChange,
   onClose,
 }: {
   initialTab: Side;
+  fragmentTitle?: string;
   initialTool?: "history" | "blocks" | "check";
   values: Prompts;
   onChange: (values: Prompts) => void;
   onClose: () => void;
 }) {
+  const [layout, setLayout] = useState<"text" | "blocks">(() =>
+    !fragmentTitle && /^\s*##[ \t]+/m.test(values[initialTab])
+      ? "blocks"
+      : "text",
+  );
+  const [assistant, setAssistant] = useState(false);
+  const anchor = useRef<HTMLDivElement>(null);
   const [translation, setTranslation] = useState<
     { start: number; end: number } | null | undefined
   >(undefined);
@@ -83,11 +96,15 @@ export default function PromptEditor({
     redo: [],
   });
   const value = values[side];
-  const query = tagRange(value, caret).query;
+  const comment = /^\s*#/.test(
+    value.slice(value.lastIndexOf("\n", Math.max(0, caret - 1)) + 1, caret),
+  );
+  const query =
+    layout === "text" && !comment ? tagRange(value, caret).query : "";
   const bubbleVisible = enabled && !dismissed && !!query;
   const { tags, count, pending, error, retry } = usePromptSuggestions(
     dismissed ? "" : query,
-    enabled,
+    enabled && layout === "text",
     composing,
   );
 
@@ -111,7 +128,7 @@ export default function PromptEditor({
       position.dispose();
       measurer.current = null;
     };
-  }, []);
+  }, [layout]);
   useLayoutEffect(placeBubble, [caret, value, bubbleVisible, scroll]);
   useEffect(() => {
     const observer = new ResizeObserver(() => {
@@ -123,7 +140,7 @@ export default function PromptEditor({
   }, [caret, bubbleVisible]);
   useEffect(() => {
     const viewport = window.visualViewport,
-      dialog = input.current?.closest("dialog");
+      dialog = anchor.current?.closest("dialog");
     const resize = () => {
       dialog?.style.setProperty(
         "--editor-height",
@@ -149,7 +166,7 @@ export default function PromptEditor({
   useEffect(() => {
     input.current?.focus();
     input.current?.setSelectionRange(caret, caret);
-  }, [side]);
+  }, [side, layout]);
   useEffect(() => {
     setActive(0);
   }, [tags]);
@@ -202,7 +219,7 @@ export default function PromptEditor({
   }
   function finish() {
     try {
-      rememberPrompt(values);
+      if (!fragmentTitle) rememberPrompt(values);
       onClose();
     } catch (reason) {
       setSaveError(promptStorageError(reason));
@@ -229,244 +246,323 @@ export default function PromptEditor({
 
   return (
     <Modal
-      title={tr("Écrire votre image")}
+      title={fragmentTitle || tr("Écrire votre image")}
       className="prompt-editor"
       onClose={finish}
     >
-      <label className="autocomplete-setting">
-        <span>{tr("Autocomplétion")}</span>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label={tr("Activer l’autocomplétion")}
-          checked={enabled}
-          onChange={(event) => toggleAutocomplete(event.target.checked)}
-        />
-      </label>
-      <button
-        className="prompt-translate-button"
-        onPointerDown={() => {
-          const field = input.current;
-          translationSelection.current =
-            field && document.activeElement === field
-              ? { start: field.selectionStart, end: field.selectionEnd }
-              : null;
-        }}
-        onClick={() => setTranslation(translationSelection.current)}
-      >
-        <Languages size={18} />
-        {tr("Traduire des mots")}
-      </button>
-      <PromptTools
-        initialPage={initialTool}
-        values={values}
-        onChange={(next) => {
-          update(next);
-          setCaret(next[side].length);
-        }}
-      />
-      <div
-        className="editor-tabs"
-        role="tablist"
-        aria-label={tr("Type de prompt")}
-      >
-        {sides.map((tab, index) => (
-          <button
-            key={tab}
-            id={`tab-${tab}`}
-            role="tab"
-            aria-selected={side === tab}
-            aria-controls="prompt-panel"
-            tabIndex={side === tab ? 0 : -1}
-            onKeyDown={(event) => {
-              if (
-                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-              )
-                return;
-              event.preventDefault();
-              changeSide(
-                event.key === "Home"
-                  ? "positive"
-                  : event.key === "End"
-                    ? "negative"
-                    : tab === "positive"
-                      ? "negative"
-                      : "positive",
-              );
-            }}
-            onClick={() => changeSide(tab)}
-          >
-            <span>0{index + 1}</span>
-            {tab === "positive" ? tr("Positif") : tr("Négatif")}
-            <small aria-label={tr("{0} caractères", [values[tab].length])}>
-              {values[tab].length}
-            </small>
-          </button>
-        ))}
-      </div>
-      <div
-        className="editor-paper"
-        data-suggesting={bubbleVisible}
-        role="tabpanel"
-        id="prompt-panel"
-        aria-labelledby={`tab-${side}`}
-      >
-        <label className="sr-only" htmlFor="prompt-text">
-          {side === "positive" ? tr("Prompt positif") : tr("Prompt négatif")}
-        </label>
-        <textarea
-          id="prompt-text"
-          ref={input}
-          value={value}
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-          aria-autocomplete={enabled ? "list" : "none"}
-          aria-controls={enabled ? "tag-suggestions" : undefined}
-          aria-activedescendant={
-            bubbleVisible && tags[active] && !pending
-              ? `tag-${active}`
-              : undefined
-          }
-          placeholder={
-            side === "positive"
-              ? tr(
-                  "Imaginez la scène. Ajoutez des tags, des détails, une lumière…",
-                )
-              : tr("Décrivez les éléments que vous souhaitez éviter…")
-          }
-          onCompositionStart={() => setComposing(true)}
-          onCompositionEnd={() => setComposing(false)}
-          onChange={(event) => {
-            update({ ...values, [side]: event.target.value });
-            setCaret(event.target.selectionStart);
-          }}
-          onScroll={(event) => setScroll(event.currentTarget.scrollTop)}
-          onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-          onKeyDown={(event) => {
-            if (composing || event.nativeEvent.isComposing) return;
-            if (
-              (event.ctrlKey || event.metaKey) &&
-              ["z", "y"].includes(event.key.toLowerCase())
-            ) {
-              event.preventDefault();
-              travel(
-                event.shiftKey || event.key.toLowerCase() === "y"
-                  ? "redo"
-                  : "undo",
-              );
-              return;
-            }
-            if (event.key === "Escape" && bubbleVisible) {
-              event.preventDefault();
-              event.stopPropagation();
-              setDismissed(true);
-              return;
-            }
-            if (!bubbleVisible || pending || !tags.length) return;
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-              event.preventDefault();
-              setActive(
-                (index) =>
-                  (index + (event.key === "ArrowDown" ? 1 : tags.length - 1)) %
-                  tags.length,
-              );
-            }
-            if (
-              (event.key === "Enter" && !event.shiftKey) ||
-              event.key === "Tab"
-            ) {
-              event.preventDefault();
-              select(tags[active]);
-            }
-          }}
-        />
-        <div
-          ref={bubble}
-          tabIndex={0}
-          hidden={!bubbleVisible}
-          className="suggestion-bubble"
-          aria-busy={pending}
-          style={{
-            top: bubbleTop,
-            maxHeight: `min(200px, calc(100% - ${bubbleTop}px))`,
-          }}
-        >
-          <div className="suggestion-heading">
-            <span>
-              <Sparkles size={14} /> Danbooru
-            </span>
-            <small>
-              {error
-                ? tr("Saisie libre")
-                : count
-                  ? tr("{0} tags · hors ligne", [
-                      count.toLocaleString(locale()),
-                    ])
-                  : tr("Préparation des tags…")}
-            </small>
+      <div ref={anchor} />
+      {!fragmentTitle && (
+        <div className="editor-mode-bar">
+          <div role="group" aria-label={tr("Affichage du prompt")}>
+            <button
+              aria-pressed={layout === "text"}
+              onClick={() => setLayout("text")}
+            >
+              {tr("Texte")}
+            </button>
+            <button
+              aria-pressed={layout === "blocks"}
+              onClick={() => setLayout("blocks")}
+            >
+              {tr("Blocs")}
+            </button>
           </div>
-          <div
-            role="listbox"
-            id="tag-suggestions"
-            aria-label={tr("Suggestions de tags")}
-            className="tag-suggestions"
+          <button
+            className="voice-entry"
+            aria-label={tr("Assistant vocal")}
+            onClick={() => setAssistant(true)}
           >
-            {tags.map((tag, index) => (
-              <div
-                role="option"
-                id={`tag-${index}`}
-                key={tag.name}
-                aria-selected={active === index}
-                aria-disabled={pending}
-                className={`tag-option ${active === index ? "highlighted" : ""}`}
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => select(tag)}
+            <Mic size={18} />
+            <span>{tr("Assistant vocal")}</span>
+          </button>
+        </div>
+      )}
+      {layout === "text" && (
+        <label className="autocomplete-setting">
+          <span>{tr("Autocomplétion")}</span>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label={tr("Activer l’autocomplétion")}
+            checked={enabled}
+            onChange={(event) => toggleAutocomplete(event.target.checked)}
+          />
+        </label>
+      )}
+      {layout === "text" && (
+        <button
+          className="prompt-translate-button"
+          onPointerDown={() => {
+            const field = input.current;
+            translationSelection.current =
+              field && document.activeElement === field
+                ? { start: field.selectionStart, end: field.selectionEnd }
+                : null;
+          }}
+          onClick={() => setTranslation(translationSelection.current)}
+        >
+          <Languages size={18} />
+          {tr("Traduire des mots")}
+        </button>
+      )}
+      {!fragmentTitle && (
+        <PromptTools
+          initialPage={initialTool}
+          values={values}
+          onChange={(next) => {
+            update(next);
+            setCaret(next[side].length);
+            if (/^\s*##[ \t]+/m.test(next[side])) setLayout("blocks");
+          }}
+        />
+      )}
+      {!fragmentTitle && (
+        <div
+          className="editor-tabs"
+          role="tablist"
+          aria-label={tr("Type de prompt")}
+        >
+          {sides.map((tab, index) => (
+            <button
+              key={tab}
+              id={`tab-${tab}`}
+              role="tab"
+              aria-selected={side === tab}
+              aria-controls="prompt-panel"
+              tabIndex={side === tab ? 0 : -1}
+              onKeyDown={(event) => {
+                if (
+                  !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                    event.key,
+                  )
+                )
+                  return;
+                event.preventDefault();
+                changeSide(
+                  event.key === "Home"
+                    ? "positive"
+                    : event.key === "End"
+                      ? "negative"
+                      : tab === "positive"
+                        ? "negative"
+                        : "positive",
+                );
+              }}
+              onClick={() => changeSide(tab)}
+            >
+              <span>0{index + 1}</span>
+              {tab === "positive" ? tr("Positif") : tr("Négatif")}
+              <small
+                aria-label={tr("{0} caractères", [
+                  compilePrompt(values[tab]).length,
+                ])}
               >
-                <span className={`tag-dot category-${tag.category}`} />
-                <span>
-                  <strong>
-                    <MatchingTag name={tag.name} query={query} />
-                  </strong>
-                  <small>
-                    {tr(categories[tag.category] ?? "Tag")} ·{" "}
-                    {tag.count.toLocaleString(locale())}
-                  </small>
-                </span>
-                <span className="tag-add" aria-hidden="true">
-                  +
-                </span>
-              </div>
-            ))}
-            {!tags.length && (
-              <span className="suggestion-empty">
-                {error
-                  ? tr("Suggestions indisponibles")
-                  : pending
-                    ? tr("Recherche de tags…")
-                    : tr("Aucun tag correspondant")}
+                {compilePrompt(values[tab]).length}
+              </small>
+            </button>
+          ))}
+        </div>
+      )}
+      {layout === "blocks" ? (
+        <PromptBoard
+          key={side}
+          side={side}
+          value={value}
+          onChange={(text) => update({ ...values, [side]: text })}
+          editor={(text, title, change, close) => (
+            <PromptEditor
+              fragmentTitle={title}
+              initialTab="positive"
+              values={{ positive: text, negative: "" }}
+              onChange={(next) => change(next.positive)}
+              onClose={close}
+            />
+          )}
+        />
+      ) : (
+        <div
+          className="editor-paper"
+          data-suggesting={bubbleVisible}
+          role={fragmentTitle ? "group" : "tabpanel"}
+          id={fragmentTitle ? "prompt-panel-fragment" : "prompt-panel"}
+          aria-labelledby={fragmentTitle ? undefined : `tab-${side}`}
+          aria-label={fragmentTitle ? tr("Texte du bloc") : undefined}
+        >
+          <label className="sr-only" htmlFor="prompt-text">
+            {fragmentTitle
+              ? tr("Texte du bloc")
+              : side === "positive"
+                ? tr("Prompt positif")
+                : tr("Prompt négatif")}
+          </label>
+          <textarea
+            id="prompt-text"
+            ref={input}
+            value={value}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            aria-autocomplete={enabled ? "list" : "none"}
+            aria-controls={enabled ? "tag-suggestions" : undefined}
+            aria-activedescendant={
+              bubbleVisible && tags[active] && !pending
+                ? `tag-${active}`
+                : undefined
+            }
+            placeholder={
+              side === "positive"
+                ? tr(
+                    "Imaginez la scène. Ajoutez des tags, des détails, une lumière…",
+                  )
+                : tr("Décrivez les éléments que vous souhaitez éviter…")
+            }
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onChange={(event) => {
+              update({ ...values, [side]: event.target.value });
+              setCaret(event.target.selectionStart);
+            }}
+            onScroll={(event) => setScroll(event.currentTarget.scrollTop)}
+            onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+            onKeyDown={(event) => {
+              if (composing || event.nativeEvent.isComposing) return;
+              if (
+                (event.ctrlKey || event.metaKey) &&
+                ["z", "y"].includes(event.key.toLowerCase())
+              ) {
+                event.preventDefault();
+                travel(
+                  event.shiftKey || event.key.toLowerCase() === "y"
+                    ? "redo"
+                    : "undo",
+                );
+                return;
+              }
+              if (event.key === "Escape" && bubbleVisible) {
+                event.preventDefault();
+                event.stopPropagation();
+                setDismissed(true);
+                return;
+              }
+              if (!bubbleVisible || pending || !tags.length) return;
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                setActive(
+                  (index) =>
+                    (index +
+                      (event.key === "ArrowDown" ? 1 : tags.length - 1)) %
+                    tags.length,
+                );
+              }
+              if (
+                (event.key === "Enter" && !event.shiftKey) ||
+                event.key === "Tab"
+              ) {
+                event.preventDefault();
+                select(tags[active]);
+              }
+            }}
+          />
+          <div
+            ref={bubble}
+            tabIndex={0}
+            hidden={!bubbleVisible}
+            className="suggestion-bubble"
+            aria-busy={pending}
+            style={{
+              top: bubbleTop,
+              maxHeight: `min(200px, calc(100% - ${bubbleTop}px))`,
+            }}
+          >
+            <div className="suggestion-heading">
+              <span>
+                <Sparkles size={14} /> Danbooru
               </span>
+              <small>
+                {error
+                  ? tr("Saisie libre")
+                  : count
+                    ? tr("{0} tags · hors ligne", [
+                        count.toLocaleString(locale()),
+                      ])
+                    : tr("Préparation des tags…")}
+              </small>
+            </div>
+            <div
+              role="listbox"
+              id="tag-suggestions"
+              aria-label={tr("Suggestions de tags")}
+              className="tag-suggestions"
+            >
+              {tags.map((tag, index) => (
+                <div
+                  role="option"
+                  id={`tag-${index}`}
+                  key={tag.name}
+                  aria-selected={active === index}
+                  aria-disabled={pending}
+                  className={`tag-option ${active === index ? "highlighted" : ""}`}
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => select(tag)}
+                >
+                  <span className={`tag-dot category-${tag.category}`} />
+                  <span>
+                    <strong>
+                      <MatchingTag name={tag.name} query={query} />
+                    </strong>
+                    <small>
+                      {tr(categories[tag.category] ?? "Tag")} ·{" "}
+                      {tag.count.toLocaleString(locale())}
+                    </small>
+                  </span>
+                  <span className="tag-add" aria-hidden="true">
+                    +
+                  </span>
+                </div>
+              ))}
+              {!tags.length && (
+                <span className="suggestion-empty">
+                  {error
+                    ? tr("Suggestions indisponibles")
+                    : pending
+                      ? tr("Recherche de tags…")
+                      : tr("Aucun tag correspondant")}
+                </span>
+              )}
+            </div>
+            {error && (
+              <button className="suggestion-retry" onClick={retry}>
+                {" "}
+                {tr("Réessayer les suggestions")}{" "}
+              </button>
             )}
           </div>
-          {error && (
-            <button className="suggestion-retry" onClick={retry}>
-              {" "}
-              {tr("Réessayer les suggestions")}{" "}
-            </button>
-          )}
         </div>
-      </div>
-      <p className="editor-hint" role="status">
-        {preferenceWarning ||
-          (!enabled
-            ? tr("Autocomplétion désactivée")
-            : error ||
-              (count
-                ? tr("{0} tags · suggestions hors ligne", [
-                    count.toLocaleString(locale()),
-                  ])
-                : tr("Préparation des suggestions…")))}
-      </p>
+      )}
+      {layout === "text" && (
+        <p className="editor-hint" role="status">
+          {preferenceWarning ||
+            (!enabled
+              ? tr("Autocomplétion désactivée")
+              : error ||
+                (count
+                  ? tr("{0} tags · suggestions hors ligne", [
+                      count.toLocaleString(locale()),
+                    ])
+                  : tr("Préparation des suggestions…")))}
+        </p>
+      )}
+      {assistant && (
+        <PromptAssistant
+          side={side}
+          values={values}
+          onChange={(next) => {
+            update(next);
+            setLayout("blocks");
+          }}
+          onClose={() => setAssistant(false)}
+        />
+      )}
       {saveError && (
         <div className="editor-save-error" role="alert">
           <p>

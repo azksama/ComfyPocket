@@ -1,3 +1,4 @@
+import { appendNamedBlock } from "./promptDocument";
 import { t as tr, locale } from "./i18n";
 import { useMemo, useState, useEffect } from "react";
 import {
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import { Modal } from "./components";
 import {
-  appendBlock,
   checkPrompts,
   readPromptLibrary,
   writePromptLibrary,
@@ -210,7 +210,7 @@ export default function PromptTools({
           <History size={16} /> {tr("Historique")}{" "}
         </button>
         <button onClick={() => show("blocks")}>
-          <Layers size={16} /> {tr("Blocs")}{" "}
+          <Layers size={16} /> {tr("Bibliothèque")}{" "}
         </button>
         <button onClick={() => show("check")}>
           <ScanText size={16} /> {tr("Vérifier")}{" "}
@@ -315,12 +315,14 @@ export default function PromptTools({
                         onChange(
                           page === "blocks"
                             ? {
-                                positive: appendBlock(
+                                positive: appendNamedBlock(
                                   values.positive,
+                                  entry.title,
                                   entry.positive,
                                 ),
-                                negative: appendBlock(
+                                negative: appendNamedBlock(
                                   values.negative,
+                                  entry.title,
                                   entry.negative,
                                 ),
                               }

@@ -121,7 +121,7 @@ test("v5 prompt history blocks and conflict checker work together", async ({ pag
   await expect(page.getByRole("dialog", { name: "Vérifier les prompts" }).getByText("« sun » apparaît dans le positif et le négatif.")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Écrire votre image" })).toBeVisible();
-  await page.getByRole("button", { name: "Blocs", exact: true }).click();
+  await page.getByRole("button", { name: "Bibliothèque", exact: true }).click();
   await page.getByRole("button", { name: "Nouveau bloc" }).click();
   const edit = page.getByRole("dialog", { name: "Éditer le bloc" });
   await edit.getByLabel("Titre", { exact: true }).fill("Lumière");
@@ -130,7 +130,8 @@ test("v5 prompt history blocks and conflict checker work together", async ({ pag
   await edit.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await page.getByRole("button", { name: "Insérer", exact: true }).click();
   await page.getByRole("tab", { name: /Positif/ }).click();
-  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake, soft_light, ");
+  await page.getByRole("button", {name:"Texte",exact:true}).click();
+  await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake\n\n## Lumière\nsoft_light\n##");
   await page.getByRole("dialog", { name: "Écrire votre image" }).getByRole("button", { name: "Historique", exact: true }).click();
   await page.getByRole("button", { name: "Restaurer", exact: true }).click();
   await expect(page.getByLabel("Prompt positif", { exact: true })).toHaveValue("sun, lake");
@@ -985,4 +986,69 @@ test("Anima automatic generation uses separate components and validates dependen
   await page.getByRole("button", {name:"Générer depuis le menu rapide"}).click();
   await expect(page.getByText(/Anima nécessite qwen_3_06b_base/)).toBeVisible();
   expect(submissions.length).toBe(1);
+});
+
+test("prompt blocks preserve free text, reorder, undo and compile without comments", async ({page}) => {
+  const submitted:any[]=[];
+  page.on("request",req=>{if(req.url().endsWith("/__native")){const d=req.postDataJSON();if(d.args?.path==="/api/prompt")submitted.push(d.args.body);}});
+  await connect(page);await prompt(page,"quality,\n\n## Body\nred_dress, blue_eyes,\n##\n\n## Background\nbeach,\n##\n\nsoft light");
+  await page.getByRole("button",{name:"Votre idée",exact:true}).click();
+  await expect(page.locator('.prompt-part')).toHaveCount(4);
+  await expect(page.locator('.free-part')).toHaveCount(2);
+  await page.getByRole("button",{name:"Descendre Body",exact:true}).click();
+  await expect(page.locator('.part-title input').first()).toHaveValue("Background");
+  await page.getByRole("button",{name:"Annuler la dernière modification"}).click();
+  await expect(page.locator('.part-title input').first()).toHaveValue("Body");
+  await page.getByRole("button",{name:"Modifier le texte de Body"}).click();
+  const edit=page.getByRole("dialog",{name:"Body",exact:true});
+  await edit.getByRole("textbox",{name:"Texte du bloc",exact:true}).fill("red_dress, blue_eyes, white_hair,");
+  await edit.getByRole("button",{name:"Terminé",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Modifier le texte de Body"})).toContainText("white_hair");
+  await page.getByRole("button",{name:"Enregistrer Body dans la bibliothèque"}).click();
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('prompt-blocks-v1')!)[0].title)).toBe("Body");
+  await page.screenshot({path:"../verification/v0.13.0/prompt-blocks.png"});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await page.getByRole("button",{name:"Terminé",exact:true}).click();
+  await page.getByRole("button",{name:"Générer depuis le menu rapide"}).click();
+  await expect.poll(()=>submitted.length).toBe(1);
+  expect(submitted[0].prompt['2'].inputs.text).not.toContain('##');
+  expect(submitted[0].prompt['2'].inputs.text).toContain('white_hair');
+  expect(submitted[0].extra_data.extra_pnginfo.comfy_pocket.settings.positive).toContain('## Body');
+});
+
+test("prompt blocks drag by handle, create negative block and retain names across reload",async({page})=>{
+  await connect(page);await prompt(page,"## Body\nred_dress,\n##\n\n## Background\nbeach,\n##");
+  await page.getByRole('button',{name:'Votre idée',exact:true}).click();
+  const handle=await page.getByRole('button',{name:'Déplacer Body',exact:true}).boundingBox();
+  const target=await page.getByRole('button',{name:'Modifier le texte de Background'}).boundingBox();
+  await page.mouse.move(handle!.x+handle!.width/2,handle!.y+handle!.height/2);await page.mouse.down();
+  await page.mouse.move(target!.x+target!.width/2,target!.y+target!.height/2,{steps:12});await page.mouse.up();
+  await expect(page.locator('.part-title input').first()).toHaveValue('Background');
+  await page.getByRole('tab',{name:/Négatif/}).click();
+  await page.getByRole('button',{name:'Ajouter un bloc',exact:true}).click();
+  await page.getByLabel('Nom du bloc 1').fill('À éviter');
+  await page.getByRole('button',{name:'Modifier le texte de À éviter'}).click();
+  await page.getByRole('dialog',{name:'À éviter',exact:true}).getByRole('textbox',{name:'Texte du bloc',exact:true}).fill('blur,');
+  await page.getByRole('dialog',{name:'À éviter',exact:true}).getByRole('button',{name:'Terminé',exact:true}).click();
+  await page.getByRole('button',{name:'Terminé',exact:true}).click();
+  await page.reload();await page.getByRole('button',{name:'Prompt négatif',exact:true}).click();
+  await expect(page.getByLabel('Nom du bloc 1')).toHaveValue('À éviter');
+  await expect(page.getByRole('button',{name:'Modifier le texte de À éviter'})).toContainText('blur,');
+});
+
+test("voice assistant clearly awaits the model, retains a draft and never changes the prompt",async({page})=>{
+  await connect(page);await prompt(page,'keep this prompt');
+  await page.getByRole('button',{name:'Votre idée',exact:true}).click();
+  await page.getByRole('button',{name:'Assistant vocal',exact:true}).click();
+  const voice=page.getByRole('dialog',{name:'Assistant vocal',exact:true});
+  await expect(voice.getByText('En attente du modèle',{exact:true})).toBeVisible();
+  await expect(voice.getByRole('button',{name:'Dicter',exact:true})).toBeDisabled();
+  await voice.getByLabel('Décrivez votre idée').fill('Une robe rouge, des yeux bleus, un carré blanc.');
+  await expect(voice.getByRole('button',{name:'Proposer des tags',exact:true})).toBeDisabled();
+  await page.screenshot({path:'../verification/v0.13.0/voice-draft.png'});
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+  await voice.getByRole('button',{name:'Fermer',exact:true}).click();
+  await expect(page.getByLabel('Prompt positif',{exact:true})).toHaveValue('keep this prompt');
+  await page.getByRole('button',{name:'Assistant vocal',exact:true}).click();
+  await expect(voice.getByLabel('Décrivez votre idée')).toHaveValue('Une robe rouge, des yeux bleus, un carré blanc.');
 });
