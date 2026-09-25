@@ -921,3 +921,41 @@ test("floating shortcuts preserve page width and the header uses Mochi on every 
     expect(await page.locator('.header-spark img').evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
 });
+
+test("model import downloads on the PC, survives closing the sheet and refreshes LoRAs without resetting prompt", async ({ page }) => {
+  let revision=0; let jobs:any[]=[];
+  await page.route("**/__native", async route => {
+    const d=route.request().postDataJSON(); let value:any;
+    if(d.args?.path==="/bridge/info")value={version:4,modelImports:true,roots:[]};
+    else if(d.args?.path==="/bridge/imports")value={revision,jobs};
+    else if(d.args?.path==="/bridge/imports/inspect")value={id:"plan",title:"Film light",provider:"civitai",files:[{id:"file",name:"new-light.safetensors",label:"V2 · new-light.safetensors",kind:"loras",size:1024,baseModel:"SDXL"}]};
+    else if(d.args?.path==="/bridge/imports/start") {jobs=[{id:"job",name:"new-light.safetensors",kind:"loras",status:"downloading",received:200,total:1024}];value=jobs[0];}
+    else if(d.args?.path==="/api/object_info" && revision) {value=structuredClone(info);value.LoraLoader.input.required.lora_name[0].push("new-light.safetensors");}
+    else return route.fallback();
+    await route.fulfill({json:{value}});
+  });
+  await connect(page);await prompt(page,"landscape, keep my prompt");
+  await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await page.getByLabel("Lien du modèle ou du fichier").fill("https://civitai.red/models/123");
+  await page.getByRole("button",{name:"Analyser le lien"}).click();
+  await expect(page.getByLabel("Installer comme")).toHaveValue("loras");
+  await page.screenshot({path:"../verification/v0.12.0/import-plan.png"});
+  await page.getByRole("button",{name:"Télécharger et installer"}).click();
+  await expect(page.getByRole("progressbar")).toBeVisible();
+  await expect(page.getByRole("dialog").locator("input[type=password]")).toHaveValue("");
+  await page.getByRole("button",{name:"Fermer",exact:true}).click();
+  jobs[0].status="completed";jobs[0].received=1024;revision=1;
+  await page.getByRole("button",{name:"LoRA / LyCORIS",exact:true}).click();
+  await expect(page.locator(".model-choice").filter({hasText:"new-light.safetensors"})).toBeVisible({timeout:10000});
+  await page.getByRole("button",{name:"Fermer",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Votre idée",exact:true})).toContainText("landscape, keep my prompt");
+  await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await expect(page.getByText("LoRA / LyCORIS · Installé sur le PC")).toBeVisible();
+  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
+});
+
+test("model import explains an old companion and does not offer a broken action",async({page})=>{
+  await connect(page);await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour importer des modèles.")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Analyser le lien"})).toHaveCount(0);
+});

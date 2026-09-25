@@ -448,6 +448,36 @@ fn control(app: &tauri::AppHandle, action: &str) -> Result<(), String> {
             validate(&s)?;
             sync_config(&st, &s)?;
         }
+        let active_port = read_json(st.dir.join("config.json"))
+            .ok()
+            .and_then(|v| v["port"].as_u64())
+            .unwrap_or(s.port as u64) as u16;
+        if action == "stop" && listener(active_port) {
+            let (client, cfg, url) = bridge_client(&st.dir)?;
+            let response = client
+                .get(format!("{url}/bridge/imports"))
+                .bearer_auth(cfg["token"].as_str().unwrap_or_default())
+                .send()
+                .map_err(error)?;
+            if response.status() != reqwest::StatusCode::NOT_FOUND {
+                let state: Value = response
+                    .error_for_status()
+                    .map_err(error)?
+                    .json()
+                    .map_err(error)?;
+                let jobs = state["jobs"]
+                    .as_array()
+                    .ok_or("État des téléchargements inconnu.")?;
+                if jobs.iter().any(|j| {
+                    matches!(
+                        j["status"].as_str(),
+                        Some("queued" | "downloading" | "verifying")
+                    )
+                }) {
+                    return Err("Des modèles sont en téléchargement. Attendez leur installation ou annulez-les dans Mochi avant d’arrêter le moteur.".into());
+                }
+            }
+        }
         let log = fs::File::create(st.dir.join("studio.log")).map_err(error)?;
         let legacy = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../scripts/../bridge/cli.mjs")

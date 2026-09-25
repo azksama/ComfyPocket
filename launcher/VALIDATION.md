@@ -48,3 +48,13 @@ La page principale défile dans un conteneur situé sous la barre de fenêtre de
 
 Validation : build TypeScript/Vite, 5 tests Rust, 40 tests Vitest et 25 tests Node/PowerShell. La joignabilité depuis Internet dépend toujours de la redirection du port et du pare-feu ; le bouton de partage ne configure pas le routeur.
 Vérification Windows installée : sauvegarde puis fermeture/réouverture du lanceur, onboarding non répété, adresse publique conservée, dossier de test conservé puis retiré. Redémarrage réel via le bouton d’application ; services prêts, deux URL présentes, trois fichiers du dossier utilisateur listés par CheckpointLoaderSimple. Certificat et clé privés inchangés (SHA-256 comparés). Pas de nouvelle génération ni de test du téléphone/Internet dans cette validation.
+
+## Studio 0.3.0 / Android 0.12.0
+
+Ajout des téléchargements de modèles depuis Android : résolution Civitai .com/.red et Hugging Face, file PC persistante, téléchargement en flux, annulation, SHA-256, installation atomique sans écrasement et rafraîchissement automatique du catalogue. L’arrêt du moteur et l’installation d’une mise à jour Studio sont refusés pendant les imports actifs.
+
+Validation fournisseur réelle : analyse de trois URL publiques (.com, .red, Hugging Face) ; téléchargement complet Hugging Face de 334 641 190 octets, SHA-256 `735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75` ; accès aux deux endpoints de téléchargement Civitai jusqu’aux en-têtes HTTP 200 (sans télécharger 2 Go de checkpoint). Les téléchargements privés avec token et les conditions d’accès restreint sont traités, mais aucun compte fournisseur privé n’a été testé.
+
+ARTEMIS : diagnostic bloqué faute de clé LLM dans son environnement ; l’émulateur initialement connecté n’était plus présent lors du second diagnostic. Pas de validation de cette version sur téléphone physique. Les scénarios web utilisent des réponses de compagnon simulées ; le téléchargement réel utilise le module du compagnon et un dossier isolé de validation.
+
+Résultats finaux : 40 tests Vitest, 34 tests Node/PowerShell, 5 tests Rust Studio, 5 tests Rust Android/transport et le test TLS natif réel réussis. Les 52 scénarios Playwright passent, dont le suivi après fermeture de l’écran d’import, l’apparition automatique du LoRA et la conservation du prompt. APK ARM64 release signé (signature vérifiée), installeur Windows produit. Compagnon Windows installé : `/bridge/info` annonce `modelImports: true`, inspection Hugging Face via HTTPS authentifié réussie ; moteur et compagnon prêts. Certificat et clé identiques avant/après installation.

@@ -145,13 +145,15 @@ mod tests {
     use super::*;
     #[test]
     fn selection_ignores_android_prereleases_and_downgrades() {
+        let current = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+        let next = format!("studio-v{}.0.0", current.major + 1);
         let releases = vec![
             json!({"tag_name":"v9.0.0","draft":false,"prerelease":false}),
             json!({"tag_name":"studio-v0.1.0","draft":false,"prerelease":false}),
             json!({"tag_name":"studio-v0.4.0","draft":false,"prerelease":true}),
-            json!({"tag_name":"studio-v0.3.0","draft":false,"prerelease":false}),
+            json!({"tag_name":next,"draft":false,"prerelease":false}),
         ];
-        assert_eq!(candidate(&releases).unwrap()["tag_name"], "studio-v0.3.0");
+        assert_eq!(candidate(&releases).unwrap()["tag_name"], next);
     }
     #[test]
     fn refuses_missing_digest() {

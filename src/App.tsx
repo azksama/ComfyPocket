@@ -1,3 +1,4 @@
+import ModelImports, { useModelImports } from "./ModelImports";
 import { useLocale, t as tr, locale } from "./i18n";
 import {
   useState,
@@ -8,6 +9,7 @@ import {
   Suspense,
 } from "react";
 import {
+  Download,
   Sparkles,
   SlidersHorizontal,
   Settings2,
@@ -177,6 +179,9 @@ export default function App() {
     hydrationRequest = useRef(0),
     viewerSession = useRef(0);
   const [showConnection, setShowConnection] = useState(false);
+  const [showImports, setShowImports] = useState(false);
+  const modelImports = useModelImports(server, setInfo);
+  useEffect(() => setShowImports(false), [server]);
   const [epoch, setEpoch] = useState(0);
   const [presetRequest, setPresetRequest] = useState<{
     id: number;
@@ -804,6 +809,7 @@ export default function App() {
           {locale() === "en" ? "Resume setup" : "Reprendre la configuration"}
         </button>
       )}
+      {tab === "connect" && server && <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer un modèle depuis un lien")}</button>}
       {tab === "connect" && (
         <Connections
           active={active}
@@ -940,6 +946,7 @@ export default function App() {
               )}
             </CollapsibleCard>
           )}
+          <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer un modèle depuis un lien")}</button>
           {mode === "simple" ? (
             <div className="settings-grid studio-settings">
               <SettingsPanel
@@ -1581,6 +1588,7 @@ export default function App() {
           </Toast>
         )}
       </div>
+      {showImports && server && <ModelImports state={modelImports} onClose={() => setShowImports(false)} />}
       {showConnection && (
         <ConnectionStatus
           server={server}

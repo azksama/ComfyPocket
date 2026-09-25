@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { realpath, stat, readFile } from "node:fs/promises";
 import path from "node:path";
 import WebSocket from "ws";
+import { createModelImports } from "./model-imports.mjs";
 import { library } from "./library.mjs";
 import { createGalleryIndex } from "./gallery.mjs";
 import { thumbnail } from "./thumbnails.mjs";
@@ -68,6 +69,7 @@ export function createBridge(config) {
     throw new Error("ComfyUI doit être sur le PC local (127.0.0.1).");
   const sessions = new Map();
   const lib = library(config, safeFile);
+  const imports = createModelImports(config);
   const gallery = createGalleryIndex(config.roots, new Set(Object.keys(mime)));
   function session(id) {
     if (!/^[\w-]{8,100}$/.test(id))
@@ -150,9 +152,16 @@ export function createBridge(config) {
         const url = new URL(req.url, "https://localhost");
         if (req.method === "GET" && url.pathname === "/bridge/info")
           return json(res, 200, {
-            version: 3,
+            version: 4,
+            modelImports: true,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
+        if (url.pathname === "/bridge/imports" && req.method === "GET") return json(res,200,await imports.list());
+        if (req.method === "POST" && ["/bridge/imports/inspect","/bridge/imports/start","/bridge/imports/cancel"].includes(url.pathname)) {
+          const input = JSON.parse((await body(req)).toString());
+          const action = url.pathname.split("/").pop();
+          return json(res,200,await (action === "inspect" ? imports.inspect(input) : action === "start" ? imports.start(input) : imports.cancel(input.id)));
+        }
         if (req.method === "GET" && url.pathname === "/bridge/model-info")
           return json(
             res,
@@ -317,6 +326,7 @@ export function createBridge(config) {
   );
   server.on("close", () => {
     clearInterval(cleanup);
+    imports.close();
     for (const s of sessions.values()) s.ws?.terminate();
   });
   return server;
