@@ -22,6 +22,10 @@ import androidx.lifecycle.LifecycleOwner
 import android.content.ContentValues
 import android.os.Environment
 import android.provider.MediaStore
+import android.Manifest
+import android.content.pm.PackageManager
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -44,8 +48,14 @@ class TranslationArgs { lateinit var text: String; lateinit var source: String; 
 @InvokeArg
 class LanguageArgs { lateinit var language: String }
 
-@TauriPlugin
+@InvokeArg
+class ServiceArgs { lateinit var action: String; var language: String = "fr"; var cellular: Boolean = false }
+
+@TauriPlugin(permissions = [Permission(strings = [Manifest.permission.RECORD_AUDIO], alias = "microphone")])
 class PocketPlugin(private val activity: Activity): Plugin(activity) {
+ private val updates = AppUpdates(activity)
+ private val voice = VoiceRecorder()
+ private var pendingMicrophone: Invoke? = null
  private val worker = Executors.newSingleThreadExecutor()
  private val preferences = activity.getSharedPreferences("pocket-lock", Context.MODE_PRIVATE)
  @Volatile private var unlocked = false
@@ -66,12 +76,38 @@ class PocketPlugin(private val activity: Activity): Plugin(activity) {
   (activity as? LifecycleOwner)?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
    override fun onPause(owner: LifecycleOwner) { this@PocketPlugin.onPause() }
    override fun onResume(owner: LifecycleOwner) { this@PocketPlugin.onResume() }
-   override fun onDestroy(owner: LifecycleOwner) { worker.shutdown() }
+   override fun onDestroy(owner: LifecycleOwner) { worker.shutdown(); updates.close(); voice.close() }
   })
  }
  override fun onResume() { expire(); backgroundAt = -1; protectRecents() }
- override fun onPause() { if (enabled && backgroundAt < 0) { backgroundAt = SystemClock.elapsedRealtime(); expire() } }
+ override fun onPause() { voice.background(); if (enabled && backgroundAt < 0) { backgroundAt = SystemClock.elapsedRealtime(); expire() } }
 
+ @Command fun updateAction(invoke: Invoke) { activity.runOnUiThread {
+  expire(); if(enabled&&!unlocked){invoke.reject("Application locked");return@runOnUiThread}
+  try { val args=invoke.parseArgs(ServiceArgs::class.java)
+   when(args.action){"check"->updates.check();"download"->updates.download();"cancel"->updates.cancel();"install"->{updates.install{result->if(result!=null&&result!="permission")invoke.reject(result)else invoke.resolve(updates.status().put("permissionRequired",result=="permission"))};return@runOnUiThread};"status"->{};else->error("Invalid action")}
+   invoke.resolve(updates.status())
+  } catch(e:Exception){invoke.reject(e.message?:"Update failed")}
+ } }
+ @Command fun voiceAction(invoke: Invoke) { activity.runOnUiThread {
+  expire();if(enabled&&!unlocked){invoke.reject("Application locked");return@runOnUiThread}
+  try {val args=invoke.parseArgs(ServiceArgs::class.java)
+   when(args.action){"start"->{
+    if(ContextCompat.checkSelfPermission(activity,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+     check(pendingMicrophone==null){"Microphone permission already pending"}
+     pendingMicrophone=invoke;requestPermissionForAlias("microphone",invoke,"microphonePermission");return@runOnUiThread
+    }
+    voice.start()
+   };"stop"->voice.stop();"cancel"->{pendingMicrophone?.reject("Dictée annulée");pendingMicrophone=null;voice.cancel()};"take"->{invoke.resolve(voice.take());return@runOnUiThread};"status"->{};else->error("Invalid action")}
+   invoke.resolve(voice.status())
+  }catch(e:Exception){invoke.reject(e.message?:"Voice failed")}
+ } }
+ @PermissionCallback private fun microphonePermission(invoke:Invoke) {
+  if(pendingMicrophone!==invoke)return
+  pendingMicrophone=null
+  expire();if(enabled&&!unlocked){invoke.reject("Application locked");return}
+  if(ContextCompat.checkSelfPermission(activity,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)voiceAction(invoke)else invoke.reject("Microphone permission denied")
+ }
  @Command fun setAppLanguage(invoke: Invoke) {
   val language = invoke.parseArgs(LanguageArgs::class.java).language
   if (language !in listOf("fr", "en")) { invoke.reject("Invalid language"); return }

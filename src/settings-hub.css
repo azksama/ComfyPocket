@@ -1,0 +1,208 @@
+.connections .settings-group {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 4px 20px #44205a08;
+}
+.connections .settings-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  list-style: none;
+  cursor: pointer;
+  min-height: 76px;
+}
+.settings-group > summary::-webkit-details-marker {
+  display: none;
+}
+.settings-group > summary::before {
+  display: none;
+}
+.settings-group > summary > span {
+  flex: 1;
+  min-width: 0;
+}
+.settings-group > summary strong,
+.settings-group > summary small {
+  display: block;
+}
+.settings-group > summary strong {
+  font-size: 1rem;
+  color: var(--ink);
+}
+.settings-group > summary small {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.settings-group > summary svg {
+  color: var(--accent);
+  flex-shrink: 0;
+  width: 21px;
+}
+.settings-group[open] > summary > svg:last-child {
+  transform: rotate(90deg);
+}
+.settings-group-content {
+  padding: 0 20px 20px;
+}
+.connections > .settings-group + .settings-group {
+  margin-top: 0;
+}
+.settings-group-content .settings-menu,
+.settings-group-content .biometric-settings {
+  margin: 0;
+}
+.settings-group-content .settings-menu > button,
+.settings-group-content .setting-row,
+.settings-group-content .switch-row {
+  padding-block: 18px;
+}
+.connection-help {
+  border: 0;
+  background: transparent;
+  margin: 12px 0 24px;
+}
+.connection-help summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.connection-help .connection-tip {
+  margin: 12px 0;
+}
+.voice-models > p {
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.voice-models article {
+  background: #f3edf8;
+  border: 0;
+  border-radius: 18px;
+  padding: 18px;
+  margin: 16px 0;
+  box-shadow: none;
+}
+.voice-models article h3 {
+  font-size: 0.98rem;
+  margin: 0 0 10px;
+}
+.voice-models article p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.voice-models article strong {
+  display: block;
+  color: var(--accent);
+  font-size: 0.82rem;
+  margin-bottom: 16px;
+}
+.voice-models article button {
+  margin-top: 12px;
+  width: 100%;
+}
+.voice-models progress,
+.update-dialog progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.voice-model-dialog,
+.update-dialog,
+.weight-dialog {
+  background: var(--canvas);
+  border: 0;
+  width: min(520px, calc(100% - 24px));
+  max-height: calc(100dvh - 40px);
+  border-radius: 24px;
+  padding: 24px;
+}
+.update-dialog > button {
+  display: flex;
+  width: 100%;
+  margin-top: 14px;
+}
+.update-dialog > p,
+.weight-dialog > p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.update-settings {
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.update-settings > button {
+  width: 100%;
+  margin-block: 16px;
+}
+.weight-dialog .row {
+  margin-top: 24px;
+  gap: 12px;
+}
+.weight-dialog code {
+  display: block;
+  padding: 14px;
+  border-radius: 12px;
+  background: #eee4f5;
+  overflow-wrap: anywhere;
+}
+.prompt-part.part-disabled .part-content {
+  opacity: 0.45;
+}
+.prompt-part .block-enable {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  appearance: none;
+  background: #d6cddd;
+  border: 0;
+  border-radius: 12px;
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.prompt-part .block-enable::after {
+  content: "";
+  display: block;
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  box-shadow: 0 1px 3px #0002;
+  transform: none;
+}
+.prompt-part .block-enable:checked {
+  background: var(--accent);
+}
+.prompt-part .block-enable:checked::after {
+  left: 17px;
+  transform: none;
+}
+.prompt-assistant .assistant-model-button {
+  width: 100%;
+  margin-bottom: 18px;
+}
+.assistant-progress {
+  flex-wrap: wrap;
+}
+@media (max-width: 360px) {
+  .settings-group-content {
+    padding-inline: 14px;
+  }
+  .connections .settings-group > summary {
+    padding: 16px;
+  }
+  .prompt-part .part-position {
+    display: none;
+  }
+}

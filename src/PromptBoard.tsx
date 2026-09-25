@@ -134,7 +134,7 @@ export default function PromptBoard({ value, side, onChange, editor }: Props) {
             <article
               key={p.id}
               data-prompt-part={p.id}
-              className={`prompt-part ${p.title === null ? "free-part" : "named-part"} ${dragging === p.id ? "part-dragging" : ""} ${over === p.id && over !== dragging ? "part-drop" : ""}`}
+              className={`prompt-part ${p.title === null ? "free-part" : "named-part"} ${dragging === p.id ? "part-dragging" : ""} ${over === p.id && over !== dragging ? "part-drop" : ""} ${p.enabled === false ? "part-disabled" : ""}`}
             >
               <header>
                 <button
@@ -221,6 +221,18 @@ export default function PromptBoard({ value, side, onChange, editor }: Props) {
                     />
                   </label>
                 )}
+                {p.title !== null && (
+                  <input
+                    className="block-enable"
+                    type="checkbox"
+                    role="switch"
+                    aria-label={t("Activer {0}", [label(p)])}
+                    checked={p.enabled !== false}
+                    onChange={(e) =>
+                      update(p.id, { enabled: e.target.checked })
+                    }
+                  />
+                )}
                 <span className="part-position">
                   {index + 1}/{parts.length}
                 </span>
@@ -251,6 +263,19 @@ export default function PromptBoard({ value, side, onChange, editor }: Props) {
                   </button>
                 </div>
                 <div>
+                  {p.title === null && (
+                    <button
+                      aria-label={t("Transformer en bloc")}
+                      onClick={() =>
+                        update(p.id, {
+                          title: t("Nouveau bloc"),
+                          enabled: true,
+                        })
+                      }
+                    >
+                      <Plus size={17} />
+                    </button>
+                  )}
                   {p.title !== null && (
                     <button
                       disabled={!p.text.trim()}

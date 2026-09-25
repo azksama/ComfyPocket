@@ -1,3 +1,6 @@
+import VoiceModels from "./VoiceModels";
+import { UpdateSettings } from "./AppUpdater";
+import "./settings-hub.css";
 import LanguagePicker from "./LanguagePicker";
 import { t as tr, locale } from "./i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -498,98 +501,154 @@ export default function Connections({
           </form>
         </section>
       )}
-      <div className="connection-tip">
-        <strong>{tr("Votre PC reste le moteur.")}</strong>
-        {tr(
-          "Gardez le compagnon ouvert en arrière-plan. En déplacement, utilisez votre connexion distante ou WireGuard.",
-        )}{" "}
-      </div>
-      <section className="settings-menu">
-        <h2>{tr("Bibliothèque & génération")}</h2>
-        <button disabled={!server} onClick={() => onOpen("models")}>
+      <details className="connection-help">
+        <summary>{tr("Aide à la connexion")}</summary>
+        <div className="connection-tip">
+          <strong>{tr("Votre PC reste le moteur.")}</strong>
+          {tr(
+            "Gardez le compagnon ouvert en arrière-plan. En déplacement, utilisez votre connexion distante ou WireGuard.",
+          )}{" "}
+        </div>
+      </details>
+      <details className="settings-group">
+        <summary>
           <Layers />
           <span>
-            <strong>{tr("Modèles, LoRAs & upscalers")}</strong>
-            <small>{tr("Retrouver les ressources de votre PC")}</small>
+            <strong>{tr("Atelier")}</strong>
+            <small>{tr("Raccourcis, bibliothèque et génération")}</small>
           </span>
           <ChevronRight />
-        </button>
-        <button disabled={!server} onClick={() => onOpen("workflow")}>
-          <Workflow />
-          <span>
-            <strong>{tr("Workflows ComfyUI")}</strong>
-            <small>{tr("Importer et adapter un workflow API")}</small>
-          </span>
-          <ChevronRight />
-        </button>
-        <button disabled={!server} onClick={() => onOpen("presets")}>
-          <Bookmark />
-          <span>
-            <strong>{tr("Mes presets")}</strong>
-            <small>{tr("Enregistrer et réutiliser une configuration")}</small>
-          </span>
-          <ChevronRight />
-        </button>
-      </section>
-      <LockSettings />
-      <section className="settings-menu">
-        <h2>{tr("L’application")}</h2>
-        <LanguagePicker />
-        <label className="switch-row handedness-setting">
-          <span>
-            <strong>{tr("Menu rapide de l’Atelier")}</strong>
-            <small>{tr("Accès aux sections et à la génération")}</small>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label={tr("Menu rapide de l’Atelier")}
-            checked={quickMenu}
-            onChange={(e) => onQuickMenu(e.target.checked)}
-          />
-        </label>
-        <label className="switch-row handedness-setting">
-          <span>
-            <strong>{tr("Mode gaucher")}</strong>
-            <small>{tr("Placer les raccourcis de l’Atelier à gauche")}</small>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label={tr("Mode gaucher")}
-            checked={leftHanded}
-            onChange={(e) => onHandedness(e.target.checked)}
-          />
-        </label>
-        <div className="setting-row">
-          <Palette />
-          <span>
-            <strong>{tr("Apparence")}</strong>
-            <small>{tr("Pastel lavande · Clair")}</small>
-          </span>
+        </summary>
+        <div className="settings-group-content">
+          <section className="settings-menu">
+            <label className="switch-row handedness-setting">
+              <span>
+                <strong>{tr("Menu rapide de l’Atelier")}</strong>
+                <small>{tr("Accès aux sections et à la génération")}</small>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label={tr("Menu rapide de l’Atelier")}
+                checked={quickMenu}
+                onChange={(e) => onQuickMenu(e.target.checked)}
+              />
+            </label>
+            <label className="switch-row handedness-setting">
+              <span>
+                <strong>{tr("Mode gaucher")}</strong>
+                <small>
+                  {tr("Placer les raccourcis de l’Atelier à gauche")}
+                </small>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label={tr("Mode gaucher")}
+                checked={leftHanded}
+                onChange={(e) => onHandedness(e.target.checked)}
+              />
+            </label>
+
+            <button disabled={!server} onClick={() => onOpen("models")}>
+              <Layers />
+              <span>
+                <strong>{tr("Modèles, LoRAs & upscalers")}</strong>
+                <small>{tr("Retrouver les ressources de votre PC")}</small>
+              </span>
+              <ChevronRight />
+            </button>
+            <button disabled={!server} onClick={() => onOpen("workflow")}>
+              <Workflow />
+              <span>
+                <strong>{tr("Workflows ComfyUI")}</strong>
+                <small>{tr("Importer et adapter un workflow API")}</small>
+              </span>
+              <ChevronRight />
+            </button>
+            <button disabled={!server} onClick={() => onOpen("presets")}>
+              <Bookmark />
+              <span>
+                <strong>{tr("Mes presets")}</strong>
+                <small>
+                  {tr("Enregistrer et réutiliser une configuration")}
+                </small>
+              </span>
+              <ChevronRight />
+            </button>
+          </section>
         </div>
-        <button disabled={!server} onClick={() => onOpen("trash")}>
-          <Trash2 />
-          <span>
-            <strong>{tr("Corbeille récupérable")}</strong>
-            <small>{tr("Retrouver vos images supprimées")}</small>
-          </span>
-          <ChevronRight />
-        </button>
-        <div className="setting-row">
+      </details>
+      <details className="settings-group">
+        <summary>
           <Download />
           <span>
-            <strong>{tr("Téléchargements")}</strong>
-            <small>Pictures / Mochi</small>
+            <strong>{tr("Voix et modèles")}</strong>
+            <small>{tr("Whisper et assistant Danbooru")}</small>
           </span>
+          <ChevronRight />
+        </summary>
+        <div className="settings-group-content">
+          <VoiceModels />
         </div>
-      </section>
-      <button
-        className="setup-mobile-resume"
-        onClick={() => window.dispatchEvent(new Event("mochi-setup"))}
-      >
-        {locale() === "en" ? "Restart setup" : "Refaire la configuration"}
-      </button>
+      </details>
+      <details className="settings-group">
+        <summary>
+          <ShieldCheck />
+          <span>
+            <strong>{tr("Sécurité")}</strong>
+            <small>{tr("Biométrie et confidentialité")}</small>
+          </span>
+          <ChevronRight />
+        </summary>
+        <div className="settings-group-content">
+          <LockSettings />
+        </div>
+      </details>
+      <details className="settings-group">
+        <summary>
+          <Palette />
+          <span>
+            <strong>{tr("Application")}</strong>
+            <small>{tr("Langue, apparence et mises à jour")}</small>
+          </span>
+          <ChevronRight />
+        </summary>
+        <div className="settings-group-content">
+          <section className="settings-menu">
+            <LanguagePicker />
+            <div className="setting-row">
+              <Palette />
+              <span>
+                <strong>{tr("Apparence")}</strong>
+                <small>{tr("Pastel lavande · Clair")}</small>
+              </span>
+            </div>
+            <button disabled={!server} onClick={() => onOpen("trash")}>
+              <Trash2 />
+              <span>
+                <strong>{tr("Corbeille récupérable")}</strong>
+                <small>{tr("Retrouver vos images supprimées")}</small>
+              </span>
+              <ChevronRight />
+            </button>
+            <div className="setting-row">
+              <Download />
+              <span>
+                <strong>{tr("Téléchargements")}</strong>
+                <small>Pictures / Mochi</small>
+              </span>
+            </div>
+          </section>
+          <UpdateSettings />
+          <button
+            className="setup-mobile-resume"
+            onClick={() => window.dispatchEvent(new Event("mochi-setup"))}
+          >
+            {locale() === "en" ? "Restart setup" : "Refaire la configuration"}
+          </button>
+        </div>
+      </details>
       <div className="settings-version">
         <span>Mochi</span>
         <span>Version {version}</span>

@@ -1,15 +1,19 @@
-# Mochi 0.13.0
+# Mochi 0.14.0
 
-Client Android privé de ComfyUI, avec les modèles et le GPU du PC. Interface Mochi lavande, adaptée aux téléphones et aux grands écrans.
+Mochi relie votre atelier Android à ComfyUI sur votre PC. Le compagnon HTTPS et le lanceur Windows Mochi Studio conservent l’appairage, les modèles et votre configuration.
 
-## Nouveautés 0.13.0
+## Nouveautés 0.14.0
 
-- Prompts positifs et négatifs organisés en blocs nommés, déplaçables par poignée ou flèches, avec passages libres distincts et annulation.
-- La bibliothèque insère le titre du bloc avec son texte. Les commentaires `##` restent dans les données enregistrées et sont retirés des textes envoyés à ComfyUI en génération automatique.
-- Interface du futur assistant vocal : brouillon local français/anglais et parcours de revue des propositions préparé. La dictée et l’optimisation restent indisponibles tant que le modèle n’est pas connecté.
-- Éditeur adapté aux petits écrans avec clavier ouvert ; interface française et anglaise.
+- Blocs de prompt activables séparément, conversion du texte libre en bloc et dictée dans chaque éditeur.
+- Réglage du poids d’un tag, avec la syntaxe ComfyUI `(tag:1.5)`.
+- Whisper Medium multilingue et DanbotNL exécutés sur le PC ; modèles téléchargés à la demande depuis Hugging Face. Small et Large v3 sont aussi proposés.
+- Texte ou voix vers des propositions de tags à modifier et valider avant insertion.
+- Paramètres regroupés en Atelier, Voix et modèles, Sécurité et Application.
+- Mises à jour Android depuis les releases GitHub : vérification automatique, téléchargement après accord et installation via Android, avec contrôle de la version, de l’empreinte et de la signature.
 
-[Mode d’emploi et contrat du futur modèle](PROMPT_BLOCKS.md). Cette mise à jour Android utilise le compagnon existant ; Mochi Studio 0.3.1 reste compatible. APK signé avec la clé existante. Validation navigateur et compilation Android effectuées ; aucun appareil Android connecté pour un contrôle physique dans cette livraison.
+**L’assistant nécessite Mochi Studio 0.4.0.** L’appairage existant est conservé. Les modèles restent sur le PC et ne sont pas inclus dans l’APK.
+
+[Prompts par blocs](PROMPT_BLOCKS.md) · [Assistant PC et modèles](docs/ASSISTANT_PC.md)
 
 ## Nouveautés 0.10.0
 

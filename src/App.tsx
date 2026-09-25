@@ -1,3 +1,4 @@
+import AppUpdater from "./AppUpdater";
 import { modelChoices } from "./api";
 import ModelImports, { useModelImports } from "./ModelImports";
 import { useLocale, t as tr, locale } from "./i18n";
@@ -773,7 +774,7 @@ export default function App() {
                 create: tr("Votre imagination,"),
                 gallery: tr("Vos petits mondes"),
                 glossary: tr("Le mot juste."),
-                connect: tr("À votre rythme."),
+                connect: tr("Paramètres"),
               }[tab]
             }
           </h1>
@@ -1472,7 +1473,7 @@ export default function App() {
       />
     );
   return (
-    <div className={`app ${leftHanded ? "left-handed" : ""}`}>
+    <div className={`app ${leftHanded ? "left-handed" : ""}`}><AppUpdater/>
       {tab === "create" && server && quickMenu && (
         <StudioNav
           active

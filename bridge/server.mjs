@@ -4,6 +4,7 @@ import { realpath, stat, readFile } from "node:fs/promises";
 import path from "node:path";
 import WebSocket from "ws";
 import { createModelImports } from "./model-imports.mjs";
+import { createAssistant } from "./assistant.mjs";
 import { library } from "./library.mjs";
 import { createGalleryIndex } from "./gallery.mjs";
 import { thumbnail } from "./thumbnails.mjs";
@@ -70,6 +71,7 @@ export function createBridge(config) {
   const sessions = new Map();
   const lib = library(config, safeFile);
   const imports = createModelImports(config);
+  const assistant = createAssistant(config);
   const gallery = createGalleryIndex(config.roots, new Set(Object.keys(mime)));
   function session(id) {
     if (!/^[\w-]{8,100}$/.test(id))
@@ -155,8 +157,14 @@ export function createBridge(config) {
             version: 4,
             modelImports: true,
             modelProfiles: true,
+            assistant: true,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
+        if (url.pathname === "/bridge/assistant" && req.method === "GET") return json(res, 200, assistant.status());
+        if (url.pathname === "/bridge/assistant/settings" && req.method === "POST") return json(res, 200, await assistant.configure(JSON.parse((await body(req)).toString())));
+        if (url.pathname === "/bridge/assistant/jobs" && req.method === "POST") return json(res, 202, assistant.start(JSON.parse((await body(req)).toString())));
+        if (url.pathname === "/bridge/assistant/job" && req.method === "GET") return json(res, 200, assistant.get(url.searchParams.get("id")));
+        if (url.pathname === "/bridge/assistant/cancel" && req.method === "POST") return json(res, 200, assistant.cancel(JSON.parse((await body(req)).toString()).id));
         if (url.pathname === "/bridge/imports" && req.method === "GET") return json(res,200,await imports.list());
         if (req.method === "POST" && ["/bridge/imports/inspect","/bridge/imports/start","/bridge/imports/cancel"].includes(url.pathname)) {
           const input = JSON.parse((await body(req)).toString());
@@ -330,6 +338,7 @@ export function createBridge(config) {
   server.on("close", () => {
     clearInterval(cleanup);
     imports.close();
+    assistant.close();
     for (const s of sessions.values()) s.ws?.terminate();
   });
   return server;

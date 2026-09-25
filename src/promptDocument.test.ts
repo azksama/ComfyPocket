@@ -108,3 +108,21 @@ describe("future voice optimizer contract", () => {
       expect(() => validateProposals(result)).toThrow();
   });
 });
+
+describe("disabled prompt blocks", () => {
+  it("omits only disabled sections and restores their content when enabled", () => {
+    const source =
+      "quality,\n## [off] Body\nred_dress,\n##\nfree,\n## Background\nbeach,";
+    const parts = parsePrompt(source);
+    expect(parts.find((p) => p.title === "Body")?.enabled).toBe(false);
+    expect(compilePrompt(source)).toBe("quality,\nfree,\nbeach,");
+    const enabled = serializePrompt(
+      parts.map((p) => ({ ...p, enabled: true })),
+    );
+    expect(compilePrompt(enabled)).toContain("red_dress,");
+    expect(serializePrompt(parsePrompt(source))).toContain("## [off] Body");
+    expect(
+      checkPrompts({ positive: "## [off] Sun\nsun\n##", negative: "sun" }),
+    ).toEqual([]);
+  });
+});

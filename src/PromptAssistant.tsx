@@ -1,7 +1,14 @@
+import VoiceModels, {
+  useVoiceStatus,
+  dictate,
+  voiceAction,
+  pcOptimizer,
+} from "./VoiceModels";
 import { useEffect, useRef, useState } from "react";
 import { Check, LoaderCircle, Mic, Square, Sparkles } from "lucide-react";
 import { Modal } from "./Modal";
 import { t, locale } from "./i18n";
+import { api } from "./api";
 import type { Prompts } from "./promptLibrary";
 import {
   applyProposals,
@@ -17,7 +24,7 @@ function readDraft() {
     return {
       description:
         typeof value.description === "string"
-          ? value.description.slice(0, 12000)
+          ? value.description.slice(0, 5000)
           : "",
       language:
         value.language === "en"
@@ -43,6 +50,9 @@ export default function PromptAssistant({
   onClose: () => void;
   adapter?: PromptOptimizer;
 }) {
+  const { status: voice } = useVoiceStatus();
+  const optimizer = adapter || (voice?.taggerReady ? pcOptimizer : undefined);
+  const [showModels, setShowModels] = useState(false);
   const [draft, setDraft] = useState(readDraft);
   const [phase, setPhase] = useState<
     "idle" | "listening" | "optimizing" | "review"
@@ -70,36 +80,65 @@ export default function PromptAssistant({
     setPhase("idle");
   }
   async function run(dictation: boolean) {
-    if (!adapter || busy || (dictation && !adapter.dictate)) return;
+    if (request.current || busy || (!dictation && !optimizer)) return;
     const controller = new AbortController();
     request.current = controller;
     setError("");
     setPhase(dictation ? "listening" : "optimizing");
     try {
-      if (dictation) {
-        const text = await adapter.dictate!(draft.language, controller.signal);
+      if (dictation && !adapter?.dictate) {
+        const ready = await api<{ ready: boolean }>("/bridge/assistant")
+          .then((s) => s.ready)
+          .catch(() => false);
         if (controller.signal.aborted) return;
+        if (!ready) {
+          setShowModels(true);
+          setPhase("idle");
+          return;
+        }
+      }
+      if (dictation) {
+        const text = await (adapter?.dictate ?? dictate)(
+          draft.language,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        const description = (
+          (draft.description ? draft.description + "\n" : "") + text
+        ).slice(0, 5000);
+        const language =
+          adapter || draft.description.trim() ? draft.language : "en";
         save({
           ...draft,
-          description: (
-            (draft.description ? draft.description + " " : "") + text
-          ).slice(0, 12000),
+          language,
+          description,
         });
-        setPhase("idle");
+        if (optimizer && !adapter?.dictate) {
+          setPhase("optimizing");
+          const result = validateProposals(
+            await optimizer.optimize(
+              { description, language, side },
+              controller.signal,
+            ),
+          );
+          if (controller.signal.aborted) return;
+          setProposals(result.map((p) => ({ ...p, selected: true })));
+          setPhase("review");
+        } else setPhase("idle");
       } else {
         const result = validateProposals(
-          await adapter.optimize({ ...draft, side }, controller.signal),
+          await optimizer!.optimize({ ...draft, side }, controller.signal),
         );
         if (controller.signal.aborted) return;
         setProposals(result.map((p) => ({ ...p, selected: true })));
         setPhase("review");
       }
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted) {
         setError(
           t(
             "Impossible de préparer les tags. Votre description est conservée ; réessayez.",
-          ),
+          ) + (error instanceof Error ? ` ${error.message}` : ""),
         );
         setPhase("idle");
       }
@@ -129,13 +168,34 @@ export default function PromptAssistant({
       </div>
       {!adapter && (
         <div className="assistant-availability">
-          <strong>{t("En attente du modèle")}</strong>
+          <strong>
+            {voice?.taggerReady
+              ? "DanbotNL · PC"
+              : t("Préparer les modèles sur le PC")}
+          </strong>
           <p>
             {t(
-              "La voix et l’optimisation seront disponibles lorsque le modèle sera connecté. Vous pouvez déjà préparer votre description.",
+              "Whisper transcrit votre voix en anglais sur le PC. DanbotNL transforme votre description en tags à valider.",
             )}
           </p>
         </div>
+      )}
+      {!adapter && (
+        <button
+          className="assistant-model-button"
+          onClick={() => setShowModels(true)}
+        >
+          {t("Gérer les modèles")}
+        </button>
+      )}
+      {showModels && (
+        <Modal
+          title={t("Voix et modèles")}
+          className="voice-model-dialog"
+          onClose={() => setShowModels(false)}
+        >
+          <VoiceModels />
+        </Modal>
       )}
       <label>
         {t("Langue de la description")}
@@ -154,7 +214,7 @@ export default function PromptAssistant({
         {t("Décrivez votre idée")}
         <textarea
           disabled={busy}
-          maxLength={12000}
+          maxLength={5000}
           value={draft.description}
           placeholder={t(
             "Une fille avec une robe rouge, des yeux bleus et des cheveux blancs coupés au carré…",
@@ -168,11 +228,11 @@ export default function PromptAssistant({
             ? t("Brouillon conservé pour cette session uniquement.")
             : t("Brouillon enregistré sur cet appareil.")}
         </span>
-        <span>{draft.description.length}/12 000</span>
+        <span>{draft.description.length}/5 000</span>
       </div>
       <div className="assistant-actions">
         <button
-          disabled={!adapter?.dictate || busy}
+          disabled={busy || (!adapter?.dictate && !voice?.supported)}
           onClick={() => void run(true)}
         >
           <Mic size={18} />
@@ -180,7 +240,7 @@ export default function PromptAssistant({
         </button>
         <button
           className="primary"
-          disabled={!adapter || busy || !draft.description.trim()}
+          disabled={!optimizer || busy || !draft.description.trim()}
           onClick={() => void run(false)}
         >
           <Sparkles size={18} />
@@ -192,9 +252,18 @@ export default function PromptAssistant({
           <LoaderCircle className="spin" size={20} />
           <span>
             {phase === "listening"
-              ? t("Mochi vous écoute…")
+              ? voice?.phase === "processing"
+                ? t("Transcription en anglais…")
+                : t("Mochi vous écoute…")
               : t("Préparation des blocs…")}
           </span>
+          {phase === "listening" &&
+            !adapter &&
+            voice?.phase === "recording" && (
+              <button onClick={() => void voiceAction("stop")}>
+                {t("Terminer la dictée")}
+              </button>
+            )}
           <button onClick={cancel}>
             <Square size={15} />
             {t("Annuler")}

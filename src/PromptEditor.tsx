@@ -1,3 +1,5 @@
+import TagWeight from "./TagWeight";
+import { weightRange, setTagWeight, type WeightedRange } from "./promptWeights";
 import "./prompt-blocks.css";
 import PromptBoard from "./PromptBoard";
 import PromptAssistant from "./PromptAssistant";
@@ -5,7 +7,15 @@ import { compilePrompt } from "./promptDocument";
 import { t as tr, locale } from "./i18n";
 import PromptTranslation, { insertTranslation } from "./PromptTranslation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, Undo2, Redo2, Sparkles, Languages, Mic } from "lucide-react";
+import {
+  Check,
+  Undo2,
+  Redo2,
+  Sparkles,
+  Languages,
+  Mic,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Modal } from "./components";
 import { insertTag, tagRange, type Tag } from "./tags";
 import PromptTools from "./PromptTools";
@@ -70,6 +80,10 @@ export default function PromptEditor({
       ? "blocks"
       : "text",
   );
+  const [weight, setWeight] = useState<WeightedRange | null | undefined>(
+    undefined,
+  );
+  const weightSelection = useRef({ start: 0, end: 0 });
   const [assistant, setAssistant] = useState(false);
   const anchor = useRef<HTMLDivElement>(null);
   const [translation, setTranslation] = useState<
@@ -251,22 +265,24 @@ export default function PromptEditor({
       onClose={finish}
     >
       <div ref={anchor} />
-      {!fragmentTitle && (
+      {
         <div className="editor-mode-bar">
-          <div role="group" aria-label={tr("Affichage du prompt")}>
-            <button
-              aria-pressed={layout === "text"}
-              onClick={() => setLayout("text")}
-            >
-              {tr("Texte")}
-            </button>
-            <button
-              aria-pressed={layout === "blocks"}
-              onClick={() => setLayout("blocks")}
-            >
-              {tr("Blocs")}
-            </button>
-          </div>
+          {!fragmentTitle && (
+            <div role="group" aria-label={tr("Affichage du prompt")}>
+              <button
+                aria-pressed={layout === "text"}
+                onClick={() => setLayout("text")}
+              >
+                {tr("Texte")}
+              </button>
+              <button
+                aria-pressed={layout === "blocks"}
+                onClick={() => setLayout("blocks")}
+              >
+                {tr("Blocs")}
+              </button>
+            </div>
+          )}
           <button
             className="voice-entry"
             aria-label={tr("Assistant vocal")}
@@ -276,7 +292,7 @@ export default function PromptEditor({
             <span>{tr("Assistant vocal")}</span>
           </button>
         </div>
-      )}
+      }
       {layout === "text" && (
         <label className="autocomplete-setting">
           <span>{tr("Autocomplétion")}</span>
@@ -423,7 +439,13 @@ export default function PromptEditor({
               setCaret(event.target.selectionStart);
             }}
             onScroll={(event) => setScroll(event.currentTarget.scrollTop)}
-            onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+            onSelect={(event) => {
+              setCaret(event.currentTarget.selectionStart);
+              weightSelection.current = {
+                start: event.currentTarget.selectionStart,
+                end: event.currentTarget.selectionEnd,
+              };
+            }}
             onKeyDown={(event) => {
               if (composing || event.nativeEvent.isComposing) return;
               if (
@@ -557,8 +579,12 @@ export default function PromptEditor({
           side={side}
           values={values}
           onChange={(next) => {
-            update(next);
-            setLayout("blocks");
+            update(
+              fragmentTitle
+                ? { ...values, [side]: compilePrompt(next[side]) }
+                : next,
+            );
+            if (!fragmentTitle) setLayout("blocks");
           }}
           onClose={() => setAssistant(false)}
         />
@@ -585,8 +611,43 @@ export default function PromptEditor({
           }}
         />
       )}
+      {weight !== undefined && (
+        <TagWeight
+          range={weight}
+          onClose={() => setWeight(undefined)}
+          onApply={(v) => {
+            if (weight) {
+              update({ ...values, [side]: setTagWeight(value, weight, v) });
+            }
+            setWeight(undefined);
+          }}
+        />
+      )}
       <footer className="editor-footer">
         <div>
+          {layout === "text" && (
+            <button
+              aria-label={tr("Poids du tag")}
+              onPointerDown={() => {
+                const el = input.current;
+                weightSelection.current = {
+                  start: el?.selectionStart ?? caret,
+                  end: el?.selectionEnd ?? caret,
+                };
+              }}
+              onClick={() =>
+                setWeight(
+                  weightRange(
+                    value,
+                    weightSelection.current.start,
+                    weightSelection.current.end,
+                  ),
+                )
+              }
+            >
+              <SlidersHorizontal size={19} />
+            </button>
+          )}
           <button
             aria-label={tr("Annuler la dernière modification")}
             disabled={!history.current.undo.length}

@@ -18,6 +18,7 @@ const png = "data:image/png;base64," + readFileSync("tests/fixtures/parameters.p
 test("v10 language picker translates screens without changing prompt data", async ({ page }) => {
   await connect(page); await prompt(page, "sun, lake, Français");
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).click();
   await page.getByRole("button", { name: /Langue de l’application/ }).click();
   await page.getByRole("radio", { name: "English" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -29,6 +30,7 @@ test("v10 language picker translates screens without changing prompt data", asyn
   await expect(page.getByRole("button", { name: "Translate words", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
+  if(await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).count()) await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Application"}).click();
   await page.getByRole("button", { name: /App language/ }).click();
   await page.screenshot({ path: "../verification/v0.10.0/languages.png" });
   await page.getByRole("radio", { name: "Français" }).click();
@@ -106,6 +108,7 @@ test("v10 quick generation scrolls to results and supports hide favorite trash",
   await page.getByRole("button", { name: "Supprimer ce résultat" }).click();
   await expect(page.getByRole("button", { name: "Supprimer ce résultat" })).toHaveCount(0);
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).click();
   await page.getByRole("switch", { name: "Menu rapide de l’Atelier" }).uncheck();
   await page.getByRole("button", { name: "Atelier", exact: true }).click();
   await expect(page.locator(".studio-quick-nav")).toHaveCount(0);
@@ -838,6 +841,7 @@ test("Mochi studio shortcuts restore LoRA weight and open preset and prompt libr
   await expect(page.locator(".preset-current")).toContainText("Pastel");
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
   await expect(page.locator(".settings-resources")).toContainText("RTX 4070 SUPER");
+  await page.locator(".settings-group summary").filter({hasText:"Atelier"}).click();
   await page.getByRole("button", { name: "Mes presets Enregistrer et réutiliser une configuration", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Mes presets" })).toBeVisible();
 });
@@ -860,6 +864,7 @@ test("left-handed navigation persists and stays clear of studio controls", async
   expect(page.viewportSize()!.width - before!.x - before!.width).toBe(3);
   await page.getByRole("button", { name: "Paramètres", exact: true }).click();
   await expect(nav).toHaveCount(0);
+  if(await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).count()) await page.locator(".settings-group:not([open]) > summary").filter({hasText:"Atelier"}).click();
   await page.getByRole("switch", { name: "Mode gaucher", exact: true }).check();
   await page.reload();
   await page.getByRole("button", { name: "Atelier", exact: true }).click();
@@ -1041,7 +1046,7 @@ test("voice assistant clearly awaits the model, retains a draft and never change
   await page.getByRole('button',{name:'Votre idée',exact:true}).click();
   await page.getByRole('button',{name:'Assistant vocal',exact:true}).click();
   const voice=page.getByRole('dialog',{name:'Assistant vocal',exact:true});
-  await expect(voice.getByText('En attente du modèle',{exact:true})).toBeVisible();
+  await expect(voice.getByText('Préparer les modèles sur le PC',{exact:true})).toBeVisible();
   await expect(voice.getByRole('button',{name:'Dicter',exact:true})).toBeDisabled();
   await voice.getByLabel('Décrivez votre idée').fill('Une robe rouge, des yeux bleus, un carré blanc.');
   await expect(voice.getByRole('button',{name:'Proposer des tags',exact:true})).toBeDisabled();

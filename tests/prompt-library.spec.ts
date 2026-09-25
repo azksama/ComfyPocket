@@ -153,5 +153,5 @@ test("English block controls preserve free text and restore a removed section", 
   await page.getByRole('button',{name:'Text',exact:true}).click();
   await expect(page.getByLabel('Positive prompt',{exact:true})).toHaveValue('quality,\n\n## Body\nred_dress,\n##');
   await page.getByRole('button',{name:'Voice assistant',exact:true}).click();
-  await expect(page.getByText('Waiting for the model',{exact:true})).toBeVisible();
+  await expect(page.getByText('Prepare models on the PC',{exact:true})).toBeVisible();
 });

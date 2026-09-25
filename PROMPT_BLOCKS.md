@@ -33,21 +33,22 @@ En mode de génération automatique, Mochi retire les lignes de commentaires des
 
 Les réglages enregistrés, presets, historique et métadonnées de génération conservent le texte source et ses titres. Un workflow API importé reste inchangé : ses nœuds et textes ne sont pas réécrits.
 
-## Assistant vocal : préparation de l’intégration
+## Activer, convertir et pondérer
 
-L’entrée **Assistant vocal** permet aujourd’hui de rédiger une description française ou anglaise, conservée localement sur l’appareil. Aucun enregistrement audio, appel réseau ou génération de tags n’est effectué sans modèle connecté. Les actions indisponibles sont désactivées et l’interface indique **En attente du modèle**.
+L’interrupteur de chaque bloc conserve son texte dans le document mais exclut son contenu du prompt final. Le format enregistré devient `## [off] Nom du bloc`. Réactiver le bloc restitue son contenu à la génération. Le contrôle des contradictions ignore aussi les blocs désactivés.
 
-`src/promptOptimizer.ts` définit le contrat à implémenter lorsque le modèle sera prêt :
+**Transformer en bloc** donne un nom à une section de texte libre sans modifier son contenu. La bibliothèque conserve titres et descriptions. Le bouton vocal est disponible dans l’éditeur principal et dans chaque bloc.
 
-- `dictate(language, signal)` est facultatif et retourne une transcription. L’adaptateur devra gérer permission microphone, capture, arrêt et libération des ressources.
-- `optimize({ description, language, side }, signal)` retourne `{ blocks: [{ title, text, side }] }`. `side` vaut `positive` ou `negative`.
-- `signal` permet d’annuler à la fermeture ou via le bouton Annuler. Les réponses tardives après annulation sont ignorées.
-- Les réponses sont validées : 1 à 20 blocs, 20 000 caractères de texte par bloc, 80 000 au total. Les titres sont normalisés sur 80 caractères.
+Le bouton **Poids du tag** agit sur le tag au curseur ou la sélection. Une intensité de 1 conserve le tag normal ; les autres valeurs utilisent `(tag:poids)`, sans imbriquer une pondération déjà présente. Les changements restent annulables.
 
-Le composant `PromptAssistant` accepte cet adaptateur via sa prop `adapter`. Aucun adaptateur de production n’est livré dans cette version ; son branchement dans `PromptEditor` dépendra du choix du modèle, de son hébergement et de son protocole.
+## Assistant vocal et texte
 
-Le parcours de revue est préparé : modifier noms/tags/destination, décocher les propositions indésirables, puis insérer explicitement les blocs sélectionnés. L’insertion conserve les prompts existants. Une erreur laisse la description disponible pour réessayer.
+Whisper et DanbotNL s’exécutent sur le PC via Mochi Studio 0.4. Les modèles sont téléchargés sur le PC depuis **Paramètres → Voix et modèles**, après action explicite. Le téléphone capture seulement le son. Une description peut également être saisie directement, sans microphone.
+
+La dictée française est transcrite en anglais ; une description française saisie est traduite sur le PC. DanbotNL propose des tags que l’utilisateur peut modifier, sélectionner et insérer. La fermeture ou l’annulation ignore les réponses tardives et conserve le brouillon. La dictée est aussi disponible dans l’édition d’un bloc ; l’insertion y conserve le contenu sans ajouter de section imbriquée.
+
+Le contrat `PromptOptimizer` reste utilisable pour d’autres moteurs : `optimize({ description, language, side }, signal)` renvoie `{ blocks: [{ title, text, side }] }`. Les propositions sont validées avant insertion. [Architecture, téléchargements et validation sur PC/émulateur](docs/ASSISTANT_PC.md).
 
 ## Validation
 
-Les tests unitaires couvrent le format, le réordonnancement, les commentaires, la compilation ComfyUI et le contrat des propositions. Les tests navigateur couvrent édition, glisser-déposer, annulation, bibliothèque, persistance, charge utile de génération et brouillon vocal sans modèle. Ils ne remplacent pas une validation tactile sur un appareil Android physique ni la validation du futur modèle.
+Les tests unitaires et navigateur couvrent format, ordre, activation, conversion, pondération, annulation, compilation ComfyUI, bibliothèque, brouillons et propositions. Des tests réels sur Primio Medium API 36.1 couvrent la connexion au compagnon, le tagging, le microphone et l’annulation. Les voix FR/EN synthétiques ont été traitées par Whisper Medium sur la RTX 4070 SUPER ; les voix naturelles restent à évaluer.
