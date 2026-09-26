@@ -819,7 +819,7 @@ export default function App() {
           {locale() === "en" ? "Resume setup" : "Reprendre la configuration"}
         </button>
       )}
-      {tab === "connect" && server && <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer un modèle depuis un lien")}</button>}
+      {tab === "connect" && server && <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer des modèles")}</button>}
       {tab === "connect" && (
         <Connections
           active={active}
@@ -956,7 +956,7 @@ export default function App() {
               )}
             </CollapsibleCard>
           )}
-          <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer un modèle depuis un lien")}</button>
+          <button className="import-entry secondary" onClick={() => setShowImports(true)}><Download size={19}/>{tr("Installer des modèles")}</button>
           {mode === "simple" ? (
             <div className="settings-grid studio-settings">
               <SettingsPanel

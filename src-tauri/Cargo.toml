@@ -1,6 +1,6 @@
 [package]
 name = "comfy-pocket"
-version = "0.14.0"
+version = "0.15.0"
 description = "Client Android privé pour ComfyUI"
 edition = "2021"
 

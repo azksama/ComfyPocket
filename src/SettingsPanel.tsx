@@ -684,6 +684,7 @@ export default function SettingsPanel({
               ? tr("Choisir un modèle")
               : tr("Ajouter un LoRA / LyCORIS")
           }
+          checkpoint={s.model}
           kind={picker}
           names={picker === "checkpoints" ? models : loras}
           value={picker === "checkpoints" ? s.model : ""}

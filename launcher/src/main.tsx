@@ -47,6 +47,7 @@ type Settings = {
   checkUpdates: boolean;
   onboardingStep: number;
   onboardingDone: boolean;
+  onboardingSeen: boolean;
   modelPaths: Record<string, string[]>;
 };
 type Status = {
@@ -204,9 +205,13 @@ function App() {
     invoke<Settings>("get_settings")
       .then(async (s) => {
         setSettings(s);
-        setSetup(!isPreview && !s.onboardingDone);
-        if (!isPreview && !s.onboardingDone) {
-          await invoke("onboarding_progress", { step: s.onboardingStep, done: true });
+        setSetup(!isPreview && !s.onboardingDone && !s.onboardingSeen);
+        if (!isPreview && !s.onboardingDone && !s.onboardingSeen) {
+          const saved = await invoke<Settings>("onboarding_progress", {
+            step: s.onboardingStep,
+            done: false,
+          });
+          if (mounted.current) setSettings(saved);
         }
       })
       .catch((e) => setNotice({ error: true, text: String(e) }));
@@ -248,10 +253,11 @@ function App() {
   }, [settings?.reducedMotion]);
   async function setupStep(step: number, done = false) {
     try {
-      await invoke("onboarding_progress", { step, done });
-      setSettings((s) =>
-        s ? { ...s, onboardingStep: step, onboardingDone: done } : s,
-      );
+      const saved = await invoke<Settings>("onboarding_progress", {
+        step,
+        done,
+      });
+      setSettings(saved);
       if (done) setSetup(false);
     } catch (e) {
       setNotice({ error: true, text: String(e) });
@@ -282,8 +288,8 @@ function App() {
     if (!next) return;
     setBusy(true);
     try {
-      await invoke("save_settings", { settings: next });
-      setSettings(next);
+      const saved = await invoke<Settings>("save_settings", { settings: next });
+      setSettings(saved);
       await refresh();
       setDirty(false);
       setNotice({
@@ -347,7 +353,8 @@ function App() {
               className={page === p.id ? "active" : ""}
               onClick={() => {
                 setPage(p.id);
-                if (setup && settings) void setupStep(settings.onboardingStep, true);
+                if (setup && settings)
+                  void setupStep(settings.onboardingStep, true);
               }}
               aria-current={page === p.id ? "page" : undefined}
             >
@@ -425,11 +432,20 @@ function App() {
                   onError={(e) => setNotice({ error: true, text: String(e) })}
                 />
                 <div className="settings-apply">
-                  <p>Les dossiers sont enregistrés immédiatement. Redémarrez le moteur pour les charger dans ComfyUI.</p>
-                  <button disabled={working || dirty} onClick={() => void run("restart")}>
+                  <p>
+                    Les dossiers sont enregistrés immédiatement. Redémarrez le
+                    moteur pour les charger dans ComfyUI.
+                  </p>
+                  <button
+                    disabled={working || dirty}
+                    onClick={() => void run("restart")}
+                  >
                     <RefreshCw size={18} /> Appliquer et redémarrer le moteur
                   </button>
-                  <small>Le redémarrage est refusé si une génération est en cours ou en attente.</small>
+                  <small>
+                    Le redémarrage est refusé si une génération est en cours ou
+                    en attente.
+                  </small>
                 </div>
                 <button
                   className="primary"
@@ -496,7 +512,11 @@ function App() {
                     disabled={working || status.ready}
                     onClick={() => void run("start")}
                   >
-                    {status.ready ? "Services prêts" : "Démarrer le moteur"}
+                    {status.ready
+                      ? "Services prêts"
+                      : status.engine && !status.bridge
+                        ? "Rétablir la connexion"
+                        : "Démarrer le moteur"}
                   </button>
                   <button
                     disabled={working}
@@ -636,7 +656,9 @@ function App() {
                           ? "Veuillez patienter"
                           : status.ready
                             ? "Arrêter le moteur"
-                            : "Démarrer le moteur"}
+                            : status.engine && !status.bridge
+                              ? "Rétablir la connexion"
+                              : "Démarrer le moteur"}
                       </button>
                       {!status.ready && (status.engine || status.bridge) && (
                         <button
@@ -656,8 +678,20 @@ function App() {
                   </div>
                   <img
                     className="hero-mochi"
-                    src={!working && status.phase ? "/mochi-sad.webp" : !working && !status.ready ? "/mochi-sleeping.webp" : "/mochi.webp"}
-                    alt={!working && status.phase ? "Mochi est triste : problème au démarrage" : !working && !status.ready ? "Mochi dort" : "Mochi est réveillé"}
+                    src={
+                      !working && status.phase
+                        ? "/mochi-sad.webp"
+                        : !working && !status.ready
+                          ? "/mochi-sleeping.webp"
+                          : "/mochi.webp"
+                    }
+                    alt={
+                      !working && status.phase
+                        ? "Mochi est triste : problème au démarrage"
+                        : !working && !status.ready
+                          ? "Mochi dort"
+                          : "Mochi est réveillé"
+                    }
                   />
                 </section>
                 <ConnectionAddresses
@@ -865,11 +899,20 @@ function App() {
                   onError={(e) => setNotice({ error: true, text: String(e) })}
                 />
                 <div className="settings-apply">
-                  <p>Les dossiers sont enregistrés immédiatement. Redémarrez le moteur pour les charger dans ComfyUI.</p>
-                  <button disabled={working || dirty} onClick={() => void run("restart")}>
+                  <p>
+                    Les dossiers sont enregistrés immédiatement. Redémarrez le
+                    moteur pour les charger dans ComfyUI.
+                  </p>
+                  <button
+                    disabled={working || dirty}
+                    onClick={() => void run("restart")}
+                  >
                     <RefreshCw size={18} /> Appliquer et redémarrer le moteur
                   </button>
-                  <small>Le redémarrage est refusé si une génération est en cours ou en attente.</small>
+                  <small>
+                    Le redémarrage est refusé si une génération est en cours ou
+                    en attente.
+                  </small>
                 </div>
                 <section className="settings-section">
                   <h2>Inférence</h2>
@@ -933,16 +976,46 @@ function App() {
                   />
                   <Toggle
                     checked={settings.sharePublic}
-                    onChange={(v) => void persist("sharePublic", v)}
-                    disabled={working || !settings.publicHost.trim()}
+                    onChange={(v) => {
+                      change("sharePublic", v);
+                      if (v) change("listenLan", true);
+                    }}
+                    disabled={working}
                     title="Partager sur IP publique"
                     description="Conserve l’adresse Internet et l’appairage après redémarrage. Redirigez le port du compagnon sur votre routeur."
                   />
                   <label className="field">
                     Adresse IP publique ou domaine
-                    <input value={settings.publicHost} placeholder="exemple.domaine.fr"
-                      onChange={(e) => change("publicHost", e.target.value)} disabled={working} />
-                    <small>Enregistrez l’adresse avant d’activer le partage. Le certificat existant doit la couvrir.</small>
+                    <input
+                      value={settings.publicHost}
+                      placeholder="exemple.domaine.fr"
+                      onChange={(e) => change("publicHost", e.target.value)}
+                      disabled={working}
+                    />
+                    <small>
+                      {settings.sharePublic && !settings.publicHost.trim()
+                        ? "Renseignez l’adresse ou utilisez la détection, puis enregistrez."
+                        : "Votre certificat et vos appairages sont conservés."}
+                    </small>
+                    <button
+                      type="button"
+                      disabled={working}
+                      onClick={async () => {
+                        setBusy(true);
+                        setNotice(null);
+                        try {
+                          const host =
+                            await invoke<string>("detect_public_host");
+                          change("publicHost", host);
+                        } catch (e) {
+                          setNotice({ error: true, text: String(e) });
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                    >
+                      Détecter mon IP publique
+                    </button>
                   </label>
                   <label className="field short">
                     Port du compagnon

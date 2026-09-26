@@ -1,6 +1,17 @@
-# Mochi 0.14.0
+# Mochi 0.15.0
 
 Mochi relie votre atelier Android à ComfyUI sur votre PC. Le compagnon HTTPS et le lanceur Windows Mochi Studio conservent l’appairage, les modèles et votre configuration.
+
+## Nouveautés 0.15.0 et Studio 0.5.0
+
+- **Installer des modèles → Civitai** : catalogue intégré `.com` ou `.red`, recherche, type, modèle de base, tri, illustrations et choix de version. Le fichier est ensuite confirmé et installé sur le PC dans la catégorie choisie. L’import direct Civitai/Hugging Face reste disponible.
+- Les LoRA proposés correspondent à la famille déclarée du checkpoint sélectionné. Illustrious, NoobAI, Pony et SDXL restent distincts ; **Voir tous les LoRA** permet d’accéder aux fichiers non identifiés ou d’utiliser volontairement une autre famille.
+- Studio rétablit le compagnon absent lorsque ComfyUI fonctionne déjà et que la connexion du téléphone est activée. Un second lancement avec `--start-engine` prend désormais la demande en compte.
+- Le partage public peut être activé avant de saisir l’adresse ; un bouton propose de détecter l’IP. **Enregistrer** valide l’adresse avec le certificat existant. La redirection de port de la box reste nécessaire.
+- L’onboarding déjà vu ne se rouvre plus automatiquement. **Reprendre la configuration** permet de continuer un parcours incomplet. La sauvegarde des réglages préserve son état et sérialise les écritures.
+- Lecture des métadonnées de modèles centralisée, cache borné, gestion du BOM et miniatures Civitai redimensionnées et mises en cache.
+
+**Mettre à jour Android et Mochi Studio** pour le catalogue et le filtre LoRA. Les certificats, les appairages et les modèles existants sont conservés. [Audit et validation de cette version](docs/VALIDATION_0.15.0.md).
 
 ## Nouveautés 0.14.0
 

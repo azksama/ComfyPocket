@@ -1,3 +1,4 @@
+import { CivitaiBrowser } from "./CivitaiBrowser";
 import { useEffect, useRef, useState } from "react";
 import {
   Download,
@@ -70,6 +71,9 @@ export function useModelImports(
   const [error, setError] = useState("");
   const [syncError, setSyncError] = useState("");
   const [supported, setSupported] = useState<boolean | null>(null);
+  const [browserSupported, setBrowserSupported] = useState<boolean | null>(
+    null,
+  );
   const catalog = useRef(onCatalog);
   catalog.current = onCatalog;
   const refresh = useRef<() => Promise<void>>(async () => {});
@@ -80,6 +84,7 @@ export function useModelImports(
       known: boolean | null = null;
     setSnapshot({ revision: 0, jobs: [] });
     setSupported(null);
+    setBrowserSupported(null);
     setError("");
     setSyncError("");
     const poll = async () => {
@@ -87,9 +92,15 @@ export function useModelImports(
       polling = true;
       try {
         if (known === null) {
-          const info = await api<{ modelImports?: boolean }>("/bridge/info");
+          const info = await api<{
+            modelImports?: boolean;
+            civitaiBrowser?: boolean;
+          }>("/bridge/info");
           known = !!info.modelImports;
-          if (live) setSupported(known);
+          if (live) {
+            setSupported(known);
+            setBrowserSupported(known && !!info.civitaiBrowser);
+          }
         }
         if (!known) return;
         const result = await api<Snapshot>("/bridge/imports");
@@ -132,6 +143,7 @@ export function useModelImports(
     error,
     syncError,
     supported,
+    browserSupported,
     refresh: () => refresh.current(),
   };
 }
@@ -142,6 +154,7 @@ export default function ModelImports({
   state: ReturnType<typeof useModelImports>;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<"link" | "civitai">("civitai");
   const [url, setUrl] = useState(""),
     [token, setToken] = useState(""),
     [plan, setPlan] = useState<Plan | null>(null);
@@ -153,19 +166,24 @@ export default function ModelImports({
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
-  async function inspect() {
+  async function inspect(link = url) {
     setBusy(true);
     setError("");
     setPlan(null);
     try {
-      const result = await api<Plan>("/bridge/imports/inspect", { url, token });
+      const result = await api<Plan>("/bridge/imports/inspect", {
+        url: link,
+        token,
+      });
       if (!mounted.current) return;
       setPlan(result);
       setFileId(result.files[0].id);
       setKind(result.files[0].kind);
-      setToken("");
+      if (tab === "link") setToken("");
     } catch (e) {
       if (mounted.current) setError(String(e));
     } finally {
@@ -196,76 +214,138 @@ export default function ModelImports({
       className="model-imports full-page-dialog"
     >
       <div className="import-content">
-        <p className="muted">
-          {t(
-            "Collez un lien Civitai (.com ou .red) ou Hugging Face. Le PC télécharge le fichier, même si vous quittez l’application.",
-          )}
-        </p>
-        {state.supported === false ? (
+        {state.supported === false && (
           <p role="alert">
             {t(
               "Mettez à jour Mochi Studio sur le PC pour importer des modèles.",
             )}
           </p>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void inspect();
-            }}
+        )}
+        <div
+          className="import-tabs"
+          role="group"
+          aria-label={t("Source du modèle")}
+        >
+          <button
+            aria-pressed={tab === "civitai"}
+            onClick={() => setTab("civitai")}
           >
-            <label>
-              {t("Lien du modèle ou du fichier")}
-              <input
-                type="url"
-                inputMode="url"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="https://civitai.com/models/…"
-                value={url}
-                disabled={busy}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setPlan(null);
+            Civitai
+          </button>
+          <button aria-pressed={tab === "link"} onClick={() => setTab("link")}>
+            {t("Depuis un lien")}
+          </button>
+        </div>
+        {tab === "civitai" &&
+          state.supported !== false &&
+          (state.browserSupported === false ? (
+            <p role="alert">
+              {t(
+                "Mettez à jour Mochi Studio sur le PC pour explorer Civitai. L’installation depuis un lien reste disponible.",
+              )}
+            </p>
+          ) : (
+            <>
+              <details>
+                <summary>
+                  {t("Clé d’accès du fournisseur (facultatif)")}
+                </summary>
+                <label>
+                  {t("Clé Civitai")}
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                  />
+                </label>
+                <small>
+                  {t(
+                    "La clé est conservée uniquement pendant cette ouverture du catalogue.",
+                  )}
+                </small>
+              </details>
+              <CivitaiBrowser
+                token={token}
+                disabled={busy || state.browserSupported !== true}
+                onInstall={(link) => {
+                  setUrl(link);
+                  setTab("link");
+                  void inspect(link);
                 }}
-                required
               />
-            </label>
-            <details>
-              <summary>{t("Clé d’accès du fournisseur (facultatif)")}</summary>
-              <label>
-                {t("Clé Civitai ou Hugging Face")}
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={token}
-                  disabled={busy}
-                  onChange={(e) => {
-                    setToken(e.target.value);
-                    setPlan(null);
-                  }}
-                />
-              </label>
-              <small>
-                {t(
-                  "Utilisée pour cet import uniquement, jamais enregistrée sur disque. Les conditions d’accès du fournisseur restent applicables.",
-                )}
-              </small>
-            </details>
-            <button
-              type="submit"
-              className="primary"
-              disabled={busy || !url.trim() || state.supported !== true}
-            >
-              {busy ? (
-                <LoaderCircle className="spin" size={18} />
-              ) : (
-                <Link size={18} />
-              )}{" "}
-              {t("Analyser le lien")}
-            </button>
-          </form>
+            </>
+          ))}
+        {tab === "link" && (
+          <>
+            <p className="muted">
+              {t(
+                "Collez un lien Civitai (.com ou .red) ou Hugging Face. Le PC télécharge le fichier, même si vous quittez l’application.",
+              )}
+            </p>
+            {state.supported !== false && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void inspect();
+                }}
+              >
+                <label>
+                  {t("Lien du modèle ou du fichier")}
+                  <input
+                    type="url"
+                    inputMode="url"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="https://civitai.com/models/…"
+                    value={url}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setUrl(e.target.value);
+                      setPlan(null);
+                    }}
+                    required
+                  />
+                </label>
+                <details>
+                  <summary>
+                    {t("Clé d’accès du fournisseur (facultatif)")}
+                  </summary>
+                  <label>
+                    {t("Clé Civitai ou Hugging Face")}
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={token}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setToken(e.target.value);
+                        setPlan(null);
+                      }}
+                    />
+                  </label>
+                  <small>
+                    {t(
+                      "Utilisée pour cet import uniquement, jamais enregistrée sur disque. Les conditions d’accès du fournisseur restent applicables.",
+                    )}
+                  </small>
+                </details>
+                <button
+                  type="submit"
+                  className="primary"
+                  disabled={busy || !url.trim() || state.supported !== true}
+                >
+                  {busy ? (
+                    <LoaderCircle className="spin" size={18} />
+                  ) : (
+                    <Link size={18} />
+                  )}{" "}
+                  {t("Analyser le lien")}
+                </button>
+              </form>
+            )}
+          </>
         )}
         {(error || state.error) && (
           <p className="import-error" role="alert">
@@ -379,8 +459,15 @@ export default function ModelImports({
                   </small>
                 </>
               )}
-              {job.status === "completed" && job.illustration === "downloaded" && <small>{t("Illustration installée")}</small>}
-              {job.status === "completed" && job.illustration === "failed" && <small>{t("Illustration indisponible ; le modèle reste utilisable.")}</small>}
+              {job.status === "completed" &&
+                job.illustration === "downloaded" && (
+                  <small>{t("Illustration installée")}</small>
+                )}
+              {job.status === "completed" && job.illustration === "failed" && (
+                <small>
+                  {t("Illustration indisponible ; le modèle reste utilisable.")}
+                </small>
+              )}
               {job.error && <p className="import-error">{job.error}</p>}
             </article>
           ))}

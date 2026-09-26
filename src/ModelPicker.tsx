@@ -1,3 +1,5 @@
+import { modelMetadata } from "./modelMetadata";
+import { compatibleModel } from "./modelCompatibility";
 import { t as tr } from "./i18n";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Search, Heart, Check, FileText } from "lucide-react";
@@ -14,7 +16,9 @@ export function ModelPicker({
   onSelect,
   onClose,
   onTriggers,
+  checkpoint,
 }: {
+  checkpoint?: string;
   onTriggers?: (words: string[]) => void;
   title: string;
   kind: string;
@@ -30,9 +34,50 @@ export function ModelPicker({
     [ready, setReady] = useState(false),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
+  const [base, setBase] = useState("");
+  const [metadata, setMetadata] = useState<Record<string, string>>({});
+  const [checking, setChecking] = useState(kind === "loras");
+  const [compatibilityError, setCompatibilityError] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const namesKey = JSON.stringify(names);
+  useEffect(() => {
+    if (kind !== "loras") return;
+    let live = true;
+    setChecking(true);
+    setCompatibilityError("");
+    setMetadata({});
+    setBase("");
+    setShowAll(false);
+    void (async () => {
+      try {
+        const info = checkpoint
+          ? await api<{ baseModel: string }>(
+              `/bridge/model-info?kind=checkpoints&name=${encodeURIComponent(checkpoint)}`,
+            )
+          : { baseModel: "" };
+        if (!live) return;
+        setBase(info.baseModel);
+        const result = await modelMetadata("loras", names, () => live);
+        if (live) setMetadata(result);
+      } catch {
+        if (live)
+          setCompatibilityError(
+            tr("Compatibilité indisponible. Mettez à jour le compagnon PC."),
+          );
+      } finally {
+        if (live) setChecking(false);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [kind, checkpoint, namesKey]);
   const lock = useRef(false);
   useEffect(() => {
     let live = true;
+    setReady(false);
+    setFavorites([]);
+    setError("");
     api<Record<string, string[]>>("/bridge/model-favorites")
       .then((data) => {
         if (live) {
@@ -73,6 +118,9 @@ export function ModelPicker({
   const [detail, setDetail] = useState<string | null>(null);
   const filtered = names.filter(
     (n) =>
+      (kind !== "loras" ||
+        showAll ||
+        (!!base && compatibleModel(base, metadata[n] || ""))) &&
       n.toLowerCase().includes(search.toLowerCase()) &&
       (!onlyFavorites || favorites.includes(n)),
   );
@@ -91,6 +139,38 @@ export function ModelPicker({
           }}
         />
       </label>
+      {kind === "loras" && (
+        <section className="compatibility-filter">
+          <strong>
+            {checking
+              ? tr("Vérification des modèles de base…")
+              : base
+                ? tr("LoRA compatibles avec {0}", [base])
+                : tr("Modèle de base non renseigné")}
+          </strong>
+          <p className="hint">
+            {compatibilityError ||
+              (base
+                ? tr(
+                    "Seuls les LoRA de la même famille déclarée sont affichés. Les modèles sans métadonnées sont masqués.",
+                  )
+                : tr(
+                    "La compatibilité ne peut pas être déterminée sans métadonnées du checkpoint.",
+                  ))}
+          </p>
+          <button
+            aria-pressed={showAll}
+            onClick={() => {
+              setShowAll((v) => !v);
+              setLimit(60);
+            }}
+          >
+            {showAll
+              ? tr("Afficher les compatibles")
+              : tr("Voir tous les LoRA")}
+          </button>
+        </section>
+      )}
       <div className="model-filter">
         <span className="muted">
           {filtered.length} {tr("disponibles")}
@@ -128,7 +208,10 @@ export function ModelPicker({
               <Picture path={modelPath(kind, name)} alt="" thumbnail />
               <span>
                 <strong>{shortName(name)}</strong>
-                <small>{name}</small>
+                <small>
+                  {metadata[name] ? `${metadata[name]} · ` : ""}
+                  {name}
+                </small>
               </span>
               {name === value && <Check size={20} />}
             </button>
@@ -164,7 +247,7 @@ export function ModelPicker({
           {tr("Afficher la suite")}{" "}
         </button>
       )}
-      {!filtered.length && (
+      {!filtered.length && !checking && (
         <p>
           {onlyFavorites
             ? tr("Marquez vos modèles avec le cœur pour les retrouver ici.")

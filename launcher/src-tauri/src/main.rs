@@ -1,9 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod settings_store;
 mod updates;
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use settings_store::{read_json, write_json, Settings};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::{
@@ -23,52 +24,6 @@ use tauri::{
     Manager,
 };
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-struct Settings {
-    comfy_directory: String,
-    models_directory: String,
-    reserve_vram: f64,
-    preview: String,
-    attention: String,
-    disable_dynamic_vram: bool,
-    listen_lan: bool,
-    port: u16,
-    share_public: bool,
-    public_host: String,
-    auto_start: bool,
-    start_with_windows: bool,
-    close_to_tray: bool,
-    reduced_motion: bool,
-    check_updates: bool,
-    onboarding_step: u8,
-    onboarding_done: bool,
-    model_paths: std::collections::BTreeMap<String, Vec<String>>,
-}
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            comfy_directory: "E:\\Stability\\Data\\Packages\\ComfyUI".into(),
-            models_directory: "E:\\Stability\\Data\\Models".into(),
-            reserve_vram: 0.9,
-            preview: "auto".into(),
-            attention: "pytorch".into(),
-            disable_dynamic_vram: true,
-            listen_lan: true,
-            port: 8189,
-            share_public: false,
-            public_host: String::new(),
-            auto_start: false,
-            start_with_windows: false,
-            close_to_tray: true,
-            reduced_motion: false,
-            check_updates: true,
-            onboarding_step: 0,
-            onboarding_done: false,
-            model_paths: Default::default(),
-        }
-    }
-}
 struct Studio {
     dir: PathBuf,
     runtime: PathBuf,
@@ -95,15 +50,6 @@ fn powershell() -> Command {
         "Bypass",
     ]);
     c
-}
-fn read_json(p: impl AsRef<Path>) -> Result<Value, String> {
-    let bytes = fs::read(p).map_err(error)?;
-    serde_json::from_slice(bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes)).map_err(error)
-}
-fn write_json(p: &Path, v: &impl Serialize) -> Result<(), String> {
-    let tmp = p.with_extension("pending");
-    fs::write(&tmp, serde_json::to_vec_pretty(v).map_err(error)?).map_err(error)?;
-    fs::rename(tmp, p).map_err(error)
 }
 fn validate(s: &Settings) -> Result<(), String> {
     if !s.reserve_vram.is_finite() || !(0.0..=32.0).contains(&s.reserve_vram) {
@@ -298,35 +244,56 @@ fn autostart(enabled: bool) -> Result<(), String> {
     }
 }
 #[tauri::command]
-fn save_settings(mut settings: Settings, st: tauri::State<Studio>) -> Result<(), String> {
+fn save_settings(mut settings: Settings, st: tauri::State<Studio>) -> Result<Settings, String> {
     if st.busy.load(Ordering::SeqCst) || updates::in_progress() {
         return Err("Attendez la fin de l’opération en cours.".into());
     }
     validate(&settings)?;
-    let old = st.settings.lock().unwrap().clone();
+    let mut saved = st.settings.lock().unwrap();
+    let old = saved.clone();
     settings.onboarding_done = old.onboarding_done;
     settings.onboarding_step = old.onboarding_step;
-    public_pairing(&st, &settings)?;
-    autostart(settings.start_with_windows)?;
-    if let Err(e) = write_json(&st.dir.join("studio.json"), &settings) {
-        let _ = autostart(old.start_with_windows);
-        return Err(e);
-    }
+    settings.onboarding_seen = old.onboarding_seen;
+    let pair = public_pairing_value(&st, &settings)?;
     let paths: std::collections::BTreeMap<_, _> = settings
         .model_paths
         .iter()
         .map(|(k, v)| (k, v.join("\n")))
         .collect();
-    write_json(
-        &st.dir.join("studio-model-paths.yaml"),
-        &json!({"mochi_studio": paths}),
-    )?;
-    *st.settings.lock().unwrap() = settings;
-    Ok(())
+    let mut writes = vec![
+        (
+            st.dir.join("studio-model-paths.yaml"),
+            json!({"mochi_studio": paths}),
+        ),
+        (
+            st.dir.join("studio.json"),
+            serde_json::to_value(&settings).map_err(error)?,
+        ),
+    ];
+    if let Some(pair) = pair {
+        writes.push((st.dir.join("pairing-public.json"), pair));
+    }
+    let previous: Vec<_> = writes.iter().map(|(path, _)| fs::read(path).ok()).collect();
+    autostart(settings.start_with_windows)?;
+    for (index, (path, value)) in writes.iter().enumerate() {
+        if let Err(e) = write_json(path, value) {
+            for ((written, _), backup) in writes[..index].iter().zip(&previous) {
+                if let Some(bytes) = backup {
+                    let _ = fs::write(written, bytes);
+                } else {
+                    let _ = fs::remove_file(written);
+                }
+            }
+            let _ = autostart(old.start_with_windows);
+            return Err(e);
+        }
+    }
+    *saved = settings.clone();
+    Ok(settings)
 }
-fn public_pairing(st: &Studio, s: &Settings) -> Result<(), String> {
+fn public_pairing_value(st: &Studio, s: &Settings) -> Result<Option<Value>, String> {
     if !s.share_public {
-        return Ok(());
+        return Ok(None);
     }
     if !s.listen_lan {
         return Err("Activez la connexion du téléphone pour partager sur Internet.".into());
@@ -351,7 +318,13 @@ fn public_pairing(st: &Studio, s: &Settings) -> Result<(), String> {
     }
     let mut pair = read_json(st.dir.join("pairing.json"))?;
     pair["url"] = json!(url.as_str().trim_end_matches('/'));
-    write_json(&st.dir.join("pairing-public.json"), &pair)
+    Ok(Some(pair))
+}
+fn public_pairing(st: &Studio, s: &Settings) -> Result<(), String> {
+    if let Some(pair) = public_pairing_value(st, s)? {
+        write_json(&st.dir.join("pairing-public.json"), &pair)?;
+    }
+    Ok(())
 }
 fn sync_config(st: &Studio, s: &Settings) -> Result<(), String> {
     let paths: std::collections::BTreeMap<_, _> = s
@@ -640,18 +613,59 @@ fn window_action(window: tauri::WebviewWindow, action: String) -> Result<(), Str
     .map_err(error)
 }
 #[tauri::command]
-fn onboarding_progress(step: u8, done: bool, st: tauri::State<Studio>) -> Result<(), String> {
+async fn detect_public_host(app: tauri::AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(8))
+            .no_proxy()
+            .build()
+            .map_err(error)?;
+        let mut address = None;
+        for endpoint in ["https://api.ipify.org", "https://checkip.amazonaws.com"] {
+            if let Ok(response) = client.get(endpoint).send() {
+                if let Ok(response) = response.error_for_status() {
+                    if let Ok(text) = response.text() {
+                        if let Ok(ip) = text.trim().parse::<std::net::Ipv4Addr>() {
+                            address = Some(ip.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        let host =
+            address.ok_or("Détection impossible. Saisissez votre IP publique ou votre domaine.")?;
+        let st = app.state::<Studio>();
+        let mut candidate = st.settings.lock().unwrap().clone();
+        candidate.public_host = host.clone();
+        candidate.share_public = true;
+        candidate.listen_lan = true;
+        public_pairing_value(&st, &candidate)?;
+        Ok(host)
+    })
+    .await
+    .map_err(error)?
+}
+#[tauri::command]
+fn onboarding_progress(step: u8, done: bool, st: tauri::State<Studio>) -> Result<Settings, String> {
     let mut s = st.settings.lock().unwrap();
     let mut next = s.clone();
     next.onboarding_step = step.min(4);
     next.onboarding_done = done || s.onboarding_done;
+    next.onboarding_seen = true;
     write_json(&st.dir.join("studio.json"), &next)?;
-    *s = next;
-    Ok(())
+    *s = next.clone();
+    Ok(next)
 }
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if args.iter().any(|a| a == "--start-engine") {
+                let handle = app.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    let _ = control(&handle, "start");
+                });
+            }
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
                 let _ = w.set_focus();
@@ -706,7 +720,9 @@ fn main() {
                     .trim_start_matches("\\\\?\\")
                     .to_string(),
             );
-            let auto = s.auto_start || std::env::args().any(|a| a == "--start-engine");
+            let auto = s.auto_start
+                || std::env::args().any(|a| a == "--start-engine")
+                || (s.listen_lan && listener(8188) && !listener(s.port));
             app.manage(Studio {
                 dir,
                 runtime,
@@ -750,6 +766,19 @@ fn main() {
                     let _ = control(&handle, "start");
                 });
             }
+            let handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_secs(30));
+                let st = handle.state::<Studio>();
+                if st.busy.load(Ordering::SeqCst) || updates::in_progress() {
+                    continue;
+                }
+                let settings = st.settings.lock().unwrap().clone();
+                if settings.listen_lan && listener(8188) && !listener(settings.port) {
+                    let _ = control(&handle, "start");
+                    std::thread::sleep(Duration::from_secs(30));
+                }
+            });
             Ok(())
         })
         .on_window_event(|w, e| {
@@ -765,6 +794,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             window_action,
             onboarding_progress,
+            detect_public_host,
             updates::check_update,
             updates::install_update,
             get_status,

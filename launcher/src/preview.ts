@@ -17,6 +17,7 @@ export const previewSettings = {
   checkUpdates: false,
   onboardingStep: 0,
   onboardingDone: true,
+  onboardingSeen: true,
   startWithWindows: false,
 };
 export const previewStatus = {

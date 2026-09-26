@@ -195,6 +195,7 @@ test.beforeEach(async ({ page }, testInfo) => {
       else if (p === "/api/object_info") value = info;
       else if (p === "/bridge/info") value = { version: 2, roots: [{ id: 0, name: "ComfyUI" }] };
       else if (p === "/bridge/model-favorites") { if (args.body) { const { kind, name, favorite } = args.body; modelFavorites[kind] = favorite ? [...modelFavorites[kind], name] : modelFavorites[kind].filter(n => n !== name); } value = modelFavorites; }
+      else if (p === "/bridge/model-metadata") value = {items:args.body.names.map((name:string)=>({name,baseModel:"SD 1.5"}))};
       else if (u.pathname === "/bridge/model-info") value = { title: "Film", version: "v1", baseModel: "SD 1.5", triggers: ["film_grain"], tags: ["style"], description: "Film texture" };
       else if (p === "/api/queue") value = { queue_running: [], queue_pending: [] };
       else if (p.startsWith("/bridge/events")) value = { events: [], seq: 0, connected: true };
@@ -941,7 +942,8 @@ test("model import downloads on the PC, survives closing the sheet and refreshes
     await route.fulfill({json:{value}});
   });
   await connect(page);await prompt(page,"landscape, keep my prompt");
-  await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await page.getByRole("button",{name:"Depuis un lien",exact:true}).click();
   await page.getByLabel("Lien du modèle ou du fichier").fill("https://civitai.red/models/123");
   await page.getByRole("button",{name:"Analyser le lien"}).click();
   await expect(page.getByLabel("Installer comme")).toHaveValue("loras");
@@ -955,15 +957,30 @@ test("model import downloads on the PC, survives closing the sheet and refreshes
   await expect(page.locator(".model-choice").filter({hasText:"new-light.safetensors"})).toBeVisible({timeout:10000});
   await page.getByRole("button",{name:"Fermer",exact:true}).click();
   await expect(page.getByRole("button",{name:"Votre idée",exact:true})).toContainText("landscape, keep my prompt");
-  await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await page.getByRole("button",{name:"Installer des modèles"}).click();
   await expect(page.getByText("LoRA / LyCORIS · Installé sur le PC")).toBeVisible();
   expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);
 });
 
 test("model import explains an old companion and does not offer a broken action",async({page})=>{
-  await connect(page);await page.getByRole("button",{name:"Installer un modèle depuis un lien"}).click();
+  await connect(page);await page.getByRole("button",{name:"Installer des modèles"}).click();
   await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour importer des modèles.")).toBeVisible();
   await expect(page.getByRole("button",{name:"Analyser le lien"})).toHaveCount(0);
+});
+
+test("an import-capable companion without Civitai browsing keeps link installation available",async({page})=>{
+  await page.route("**/__native",async route=>{
+    const d=route.request().postDataJSON();
+    if(d.args?.path==="/bridge/info") return route.fulfill({json:{value:{version:4,modelImports:true,roots:[]}}});
+    if(d.args?.path==="/bridge/imports") return route.fulfill({json:{value:{revision:0,jobs:[]}}});
+    return route.fallback();
+  });
+  await connect(page);await page.getByRole("button",{name:"Installer des modèles"}).click();
+  await expect(page.getByText("Mettez à jour Mochi Studio sur le PC pour explorer Civitai. L’installation depuis un lien reste disponible.")).toBeVisible();
+  await expect(page.getByRole("button",{name:"Rechercher",exact:true})).toHaveCount(0);
+  await page.getByRole("button",{name:"Depuis un lien",exact:true}).click();
+  await page.getByLabel("Lien du modèle ou du fichier").fill("https://civitai.com/models/1");
+  await expect(page.getByRole("button",{name:"Analyser le lien"})).toBeEnabled();
 });
 
 test("Anima automatic generation uses separate components and validates dependencies before queuing", async ({ page }) => {

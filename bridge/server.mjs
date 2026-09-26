@@ -1,3 +1,4 @@
+import { createCivitaiBrowser } from "./civitai-browser.mjs";
 import https from "node:https";
 import { timingSafeEqual } from "node:crypto";
 import { realpath, stat, readFile } from "node:fs/promises";
@@ -71,6 +72,7 @@ export function createBridge(config) {
   const sessions = new Map();
   const lib = library(config, safeFile);
   const imports = createModelImports(config);
+  const civitai = createCivitaiBrowser();
   const assistant = createAssistant(config);
   const gallery = createGalleryIndex(config.roots, new Set(Object.keys(mime)));
   function session(id) {
@@ -157,9 +159,17 @@ export function createBridge(config) {
             version: 4,
             modelImports: true,
             modelProfiles: true,
+            modelMetadata: true,
+            civitaiBrowser: true,
             assistant: true,
             roots: config.roots.map((r, i) => ({ id: i, name: r.name })),
           });
+        if (url.pathname === "/bridge/civitai/search" && req.method === "POST") return json(res, 200, await civitai.search(JSON.parse((await body(req)).toString())));
+        if (url.pathname === "/bridge/civitai/image" && req.method === "GET") {
+          const content = await civitai.image(url.searchParams.get("id"));
+          res.writeHead(200, {"Content-Type":"image/webp", "Cache-Control":"private, max-age=900", "X-Content-Type-Options":"nosniff"});
+          return res.end(content);
+        }
         if (url.pathname === "/bridge/assistant" && req.method === "GET") return json(res, 200, assistant.status());
         if (url.pathname === "/bridge/assistant/settings" && req.method === "POST") return json(res, 200, await assistant.configure(JSON.parse((await body(req)).toString())));
         if (url.pathname === "/bridge/assistant/jobs" && req.method === "POST") return json(res, 202, assistant.start(JSON.parse((await body(req)).toString())));
@@ -170,6 +180,16 @@ export function createBridge(config) {
           const input = JSON.parse((await body(req)).toString());
           const action = url.pathname.split("/").pop();
           return json(res,200,await (action === "inspect" ? imports.inspect(input) : action === "start" ? imports.start(input) : imports.cancel(input.id)));
+        }
+        if (req.method === "POST" && url.pathname === "/bridge/model-metadata") {
+          const input = JSON.parse((await body(req)).toString());
+            if (!input || !Array.isArray(input.names) || input.names.length > 100 || input.names.some(name => typeof name !== "string" || !name || name.length > 1024) || !["loras", "checkpoints", "diffusion_models"].includes(input.kind)) return json(res, 400, {error:"Liste de modèles invalide"});
+          const items = [];
+          for (const name of [...new Set(input.names)]) {
+            try { const info = await lib.modelInfo(input.kind, name); items.push({name, baseModel:info.baseModel}); }
+            catch(e) { if (e.status === 403) throw e; items.push({name, baseModel:"", error:"Métadonnées indisponibles"}); }
+          }
+          return json(res, 200, {items});
         }
         if (req.method === "GET" && url.pathname === "/bridge/model-profile")
           return json(res, 200, await lib.modelProfile(url.searchParams.get("kind"), url.searchParams.get("name")));
