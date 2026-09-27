@@ -88,6 +88,16 @@ test("Studio keeps onboarding dismissed and public sharing editable after reload
   await expect(page.getByLabel(/Adresse IP publique ou domaine/)).toHaveValue(
     "example.org",
   );
+  await toggle.uncheck();
+  await expect(page.getByRole("status")).toContainText("Paramètres enregistrés");
+  await page.reload();
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await expect(page.getByRole("status")).toContainText("Paramètres enregistrés");
+  await page.reload();
+  await page.getByRole("button", { name: "Paramètres", exact: true }).click();
+  await expect(toggle).toBeChecked();
   await page.screenshot({
     path: "../verification/v0.15.0/studio-settings.png",
   });

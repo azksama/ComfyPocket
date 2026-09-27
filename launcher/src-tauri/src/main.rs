@@ -2,6 +2,7 @@
 
 mod settings_store;
 mod updates;
+mod certificate;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
 use settings_store::{read_json, write_json, Settings};
@@ -310,12 +311,9 @@ fn public_pairing_value(st: &Studio, s: &Settings) -> Result<Option<Value>, Stri
     {
         return Err("Indiquez uniquement une adresse IP publique ou un nom de domaine.".into());
     }
-    let output = command(st.runtime.join("node.exe")).args(["--input-type=module", "-e",
-        "import{X509Certificate}from'node:crypto';import{readFileSync}from'node:fs';import{isIP}from'node:net';const c=new X509Certificate(readFileSync(process.argv[1]));const h=process.argv[2];if(!(isIP(h)?c.checkIP(h):c.checkHost(h)))process.exit(2);"
-    ]).arg(st.dir.join("cert.pem")).arg(host).output().map_err(error)?;
-    if !output.status.success() {
-        return Err("Cette adresse n’est pas couverte par votre certificat. L’identité actuelle a été conservée.".into());
-    }
+    let certificate = fs::read(st.dir.join("cert.pem"))
+        .map_err(|e| format!("Impossible de lire le certificat existant : {e}"))?;
+    certificate::verify_host(&certificate, host)?;
     let mut pair = read_json(st.dir.join("pairing.json"))?;
     pair["url"] = json!(url.as_str().trim_end_matches('/'));
     Ok(Some(pair))

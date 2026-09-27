@@ -977,12 +977,21 @@ function App() {
                   <Toggle
                     checked={settings.sharePublic}
                     onChange={(v) => {
-                      change("sharePublic", v);
-                      if (v) change("listenLan", true);
+                      const next = {
+                        ...settings,
+                        sharePublic: v,
+                        listenLan: v || settings.listenLan,
+                      };
+                      if (!v || next.publicHost.trim()) {
+                        void save(next);
+                      } else {
+                        setSettings(next);
+                        setDirty(true);
+                      }
                     }}
                     disabled={working}
                     title="Partager sur IP publique"
-                    description="Conserve l’adresse Internet et l’appairage après redémarrage. Redirigez le port du compagnon sur votre routeur."
+                    description="Choix enregistré automatiquement si l’adresse est renseignée, conservé après redémarrage. Redirigez le port du compagnon sur votre routeur."
                   />
                   <label className="field">
                     Adresse IP publique ou domaine
