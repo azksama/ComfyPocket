@@ -1,3 +1,10 @@
+function Get-ComfyPocketStateDirectory {
+ $shared=Join-Path $env:USERPROFILE '.mochi\pc'
+ $legacy=Join-Path $env:LOCALAPPDATA 'ComfyPocketPC'
+ if((Test-Path -LiteralPath $shared) -or -not(Test-Path -LiteralPath $legacy)){return $shared}
+ return $legacy
+}
+
 function Test-ComfyPocketProcess {
  param($Process, [string]$ScriptPath, [string]$ConfigDirectory)
  if(-not $Process -or -not $Process.ExecutablePath -or [IO.Path]::GetFileName($Process.ExecutablePath) -ine 'node.exe'){return $false}

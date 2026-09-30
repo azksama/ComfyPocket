@@ -3,6 +3,8 @@
 mod settings_store;
 mod updates;
 mod certificate;
+mod standalone;
+mod state_directory;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
 use settings_store::{read_json, write_json, Settings};
@@ -656,6 +658,21 @@ fn onboarding_progress(step: u8, done: bool, st: tauri::State<Studio>) -> Result
     Ok(next)
 }
 fn main() {
+    match standalone::ensure_independent() {
+        Ok(true) => return,
+        Ok(false) => {},
+        Err(e) => {
+            eprintln!("{e}");
+            #[cfg(windows)]
+            unsafe {
+                use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+                let message: Vec<u16> = e.encode_utf16().chain(Some(0)).collect();
+                let title: Vec<u16> = "Mochi Studio".encode_utf16().chain(Some(0)).collect();
+                MessageBoxW(std::ptr::null_mut(), message.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR);
+            }
+            return;
+        }
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _| {
             if args.iter().any(|a| a == "--start-engine") {
@@ -670,8 +687,7 @@ fn main() {
             }
         }))
         .setup(|app| {
-            let dir = PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA absent")?)
-                .join("ComfyPocketPC");
+            let dir = state_directory::resolve()?;
             fs::create_dir_all(&dir)?;
             let saved = if dir.join("studio.json").exists() {
                 Some(read_json(dir.join("studio.json"))?)

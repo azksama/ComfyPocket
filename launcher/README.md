@@ -4,8 +4,10 @@ Lanceur Windows en Rust + Tauri pour l’installation ComfyUI utilisée par Moch
 
 ## Utilisation
 
-Installez `Mochi-Studio-0.2.1-Windows-x64.exe`, puis ouvrez **Mochi Studio**.
-Le lanceur reprend `%LOCALAPPDATA%\ComfyPocketPC` : certificat, appairages et configuration existants.
+Installez `Mochi-Studio-0.5.2-Windows-x64.exe`, puis ouvrez **Mochi Studio** depuis son raccourci.
+Pour la version portable, extrayez entièrement `Mochi-Studio-0.5.2-Portable-Windows-x64.zip` et ouvrez `Mochi Studio.exe`. Gardez son dossier `runtime` à côté du programme.
+
+Les deux versions utilisent `%USERPROFILE%\.mochi\pc` : certificat, appairages et configuration existants. Au premier lancement, Studio y copie les anciennes données `%LOCALAPPDATA%\ComfyPocketPC` si le nouveau dossier n'existe pas encore. L'ancien dossier est conservé ; les prochains démarrages ne réimportent pas ses réglages.
 Dans **Paramètres**, sélectionnez votre dossier ComfyUI (avec `main.py` et `venv\Scripts\python.exe`) et votre bibliothèque de modèles. Cliquez sur **Démarrer le moteur**.
 
 - État réel du moteur et du compagnon, GPU, VRAM et file d’attente.
@@ -38,11 +40,21 @@ npm run tauri --prefix launcher -- build
 ```
 
 Installateur : `launcher/src-tauri/target/release/bundle/nsis/`.
+Après compilation, `node scripts/package-studio.mjs` prépare l'installateur nommé pour la release et l'archive portable, avec le même runtime autonome.
 Le runtime généré est ignoré par Git et par l’archive des sources. `Cargo.lock` fixe les dépendances Rust ; les dépendances UI utilisent le lockfile du dépôt parent.
 
 Les rendus `design/clmx1.png` et `design/zV3N2.png` proviennent de pen.dev. Les données de maquette (`?design=1`) sont disponibles uniquement dans le serveur de développement, jamais dans la compilation de production.
 
 Vérifications : `cargo test --manifest-path launcher/src-tauri/Cargo.toml`, `node --test scripts/launcher.test.mjs scripts/studio.test.mjs`, `npm run build --prefix launcher`.
+
+Pour vérifier l'indépendance du programme vis-à-vis d'un lanceur Windows :
+
+```powershell
+cargo build --manifest-path launcher/src-tauri/Cargo.toml --example standalone_probe
+powershell -NoProfile -File scripts/Test-StudioIndependence.ps1 -ProbeExecutable launcher/src-tauri/target/debug/examples/standalone_probe.exe
+```
+
+Ce test ferme un groupe de processus Windows qui détruit ses enfants à la fermeture et vérifie que le processus indépendant survit. Studio se relance hors du groupe de son lanceur si nécessaire ; fermer ce lanceur ne doit plus fermer Studio.
 
 ## Nouveautés 0.2.0
 
@@ -52,7 +64,7 @@ Le parcours de configuration reprend l’étape interrompue et se relance depuis
 
 Les dossiers supplémentaires acceptent plusieurs emplacements par catégorie : checkpoints, LoRA, VAE, ControlNet, upscale, embeddings, encodeurs de texte et modèles de diffusion. Ils sont transmis via `studio-model-paths.yaml` et `--extra-model-paths-config`, sans modifier les fichiers de configuration de ComfyUI. La bibliothèque du compagnon utilise également ces emplacements pour les aperçus et fiches. Redémarrez les services après modification.
 
-La recherche de mises à jour interroge les releases publiques de `azksama/ComfyPocket` et sélectionne uniquement les tags stables `studio-v*`. Le téléchargement attend un installateur `Mochi-Studio-VERSION-Windows-x64.exe`, vérifie sa taille et l’empreinte SHA-256 retournée par GitHub, puis lance NSIS. Aucune clé GitHub n’est requise. L’installation refuse les générations en cours et ne touche pas à l’appairage. Un moteur prêt avant la mise à jour est relancé ensuite. Les échecs NSIS sont enregistrés dans `%LOCALAPPDATA%\ComfyPocketPC\updates\install-error.log`.
+La recherche de mises à jour interroge les releases publiques de `azksama/ComfyPocket` et sélectionne uniquement les tags stables `studio-v*`. Le téléchargement attend un installateur `Mochi-Studio-VERSION-Windows-x64.exe`, vérifie sa taille et l'empreinte SHA-256 retournée par GitHub, puis lance NSIS. Aucune clé GitHub n'est requise. L'installation refuse les générations en cours et ne touche pas à l'appairage. Un moteur prêt avant la mise à jour est relancé ensuite. Les échecs NSIS sont enregistrés dans `%USERPROFILE%\.mochi\pc\updates\install-error.log`.
 
 La réduction des animations, la recherche automatique des mises à jour, le comportement de fermeture et les options de démarrage restent modifiables dans Paramètres. Les mises à jour demandent toujours un clic sur Télécharger et installer.
 

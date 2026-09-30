@@ -21,6 +21,15 @@ test("default identity location belongs to the user, independent of the working 
   );
 });
 
+test("Windows uses shared state after migration and retains legacy state beforehand", () => {
+  const env = { USERPROFILE: "C:/Users/test", LOCALAPPDATA: "C:/Users/test/AppData/Local" };
+  const shared = path.join(env.USERPROFILE, ".mochi", "pc");
+  const legacy = path.join(env.LOCALAPPDATA, "ComfyPocketPC");
+  assert.equal(defaultConfigDirectory(env, p => p === legacy), legacy);
+  assert.equal(defaultConfigDirectory(env, () => true), shared);
+  assert.equal(defaultConfigDirectory(env, () => false), shared);
+});
+
 test("partial initialization never permits replacing existing identity files", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "pocket-identity-"));
   t.after(() => rm(dir, { recursive: true, force: true }));

@@ -2,8 +2,14 @@ import { readFile, access } from "node:fs/promises";
 import { X509Certificate, createPrivateKey } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
+import { existsSync } from "node:fs";
 
-export function defaultConfigDirectory(env = process.env) {
+export function defaultConfigDirectory(env = process.env, exists = existsSync) {
+  if (env.USERPROFILE && env.LOCALAPPDATA) {
+    const shared = path.join(env.USERPROFILE, ".mochi", "pc");
+    const legacy = path.join(env.LOCALAPPDATA, "ComfyPocketPC");
+    return exists(shared) || !exists(legacy) ? shared : legacy;
+  }
   return path.join(
     env.LOCALAPPDATA || env.XDG_CONFIG_HOME || path.join(homedir(), ".config"),
     "ComfyPocketPC",

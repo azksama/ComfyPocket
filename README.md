@@ -2,6 +2,15 @@
 
 Mochi relie votre atelier Android à ComfyUI sur votre PC. Le compagnon HTTPS et le lanceur Windows Mochi Studio conservent l’appairage, les modèles et votre configuration.
 
+## Mochi Studio 0.5.2
+
+- Installateur Windows et archive portable avec le runtime du compagnon inclus.
+- Données persistantes communes dans `%USERPROFILE%\.mochi\pc`, indépendamment du contexte qui ouvre le programme. Les anciennes données AppData sont copiées une seule fois et conservées.
+- Démarrage indépendant du programme qui ouvre Studio : quitter un superviseur ne doit plus fermer Studio et ses services.
+- Réglages de partage public, dossiers de modèles et appairages conservés entre les versions installée et portable. Les données privées ne sont pas incluses dans les distributions.
+
+[Installation Windows](launcher/README.md) · [Validation Studio 0.5.2](docs/VALIDATION_STUDIO_0.5.2.md)
+
 ## Nouveautés 0.15.0 et Studio 0.5.0
 
 - **Installer des modèles → Civitai** : catalogue intégré `.com` ou `.red`, recherche, type, modèle de base, tri, illustrations et choix de version. Le fichier est ensuite confirmé et installé sur le PC dans la catégorie choisie. L’import direct Civitai/Hugging Face reste disponible.
@@ -61,7 +70,7 @@ Depuis un clone Git, les lanceurs `Demarrer-ComfyPocket.cmd` et `Demarrer-ComfyP
 ## Installation et mise à jour
 
 1. Installer **Mochi-arm64.apk** sur Android 10 ou ultérieur. Il est signé avec la même clé que la version 0.1 : installer par-dessus conserve les données.
-2. Garder le dossier **ComfyPocket**, **Demarrer-ComfyPocket.ps1** et **Demarrer-ComfyPocket.cmd** ensemble. Après démarrage du PC, double-cliquer sur **Demarrer-ComfyPocket.cmd** et attendre **PRET** (ComfyUI peut prendre jusqu'à trois minutes à s'initialiser). Le lanceur vérifie le certificat, l'authentification HTTPS et la disponibilité du moteur avant de confirmer la connexion. **La fenêtre peut ensuite être fermée : les deux services continuent en arrière-plan.** Un second lancement réutilise les services ; les démarrages simultanés sont protégés contre les doublons. Les journaux se trouvent dans `%LOCALAPPDATA%\ComfyPocketPC`.
+2. Installer **Mochi Studio** ou extraire sa version portable, puis cliquer sur **Démarrer le moteur**. Le runtime du compagnon est inclus ; ComfyUI et ses modèles restent dans leurs dossiers existants. Les lanceurs **Demarrer-ComfyPocket.cmd** et **Demarrer-ComfyPocket.ps1** restent disponibles avec le dossier **ComfyPocket**. Attendre **PRET** (ComfyUI peut prendre jusqu'à trois minutes à s'initialiser). Le lanceur vérifie le certificat, l'authentification HTTPS et la disponibilité du moteur avant de confirmer la connexion. **La fenêtre peut ensuite être fermée : les deux services continuent en arrière-plan.** Un second lancement réutilise les services ; les démarrages simultanés sont protégés contre les doublons. Les journaux se trouvent dans `%USERPROFILE%\.mochi\pc` après migration par Studio, ou dans l'ancien `%LOCALAPPDATA%\ComfyPocketPC` avant cette migration.
 3. Dans l'onglet **Paramètres** (roue dentée tout à droite), importer **Appairage-PC-local-v0.3.json** pour le Wi-Fi local ou **Appairage-PC-public.json** pour l'adresse publique, nommer le profil et toucher **Connecter mon PC**.
 4. Les profils fonctionnels de la version 0.3 restent valides en 0.6, sans réappairage. Pour une version plus ancienne, importer l'un de ces fichiers au certificat corrigé. Les anciens fichiers Appairage-PC.json et Appairage-PC-local.json ont été conservés, mais leur certificat est périmé pour cette installation.
 
@@ -77,7 +86,7 @@ L'accès public a été vérifié depuis ce PC (bouclage NAT), et la connexion n
 
 ## Correctif 0.6.1 : appairage durable
 
-Le certificat, sa clé et le jeton restent dans `%LOCALAPPDATA%\ComfyPocketPC`, indépendamment du dossier contenant le programme. Un lancement normal et une mise à jour ne les régénèrent pas. Le CLI utilise désormais ce même dossier par défaut, au lieu d’un dossier `.bridge` dépendant du répertoire courant ; `--config-dir` permet toujours un emplacement explicite.
+Le certificat, sa clé et le jeton restent dans le dossier de données persistant, indépendamment du dossier contenant le programme. Studio 0.5.2 reprend l'ancien `%LOCALAPPDATA%\ComfyPocketPC` dans `%USERPROFILE%\.mochi\pc`. Un lancement normal et une mise à jour ne les régénèrent pas. Le CLI utilise ce même dossier partagé dès qu'il existe ; `--config-dir` permet toujours un emplacement explicite.
 
 Le lanceur vérifie la cohérence du certificat, de la clé et des appairages avant toute intervention. Si le port est occupé par une ancienne instance qui ne répond pas avec cette identité, il redémarre uniquement le processus Node correspondant exactement à ce CLI et à ce dossier de configuration. ComfyUI et ses générations continuent. Un autre programme ou une autre installation ne sont pas arrêtés automatiquement. Une instance saine est réutilisée.
 

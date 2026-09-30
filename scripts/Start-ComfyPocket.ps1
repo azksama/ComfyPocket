@@ -2,7 +2,7 @@
  [string]$StabilityRoot='E:\Stability',
  [string]$ListenAddress='0.0.0.0',
  [int]$Port=8189,
- [string]$ConfigDirectory=(Join-Path $env:LOCALAPPDATA 'ComfyPocketPC'),
+ [string]$ConfigDirectory='',
  [string]$ComfyDirectory='',
  [string]$ModelsDirectory='',
  [string]$NodeExecutable='',
@@ -16,6 +16,7 @@
 $ErrorActionPreference='Stop'
 $repo=Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'CompanionProcess.ps1')
+if(-not $ConfigDirectory){$ConfigDirectory=Get-ComfyPocketStateDirectory}
 $node=if($NodeExecutable){$NodeExecutable}else{(Get-Command node -ErrorAction Stop).Source}
 $comfy=if($ComfyDirectory){$ComfyDirectory}else{Join-Path $StabilityRoot 'Data\Packages\ComfyUI'}
 $models=if($ModelsDirectory){$ModelsDirectory}else{Join-Path $StabilityRoot 'Data\Models'}
